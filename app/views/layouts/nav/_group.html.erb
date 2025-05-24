@@ -1,9 +1,8 @@
-<li class="nav-item dropdown" role="none">
-  <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" role="menuitem" title="<%= group.title %>">
-    <%= if group.icon_uri then icon_tag(group.icon_uri, classes: '') else fa_icon("folder", classes: '') end %><span> <%= group.title %></span><span class="caret"></span>
-  </a>
-
-  <ul class="dropdown-menu <%= local_assigns.fetch(:menu_alignment, '') %>" title="<%= group.title %>" role="menu">
-    <%= render partial: 'layouts/nav/group_items', locals: local_assigns %>
-  </ul>
-</li>
+<%= render layout: "layouts/nav/dropdown", locals: { 
+      id: "group-#{group.title.parameterize}",
+      icon: group.icon_uri || "folder",
+      title: group.title,
+      text: group.title
+    } do %>
+  <%= render partial: 'layouts/nav/group_items', locals: local_assigns %>
+<% end %>
