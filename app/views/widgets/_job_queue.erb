@@ -1,0 +1,164 @@
+<div class="d-flex flex-column h-100">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center flex-grow-1">
+      <h3 class="font-weight-bold mb-0 mr-3 text-nowrap">
+        <i class="fas fa-tasks text-success"></i> Recent Jobs
+      </h3>
+      <a class="btn btn-sm btn-outline-info mt-1 rounded-pill shadow-sm text-nowrap d-none d-md-inline-block" 
+         href="<%= url_for my_jobs_path %>">
+        <i class="fas fa-table mr-1"></i> View All <i class="fas fa-chevron-right"></i>
+      </a>
+    </div>
+    <div class="d-flex align-items-center">
+      <a class="btn btn-sm btn-outline-info rounded-pill shadow-sm text-nowrap d-inline-block d-md-none mr-2" 
+         href="<%= url_for my_jobs_path %>"
+         title="View All Jobs">
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <button onclick="load_job_queue(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </div>
+  <div id="job_queue_card_content" class="flex-grow-1" style="height: 200px; overflow-y: auto;"></div>
+</div>
+
+<style>
+.job-queue-card {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid #dee2e6;
+    margin-top: 2px;
+    color: inherit;
+}
+
+.job-queue-card:hover {
+    transform: translateY(-2px);
+    border: 2px solid #80bdff;
+    box-shadow: 0 .25rem .5rem rgba(0,0,0,.1) !important;
+    text-decoration: none;
+    color: inherit;
+}
+
+.job-queue-card:active {
+    transform: translateY(0);
+    border: 2px solid #0056b3;
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important;
+    background-color: #f8f9fa;
+    text-decoration: none;
+    color: inherit;
+}
+</style>
+
+<script defer>
+    function load_job_queue(forceRefresh = false) {
+        const loadingHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="position-relative mb-3">
+                <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <p class="text-muted mb-0">Loading job queue data...</p>
+        </div>
+        `;
+        
+        $("#job_queue_card_content").html(loadingHtml);
+        
+        return fetchWithCache(`<%= url_for controller: "api/job_queue", action: "get" %>`, {
+            forceRefresh,
+            cacheDuration: 5 * 1000  // Cache for 5 seconds
+        }).then(data => {
+            const tableHtml = data.length === 0 ? `
+                <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                    <div class="mb-3">
+                        <i class="fas fa-tasks text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-2">No Recent Jobs</h5>
+                    <p class="text-muted mb-0">Your recent jobs will appear here once you submit them.</p>
+                </div>
+            ` : `
+            <div class="d-flex flex-column flex-md-row w-100 pb-2 overflow-y" style="max-height: 250px;">
+                <div class="d-flex flex-column flex-md-row flex-md-nowrap">
+                    ${data.map((job, index, array) => {
+                        var state_verbose = (SIMPLE_JOB_STATE_CODES[job.state.split(" ")[0]] || JOB_STATE_CODES[job.state.split(" ")[0]] || "--").replaceAll(/"/g, "&quot;");
+                        var reason_verbose = (SIMPLE_JOB_REASON_CODES[job.reason.split(" ")[0]] || JOB_REASON_CODES[job.reason.split(" ")[0]] || "--").replaceAll(/"/g, "&quot;");
+                        
+                        // Format time display based on timestamp comparison with current time
+                        var timeDisplay = "";
+                        const now = moment();
+                        const endTime = moment(job.end_time);
+                        const startTime = moment(job.start_time);
+                        const submitTime = moment(job.submit_time);
+
+                        if (endTime.isBefore(now)) {
+                            timeDisplay = `Ended ${endTime.format('MMM D, h:mm A')}`;
+                        } else if (startTime.isBefore(now)) {
+                            timeDisplay = `Started ${startTime.format('MMM D, h:mm A')}`;
+                        } else {
+                            timeDisplay = `Submitted ${submitTime.format('MMM D, h:mm A')}`;
+                        }
+                        
+                        return `
+                        <div class="col-12 col-md-auto px-0 px-md-2 mb-2 mb-md-0">
+                            <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.jobid)}" 
+                               class="text-decoration-none">
+                                <div class="d-flex flex-column w-100 p-3 bg-white rounded job-queue-card">
+                                    <div class="d-flex flex-row justify-content-between align-items-start flex-md-column">
+                                        <div class="flex-grow-1 text-truncate pr-3 pr-md-0">
+                                            <div class="font-weight-bold text-truncate text-dark">${job.name.length > 40 ? job.name.substring(0, 40) + '...' : job.name}</div>
+                                            <small class="text-muted text-truncate">${job.jobid} • ${job.partition}</small>
+                                            <div class="text-muted mt-1 small">
+                                                <i class="fas fa-clock mr-1"></i> ${timeDisplay}
+                                            </div>
+                                        </div>
+                                        <div class="d-flex flex-column flex-md-row align-items-end align-items-md-center flex-shrink-0 mt-0 mt-md-2">
+                                            <span class="badge p-2 shadow-sm d-flex align-items-center mb-1 mb-md-0" 
+                                                  style="font-size: 0.9rem; color: ${JOB_STATE_COLORS[job.state.split(" ")[0]]?.fg}; background-color: ${JOB_STATE_COLORS[job.state.split(" ")[0]]?.bg};"
+                                                  data-toggle="tooltip" 
+                                                  data-placement="top" 
+                                                  title="${state_verbose}">
+                                                ${job.state}
+                                            </span>
+                                            ${job.reason !== "None" && reason_verbose !== "--" ? 
+                                                `<span class="badge badge-pill badge-secondary ml-0 ml-md-1 shadow-sm d-flex align-items-center"
+                                                       style="font-size: 0.8rem;"
+                                                       data-toggle="tooltip" 
+                                                       data-placement="top" 
+                                                       title="${reason_verbose}">
+                                                        ${job.reason}
+                                                    </span>`
+                                            : ""}
+                                        </div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        `;
+                    }).join("")}
+                </div>
+            </div>
+            `;
+
+            $("#job_queue_card_content").html(tableHtml);
+            
+            $('[data-toggle="tooltip"]').tooltip({ boundary: 'window' });
+        }).catch(res => {
+            const errorHtml = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <h5 class="mb-2">Unable to Load Recent Jobs</h5>
+                <p class="text-muted small mb-3">There was a problem retrieving your job information</p>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_job_queue(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Retry
+                </button>
+            </div>
+            `;
+
+            $("#job_queue_card_content").html(errorHtml);
+        });
+    }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>

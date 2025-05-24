@@ -1,0 +1,193 @@
+<script defer>
+// Initialize IndexedDB
+const dbName = 'ApiCacheV2';
+const dbVersion = 1;
+const storeName = 'apiResponses';
+
+// Cache duration in milliseconds (default 1 minute)
+const DEFAULT_CACHE_DURATION = 60 * 1000;
+
+// Global cache toggle - set to false to disable caching entirely
+const CACHE_ENABLED = true;
+
+// Add this helper function near the top of the file
+function normalizeUrl(url) {
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    // Remove trailing slash if present, except for root URL
+    return urlObj.href.replace(/\/+$/, '') || urlObj.href;
+  } catch (e) {
+    // If URL parsing fails, return original URL
+    return url;
+  }
+}
+
+class IndexedDBCache {
+  constructor() {
+    this.db = null;
+    this.initializeDB();
+  }
+
+  initializeDB() {
+    const request = indexedDB.open(dbName, dbVersion);
+
+    request.onerror = (event) => {
+      console.error('IndexedDB error:', event.target.error);
+    };
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        const store = db.createObjectStore(storeName, { keyPath: 'url' });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      }
+    };
+
+    request.onsuccess = (event) => {
+      this.db = event.target.result;
+    };
+  }
+
+  async get(url) {
+    if (!this.db) return null;
+    const normalizedUrl = normalizeUrl(url);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.get(normalizedUrl);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const data = request.result;
+        if (!data) {
+          resolve(null);
+          return;
+        }
+
+        // Check if cache has expired
+        if (Date.now() - data.timestamp > data.cacheDuration) {
+          this.delete(url);
+          resolve(null);
+          return;
+        }
+
+        resolve(data.response);
+      };
+    });
+  }
+
+  async set(url, response, cacheDuration = DEFAULT_CACHE_DURATION) {
+    if (!this.db) return;
+    const normalizedUrl = normalizeUrl(url);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.put({
+        url: normalizedUrl,
+        response,
+        timestamp: Date.now(),
+        cacheDuration
+      });
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async delete(url) {
+    if (!this.db) return;
+    const normalizedUrl = normalizeUrl(url);
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
+      const request = store.delete(normalizedUrl);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  }
+
+  async clearExpired() {
+    if (!this.db) return;
+
+    const transaction = this.db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const index = store.index('timestamp');
+    const cursorRequest = index.openCursor();
+
+    cursorRequest.onsuccess = (event) => {
+      const cursor = event.target.result;
+      if (cursor) {
+        const data = cursor.value;
+        if (Date.now() - data.timestamp > data.cacheDuration) {
+          cursor.delete();
+        }
+        cursor.continue();
+      }
+    };
+  }
+}
+
+// Create global instance
+window.apiCache = new IndexedDBCache();
+
+// Helper function to fetch with cache
+async function fetchWithCache(url, options = {}) {
+  const {
+    cacheDuration = DEFAULT_CACHE_DURATION,
+    forceRefresh = false,
+    ...fetchOptions
+  } = options;
+
+  try {
+    // Check cache first unless force refresh is requested or caching is disabled
+    if (CACHE_ENABLED && !forceRefresh) {
+      const cachedData = await window.apiCache.get(url);
+      if (cachedData) {
+        return cachedData;
+      }
+    }
+
+    // If no cache or force refresh, make the API call
+    const response = await fetch(url, fetchOptions);
+    
+    // Handle opaque redirects (e.g., sign-out redirects)
+    if (response.status === 0 && response.type === "opaqueredirect") {
+      location.reload();
+      throw new Error('Session expired or redirect occurred');
+    }
+
+    // Handle non-OK responses
+    if (!response.ok) {
+      // Remove any cached data for this URL when we get an error response (only if caching is enabled)
+      if (CACHE_ENABLED) {
+        await window.apiCache.delete(url);
+      }
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Cache the new response (only if caching is enabled)
+    if (CACHE_ENABLED) {
+      await window.apiCache.set(url, data, cacheDuration);
+    }
+    return data;
+  } catch (error) {
+    // Remove cached data on any error (only if caching is enabled)
+    if (CACHE_ENABLED) {
+      await window.apiCache.delete(url);
+    }
+    console.error('Error fetching data:', error);
+    throw error;
+  }
+}
+
+// Clear expired cache entries periodically (every hour)
+setInterval(() => {
+  window.apiCache.clearExpired();
+}, 60 * 60 * 1000);
+</script>

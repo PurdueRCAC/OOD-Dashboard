@@ -1,0 +1,6 @@
+<li class="nav-item">
+  <%= link_to batch_connect_sessions_path,
+      class: "nav-link #{current_page?(batch_connect_sessions_path) ? 'active' : ''}" do %>
+    <i class="fas fa-window-restore"></i> <%= t('dashboard.nav_sessions') %>
+  <% end %>
+</li> 

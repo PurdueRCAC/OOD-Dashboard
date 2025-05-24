@@ -1,0 +1,36 @@
+<%-
+  field_id = "#{form.object_name}_#{attrib.id}"
+  min_edit_id = "#{field_id}_min"
+  min_edit_name = "#{form.object_name}[#{attrib.id}_min]"
+
+  max_edit_id = "#{field_id}_max"
+  max_edit_name = "#{form.object_name}[#{attrib.id}_max]"
+
+  current_min = attrib.field_options[:min]
+  current_max = attrib.field_options[:max]
+
+  fixed_id = "#{field_id}_fixed"
+  fixed_name = "#{form.object_name}[#{attrib.id}_fixed]"
+-%>
+
+<div class="editable-form-field">
+  <%=  create_widget(form, attrib, format: format, hide_fixed: false) %>
+
+  <div class="d-none edit-group mb-3">
+
+    <%= render(partial: 'scripts/editable_form_fields/edit_fixed_field',  locals: { form: form, attrib: attrib, fixed: fixed }) %>
+
+    <label for="<%= min_edit_id %>">Minimum</label>
+    <input  min="1" step="1"
+            class="form-control edit-field" type="number" value="<%= current_min %>" 
+            name="<%= min_edit_name %>" id="<%= min_edit_id %>">
+
+    <label for="<%= max_edit_id %>">Maximum</label>
+    <input  min="1" step="1"
+            class="form-control edit-field" type="number" value="<%= current_max %>" 
+            name="<%= max_edit_name %>" id="<%= max_edit_id %>">
+
+  </div>
+
+  <%= render(partial: 'scripts/editable_form_fields/edit_field_buttons', locals: { field_id: field_id }) %>
+</div>

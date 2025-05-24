@@ -1,0 +1,229 @@
+<h3 class="font-weight-bold mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-coins text-warning"></i>
+        <span class="mx-2">Balance Usage</span>
+        <a href="https://www.rcac.purdue.edu/knowledge/gautschi/run/slurm/queues" 
+           class="ms-1" 
+           style="color: #6c757d; font-size: 1.1rem;"
+           data-toggle="tooltip" 
+           title="Click to learn more about queues on Gautschi"
+           aria-label="Documentation about queues on Gautschi"
+           target="_blank">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+        </a>
+    </div>
+    <button onclick="load_balance_usage(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+</h3>
+<div style="border-bottom: 1px solid rgba(0,0,0,0.1);" class="mb-3"></div>
+<div id="su_usage_card_content"></div>
+
+<script defer>
+    function download_balance_summary(allocation, type, total_sus_used, total_sus_limit) {
+        var BALANCE_SUMMARY_COLUMNS = ["Username", "SUs Used", "SU Limit"];
+
+        const $button = $(`#${allocation}-export-dropdown-button`);
+        const $icon = $button.find('i.fas');
+        
+        // Disable the button and save original icon class
+        $button.prop('disabled', true);
+        const originalIconClass = $icon.attr('class');
+        
+        // Replace icon with spinner
+        $icon.removeClass().addClass('spinner-border spinner-border-sm');
+
+        fetchWithCache(`<%= url_for controller: "api/balance_summary", action: "get" %>?allocation=${encodeURIComponent(allocation)}`, {
+            forceRefresh: false,
+            cacheDuration: 10 * 60 * 1000  // Cache for 10 minutes
+        }).then(data => {
+            var EXPORT_TYPES = {"CSV": "csv", "Excel": "xlsx"};
+            if (data.length === 0) {
+                toastr.error("No data to export");
+            } else if (Object.keys(EXPORT_TYPES).includes(type)) {
+                toastr.info(`Exporting ${data.length} row(s) as ${type}...`);
+                
+                // Create the export data with total SUs in a table format
+                const exportData = [
+                    ["Allocation", "Total SUs Used", "Total SU Limit", "Generated At (UTC)"],
+                    [allocation, 
+                     total_sus_used.toLocaleString(), 
+                     total_sus_limit === "No limit" ? "No limit" : total_sus_limit.toLocaleString(),
+                     new Date().toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC')
+                    ],
+                    [], // Empty row for spacing
+                    BALANCE_SUMMARY_COLUMNS,
+                    ...data.map(row => Object.values(row))
+                ];
+                
+                const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+                var workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+                XLSX.writeFile(workbook, `service_units_${allocation}_${Date.now()}.${EXPORT_TYPES[type]}`, { compression: true });
+            } else {
+                toastr.error("Invalid export file type");
+            }
+        }).catch(res => {
+            toastr.error("Failed to export allocation service unit usage!");
+        }).finally(() => {
+            // Restore original icon and re-enable button
+            $icon.removeClass().addClass(originalIconClass);
+            $button.prop('disabled', false);
+        });
+    }
+
+    function formatLargeNumber(num, decimals = 1) {
+        const fullNum = num.toLocaleString(undefined, {maximumFractionDigits: 2});
+        if (num >= 1000000) {
+            const formatted = (num/1000000).toFixed(decimals);
+            const isExact = num === Math.round(num/1000000) * 1000000;
+            const style = isExact ? '' : ' style="border-bottom: 1px dotted #6c757d; cursor: help" data-toggle="tooltip" data-trigger="hover click"';
+            return `<span${style} title="${isExact ? '' : fullNum}">${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}M</span>`;
+        }
+        if (num >= 1000) {
+            const formatted = (num/1000).toFixed(decimals);
+            const isExact = num === Math.round(num/1000) * 1000;
+            const style = isExact ? '' : ' style="border-bottom: 1px dotted #6c757d; cursor: help" data-toggle="tooltip" data-trigger="hover click"';
+            return `<span${style} title="${isExact ? '' : fullNum}">${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}K</span>`;
+        }
+        return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+    }
+
+    function load_balance_usage(forceRefresh = false) {
+        const loadingHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="position-relative mb-3">
+                <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <p class="text-muted mb-0">Loading service unit data...</p>
+        </div>
+        `;
+        
+        $("#su_usage_card_content").html(loadingHtml);
+
+        return fetchWithCache(`<%= url_for controller: "api/balance_usage", action: "get" %>`, {
+            forceRefresh,
+            cacheDuration: 10 * 60 * 1000  // Cache for 10 minutes
+        }).then(data => {
+            const tableHtml = data.length === 0 ? '<div class="h5 mb-2">No allocations available</div>' : data.map((row) => {
+                const percentUsedAccount = (row.used / row.limit) * 100;
+                const barHtml = `
+                <div class="mb-3">
+                    <div class="pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div class="h5 mb-0">
+                                ${row.account} ${percentUsedAccount >= 95 ? `<i class="fa fa-warning text-warning" data-toggle="tooltip" title="You have reached over 95% of your service unit limit."></i>` : ""}
+                            </div>
+                            <div class="btn-group">
+                                <button id="${row.account}-export-dropdown-button" 
+                                    class="btn btn-sm btn-outline-info dropdown-toggle rounded-pill shadow-sm" 
+                                    style="font-size: 0.875rem;"
+                                    data-toggle="dropdown" 
+                                    aria-expanded="false">
+                                    <i class="fas fa-download"></i> <span class="d-none d-sm-inline">Export</span>
+                                </button>
+                                <div class="su-export-dropdown dropdown-menu dropdown-menu-right shadow-sm" 
+                                    aria-labelledby="${row.account}-export-dropdown-button" 
+                                    data-account="${row.account}"
+                                    data-total-sus-used="${row.used}"
+                                    data-total-sus-limit="${row.limit}">
+                                    <button class="dropdown-item text-body" style="font-size: 0.875rem;">
+                                        <i class="fas fa-file-csv"></i> CSV
+                                    </button>
+                                    <button class="dropdown-item text-body" style="font-size: 0.875rem;">
+                                        <i class="fas fa-file-excel"></i> Excel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-nowrap" style="font-size: 1rem;">
+                                    ${row.limit === "No limit" ? 
+                                        `<b>${formatLargeNumber(+row.used)}</b> SUs used <span class="text-muted">(No limit)</span>` :
+                                        `<b>${formatLargeNumber(+row.used)}</b> / 
+                                        <b>${formatLargeNumber(+row.limit)}</b> SUs
+                                        <span class="text-muted">
+                                            (<b>${formatLargeNumber(+(row.limit - row.used))}</b> left)
+                                        </span>`
+                                    }
+                                </div>
+                                <div class="text-muted ml-2 text-nowrap" style="min-width: 3rem; text-align: right; font-size: 1rem;">
+                                    ${row.limit === "No limit" ? '' : `${Math.round(percentUsedAccount)}%`}
+                                </div>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px; border-radius: 4px;">
+                                <div class="progress-bar" role="progressbar" 
+                                    style="background-color: ${row.limit === "No limit" ? '#28a745' : 
+                                        percentUsedAccount > 95 ? '#dc3545' : 
+                                        percentUsedAccount > 75 ? '#ffc107' : '#28a745'}; 
+                                    width: 0; transition: width 0.6s ease-in-out;" 
+                                    aria-valuenow="${row.limit === "No limit" ? 0 : percentUsedAccount}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 12pt;">
+                                <div>
+                                    <span class="font-weight-bold">${formatLargeNumber(row.user_used)}</span> SUs used by you
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+                return barHtml;
+            }).join("");
+
+            $("#su_usage_card_content").html(tableHtml);
+            // Add small delay to trigger animation
+            setTimeout(() => {
+                $('.progress-bar').each(function() {
+                    $(this).css('width', $(this).attr('aria-valuenow') + '%');
+                });
+            }, 50);
+
+            $('[data-toggle="tooltip"]').tooltip({
+                boundary: 'window',
+                trigger: 'hover click'
+            }).on('show.bs.tooltip', function() {
+                // Hide all other tooltips
+                $('[data-toggle="tooltip"]').not(this).tooltip('hide');
+            });
+
+            // Hide tooltips when clicking anywhere else on the document
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('[data-toggle="tooltip"]').length) {
+                    $('[data-toggle="tooltip"]').tooltip('hide');
+                }
+            });
+
+            $('div.su-export-dropdown .dropdown-item').on("click", function() {
+                const $dropdown = $(this).parent();
+                const allocation = $dropdown.data("account");
+                const total_sus_used = $dropdown.data("total-sus-used");
+                const total_sus_limit = $dropdown.data("total-sus-limit");
+                // Extract just the text content, removing any HTML and trimming whitespace
+                const exportType = $(this).text().trim();
+                download_balance_summary(allocation, exportType, total_sus_used, total_sus_limit);
+            });
+        }).catch(res => {
+            const errorHtml = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <h5 class="mb-2">Unable to Load Balance Usage</h5>
+                <p class="text-muted small mb-3">There was a problem retrieving your balance information</p>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_balance_usage(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Retry
+                </button>
+            </div>
+            `;
+
+            $("#su_usage_card_content").html(errorHtml);
+        });
+    }
+</script>

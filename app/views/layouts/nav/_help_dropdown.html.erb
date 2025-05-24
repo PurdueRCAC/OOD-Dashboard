@@ -1,0 +1,33 @@
+<%= render layout: "layouts/nav/dropdown", locals: { 
+      id: "help",
+      icon: "question-circle",
+      title: t('dashboard.nav_help_title'),
+      text: t('dashboard.nav_help_title')
+    } do %>
+  <%= link_to support_url, class: "nav-link submenu-item", target: "_blank" do %>
+    <i class="fas fa-question-circle"></i> <%= t('dashboard.nav_help_support') %>
+  <% end %>
+  <%= link_to docs_url, class: "nav-link submenu-item", target: "_blank" do %>
+    <i class="fas fa-info-circle"></i> <%= t('dashboard.nav_help_docs') %>
+  <% end %>
+  <%= link_to passwd_url, class: "nav-link submenu-item", target: "_blank" do %>
+    <i class="fas fa-key"></i> <%= t('dashboard.nav_help_change_password') %>
+  <% end %>
+  <%= link_to configure_2fa_url, class: "nav-link submenu-item", target: "_blank" do %>
+    <i class="fas fa-mobile-alt"></i> <%= t('dashboard.nav_help_two_factor') %>
+  <% end %>
+  <% if help_custom_url %>
+    <%= link_to help_custom_url, class: "nav-link submenu-item", target: "_blank" do %>
+      <i class="fas fa-question-circle"></i> <%= t('dashboard.nav_help_custom') %>
+    <% end %>
+  <% end %>
+  <% unless @user_configuration.support_ticket.empty? %>
+    <%= link_to support_path, class: "nav-link submenu-item" do %>
+      <i class="fas fa-medkit"></i> <%= t('dashboard.nav_help_support_ticket') %>
+    <% end %>
+  <% end %>
+
+  <% if help_links %>
+    <%= render partial: 'layouts/nav/group_items', locals: help_links.to_h %>
+  <% end %>
+<% end %>

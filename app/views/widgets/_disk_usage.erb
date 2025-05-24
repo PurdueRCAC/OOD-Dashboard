@@ -1,0 +1,201 @@
+<h3 class="font-weight-bold mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-hdd text-info"></i>
+        <span class="mx-2">Storage</span>
+        <a href="https://www.rcac.purdue.edu/knowledge/gautschi/storage/quota" 
+           class="ms-1" 
+           style="color: #6c757d; font-size: 1.1rem;"
+           data-toggle="tooltip" 
+           title="Click to learn more about storage on Gautschi"
+           aria-label="Documentation about storage on Gautschi"
+           target="_blank">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+        </a>
+    </div>
+    <button onclick="load_disk_usage(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+</h3>
+<div style="border-bottom: 1px solid rgba(0,0,0,0.1);" class="mb-3"></div>
+<div id="disk_usage_card_content"></div>
+
+<script defer>
+    function load_disk_usage(forceRefresh = false) {
+        const loadingHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="position-relative mb-3">
+                <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <p class="text-muted mb-0">Loading storage data...</p>
+        </div>
+        `;
+
+        $("#disk_usage_card_content").html(loadingHtml);
+        
+        return fetchWithCache(`<%= url_for controller: "api/disk_usage", action: "get" %>`, {
+            forceRefresh,
+            cacheDuration: 5 * 60 * 1000  // Cache for 5 minutes
+        }).then(data => {
+            const tableHtml = data.length === 0 ? '<div class="h5 mb-2">No disks available</div>' : data.map((row) => {
+                const diskUsagePercentage = parseInt(row.disk_usage_percentage.split("%")[0]);
+                const fileUsagePercentage = parseInt(row.file_count_percentage.split("%")[0]);
+                let directoryPath = "";
+                if (row.type === "home") {
+                    directoryPath = "<%= ENV["HOME"] %>" || `/home/${row.location}`;
+
+                    if (diskUsagePercentage >= 100 || fileUsagePercentage >= 100) {
+                        showWarning("home-directory-full-warning", `
+                        <h4 class="alert-heading">Home Directory Full</h4>
+                        <p class="mb-0">You have hit the disk usage limit in your home directory. Interactive jobs will not start while your home directory is full.</p>
+                        <a href="<%= files_path("").chomp!("/") %>${directoryPath}" class="alert-link mb-0">Click here to delete files from your home directory to reduce your disk usage.</a>
+                        `, true);
+                    }
+                } else if (row.type === "scratch") {
+                    directoryPath = "/scratch/gautschi/<%= @user.name %>";
+                } else if (row.type === "depot") {
+                    directoryPath = `/depot/${row.location}`;
+                }
+
+                function formatNumber(num) {
+                    // Handle string inputs
+                    if (typeof num === 'string') {
+                        // Remove commas
+                        num = num.replace(/,/g, '');
+                        
+                        // Handle 'k' suffix
+                        if (num.endsWith('k') || num.endsWith('K')) {
+                            num = parseFloat(num.slice(0, -1)) * 1000;
+                        } 
+                        // Handle 'M' suffix
+                        else if (num.endsWith('m') || num.endsWith('M')) {
+                            num = parseFloat(num.slice(0, -1)) * 1000000;
+                        }
+                        else {
+                            num = parseFloat(num);
+                        }
+                    }
+
+                    // Handle NaN or invalid input
+                    if (isNaN(num)) return '0';
+
+                    if (num >= 1000000) {
+                        const formatted = (num/1000000).toFixed(1);
+                        const fullNum = num.toLocaleString(undefined, {maximumFractionDigits: 2});
+                        const isExact = num === Math.round(num/1000000) * 1000000;
+                        const style = isExact ? '' : ' style="border-bottom: 1px dotted #6c757d; cursor: help" data-toggle="tooltip" data-trigger="hover click"';
+                        const displayNum = formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted;
+                        return `<span${style} title="${isExact ? '' : fullNum}">${displayNum}M</span>`;
+                    }
+                    if (num >= 1000) {
+                        const formatted = (num/1000).toFixed(1);
+                        const displayNum = formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted;
+                        return `${displayNum}K`;
+                    }
+                    return num;
+                }
+
+                const barHtml = `
+                <div class="mb-3">
+                    <div class="pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div class="h5 mb-0">
+                                ${row.type} / ${row.location} 
+                                ${(diskUsagePercentage >= 95 || fileUsagePercentage >= 95) ? 
+                                    `<i class="fa fa-warning text-warning" data-toggle="tooltip" 
+                                    title="You have reached over 95% of your disk${row.type !== "home" ? " and/or file" : ""} usage limit."></i>` : ""}
+                            </div>
+                            ${directoryPath === "" ? "" : 
+                                `<a href="<%= files_path("").chomp("/") %>${directoryPath}" 
+                                class="btn btn-sm btn-outline-info rounded-pill shadow-sm">
+                                    <i class="fas fa-folder-open"></i> <span class="d-none d-sm-inline">Browse Files</span>
+                                </a>`}
+                        </div>
+
+                        <!-- Disk Usage -->
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-nowrap" style="font-size: 1rem;">
+                                <b>${row.disk_usage.replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> / 
+                                <b>${row.disk_usage_limit.replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> disk space
+                            </div>
+                            <div class="text-muted" style="font-size: 1rem;">
+                                ${Math.round(diskUsagePercentage)}% used
+                            </div>
+                        </div>
+                        <div class="progress" style="height: 8px; border-radius: 4px;">
+                            <div class="progress-bar" role="progressbar" 
+                                style="background-color: ${diskUsagePercentage > 95 ? '#dc3545' : diskUsagePercentage > 75 ? '#ffc107' : '#28a745'}; 
+                                width: 0; transition: width 0.6s ease-in-out;" 
+                                aria-valuenow="${diskUsagePercentage}" 
+                                aria-valuemin="0" 
+                                aria-valuemax="100">
+                            </div>
+                        </div>
+
+                        ${row.file_count !== "-" ? `
+                            <!-- File Count -->
+                            <div class="d-flex justify-content-between align-items-center mt-2 mb-1">
+                                <div style="font-size: 1rem;">
+                                    <b>${formatNumber(row.file_count)}</b> / 
+                                    <b>${formatNumber(row.file_count_limit)}</b> files
+                                </div>
+                                <div class="text-muted" style="font-size: 1rem;">
+                                    ${Math.round(fileUsagePercentage)}% used
+                                </div>
+                            </div>
+                            <div class="progress" style="height: 8px; border-radius: 4px;">
+                                <div class="progress-bar" role="progressbar" 
+                                    style="background-color: ${fileUsagePercentage > 95 ? '#dc3545' : fileUsagePercentage > 75 ? '#ffc107' : '#28a745'}; 
+                                    width: 0; transition: width 0.6s ease-in-out;" 
+                                    aria-valuenow="${fileUsagePercentage}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                        ` : ""}
+                    </div>
+                </div>
+                `;
+                return barHtml;
+            }).join("");
+
+            $("#disk_usage_card_content").html(tableHtml);
+            $('[data-toggle="tooltip"]').tooltip({
+                boundary: 'window',
+                trigger: 'hover click'
+            }).on('show.bs.tooltip', function() {
+                // Hide all other tooltips
+                $('[data-toggle="tooltip"]').not(this).tooltip('hide');
+            });
+
+            // Hide tooltips when clicking anywhere else on the document
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('[data-toggle="tooltip"]').length) {
+                    $('[data-toggle="tooltip"]').tooltip('hide');
+                }
+            });
+
+            setTimeout(() => {
+                $('.progress-bar').each(function() {
+                    $(this).css('width', $(this).attr('aria-valuenow') + '%');
+                });
+            }, 50);
+        }).catch(res => {
+            const errorHtml = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <h5 class="mb-2">Unable to Load Storage Data</h5>
+                <p class="text-muted small mb-3">There was a problem retrieving your storage information</p>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_disk_usage(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Retry
+                </button>
+            </div>
+            `;
+
+            $("#disk_usage_card_content").html(errorHtml);
+        });
+    }
+</script>

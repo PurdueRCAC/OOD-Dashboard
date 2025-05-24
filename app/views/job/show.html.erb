@@ -1,0 +1,2314 @@
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-body">
+      <div class="mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex align-items-center">
+            <a href="<%= my_jobs_path %>" class="btn btn-link text-secondary p-0 mr-3" aria-label="Back to jobs">
+              <i class="fas fa-arrow-left" aria-hidden="true"></i>
+            </a>
+            <div class="d-flex align-items-center">
+              <h3 class="font-weight-bold mb-0">
+                <i class="fas fa-terminal text-primary mr-2"></i>
+                Job: <span id="jobId" class="ml-2"><%= @job_id %></span>
+              </h3>
+              <span id="jobStateDesktop" class="d-none d-sm-inline-flex"></span>
+            </div>
+          </div>
+          <div class="d-flex align-items-center">
+            <button onclick="loadJobData(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" aria-label="Refresh job data">
+              <i class="fas fa-sync-alt" aria-hidden="true"></i>
+              <span class="d-none d-md-inline ml-1">Refresh</span>
+            </button>
+          </div>
+        </div>
+        <div id="jobState" class="d-block w-100 d-sm-none text-center"></div>
+      </div>
+
+      <div id="job_content" class="position-relative">
+        <div class="loading-placeholder">
+          <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+            <div class="spinner-border text-secondary" role="status" aria-label="Loading">
+              <span class="sr-only">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading job information...</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="cancel-job-container" class="d-none">
+        <hr>
+
+        <!-- Add fixed cancel button -->
+        <div class="fixed-action-button mt-4 mt-sm-3">
+          <button onclick="cancelJob()" id="cancelJobBtn" class="btn btn-outline-danger rounded-pill shadow-sm d-inline-flex" aria-label="Cancel job">
+            <i class="fas fa-times" aria-hidden="true"></i>
+            <span class="ml-1">Cancel Job</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" 
+     id="cancelJobModal" 
+     tabindex="-1" 
+     role="dialog" 
+     aria-labelledby="cancelJobModalLabel"
+     data-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content rounded-lg border-0 shadow-lg">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title font-weight-bold" id="cancelJobModalLabel">Cancel Job</h5>
+        <button type="button" 
+                class="close" 
+                data-dismiss="modal" 
+                aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body px-4 pb-0 pt-4">
+        <p>Are you sure you want to cancel this job?</p>
+      </div>
+      <div class="modal-footer px-4 py-2 border-0">
+        <button type="button" 
+                class="btn btn-outline-secondary rounded-pill" 
+                id="keepRunningBtn"
+                data-dismiss="modal">No, Keep Running</button>
+        <button type="button" 
+                class="btn btn-danger rounded-pill" 
+                id="confirmCancelBtn"
+                onclick="confirmCancelJob()">Yes, Cancel Job</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatMemory(memStr) {
+  if (!memStr || memStr === 'N/A' || memStr === null) return '';
+  
+  // Convert 'G', 'M', 'T' to 'GB', 'MB', 'TB'
+  const match = memStr.match(/^(\d+(?:\.\d+)?)([GMTgmt])$/);
+  if (!match) return memStr;
+  
+  const [, value, unit] = match;
+  const unitMap = {
+    'G': 'GB',
+    'g': 'GB',
+    'M': 'MB',
+    'm': 'MB',
+    'T': 'TB',
+    't': 'TB'
+  };
+  
+  return `${value} ${unitMap[unit] || unit}`;
+}
+
+function getJobStateColor(state) {
+  // Get first word of state by splitting on underscore or space and taking first element
+  state = state.split(" ")[0].toUpperCase();
+  const stateColors = JOB_STATE_COLORS[state];
+  if (stateColors) {
+    return {
+      bg: stateColors.bg,
+      fg: stateColors.fg
+    };
+  }
+  // Default colors if state not found - using a distinctive purple shade
+  return {
+    bg: '#d3d3d3', // Light gray
+    fg: '#000000'  // White text for contrast
+  };
+}
+
+function getStateDescription(state, reason) {
+  // Get first word of state by splitting on underscore or space and taking first element
+  state = state.split(" ")[0].toUpperCase();
+  let description = SIMPLE_JOB_STATE_CODES[state] || JOB_STATE_CODES[state];
+  
+  if (!description) return null;
+  
+  if (reason) {
+    const reasonDesc = SIMPLE_JOB_REASON_CODES[reason] || JOB_REASON_CODES[reason];
+    if (reasonDesc) {
+      description += ` (${reasonDesc})`;
+    }
+  }
+  
+  return description;
+}
+
+function formatEfficiency(value) {
+  if (value === null || value === undefined || isNaN(value)) {
+    return '<span style="color: #64748b;">-</span>';
+  }
+  
+  const efficiency = (parseFloat(value) * 100).toFixed(2);  // Convert to percentage and format to 2 decimal places
+  let color;
+  
+  if (efficiency >= 75) {
+    color = '#28a745';  // Green for good efficiency
+  } else if (efficiency >= 50) {
+    color = '#ffc107';  // Yellow for moderate efficiency
+  } else {
+    color = '#dc3545';  // Red for poor efficiency
+  }
+  
+  return `<span style="color: ${color}; font-weight: 500;">${efficiency}%</span>`;
+}
+
+function formatDateTime(epochSeconds) {
+  if (epochSeconds === null || epochSeconds === undefined) return '';
+  
+  try {
+    const date = new Date(epochSeconds * 1000); // Convert epoch seconds to milliseconds
+    if (isNaN(date.getTime())) return '';
+    
+    // Format date as MM/DD/YY
+    const dateFormatter = new Intl.DateTimeFormat('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit'
+    });
+    
+    // Format time as HH:mm:ss
+    const timeFormatter = new Intl.DateTimeFormat('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      timeZoneName: 'short'
+    });
+    
+    const formattedDate = dateFormatter.format(date);
+    const timeStr = timeFormatter.format(date);
+    
+    // Split the time string into time and timezone
+    const [time, timezone] = timeStr.split(' ');
+    
+    return `${formattedDate}<span class="separator d-none d-md-inline">, </span><span class="d-md-none"> </span><span class="text-nowrap">${time}</span> <span class="text-nowrap">${timezone}</span>`;
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return '';
+  }
+}
+
+function format_time_display(seconds) {
+  if (seconds === null || seconds === undefined || isNaN(seconds)) return { formatted: '', raw: '' };
+  
+  // Convert to whole seconds
+  const totalSeconds = Math.floor(seconds);
+  
+  // Calculate hours, minutes, seconds
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+  
+  // Format HH:MM:SS for tooltip
+  const rawFormat = [
+    hours.toString().padStart(2, '0'),
+    minutes.toString().padStart(2, '0'),
+    remainingSeconds.toString().padStart(2, '0')
+  ].join(':');
+  
+  // Format display with abbreviations, skipping zero values
+  const parts = [];
+  
+  if (hours > 0) {
+    parts.push(`${hours} hr`);
+  }
+  
+  // Only include minutes if:
+  // 1. Minutes are non-zero, or
+  // 2. We have hours AND seconds (need minutes as separator)
+  if (minutes > 0 || (hours > 0 && remainingSeconds > 0)) {
+    parts.push(`${minutes} m`);
+  }
+  
+  if (remainingSeconds > 0 || parts.length === 0) {
+    parts.push(`${remainingSeconds} s`);
+  }
+  
+  return {
+    formatted: parts.join(' '),
+    raw: rawFormat
+  };
+}
+
+function createNodeList(nodes) {
+  if (nodes === null || nodes === undefined || !Array.isArray(nodes) || nodes.length === 0) return '';
+
+  // Special case for "None assigned"
+  if (nodes.length === 1 && nodes[0] === "None assigned") {
+    return '';
+  }
+  
+  return nodes.map(node => `
+    <a href="${"<%= node_path('NODE_ID') %>".replace('NODE_ID', node)}"
+      class="node-link">
+      ${node}
+    </a>
+  `).join('');
+}
+
+function toggleNodeList(button) {
+  const resourcesCard = button.closest('.info-card-body');
+  const nodeList = resourcesCard.querySelector('.nodelist');
+  const isExpanded = nodeList.classList.toggle('expanded');
+  button.innerHTML = `<i class="fas fa-caret-${isExpanded ? 'up' : 'down'}"></i>`;
+}
+
+function get(data, key, defaultValue = '') {
+  if (!data || !data.hasOwnProperty(key) || data[key] === null || data[key] === '' || data[key] === 'Unknown') {
+    return defaultValue;
+  }
+  
+  // Special handling for User field to remove parenthetical user ID
+  if (key === 'User') {
+    const userMatch = data[key].match(/^([^(]+)/);
+    if (userMatch) {
+      return userMatch[1].trim();
+    }
+  }
+  
+  // Handle case where value is an object (like State or steps)
+  if (typeof data[key] === 'object' && data[key] !== null) {
+    // If it's an empty object, return default
+    if (Object.keys(data[key]).length === 0) {
+      return defaultValue;
+    }
+    // For State object, return the first non-null value
+    if (key === 'State') {
+      const firstNonNullState = Object.values(data[key]).find(state => state !== null);
+      return firstNonNullState || defaultValue;
+    }
+  }
+  return data[key];
+}
+
+function loadFile(data, tabId, dataKey) {
+  if (!get(data, dataKey)) {
+    return;
+  }
+
+  const tab = document.getElementById(tabId);
+
+  const content = tab.querySelector('.output-content');
+  const loadingPlaceholder = content.querySelector('.loading-placeholder');
+  const textContainer = content.querySelector('.output-text-container');
+  
+  // Show loading state
+  loadingPlaceholder.classList.remove('d-none');
+  textContainer.classList.add('d-none');
+  
+  // Add tail parameter to request last 1000 lines
+  const filePath = get(data, dataKey);
+  const url = new URL('<%= files_path %>' + filePath, window.location.origin);
+  url.searchParams.append('tail', '1000');
+  
+  fetch(url)
+    .then(response => {
+      if (response.status === 403) {
+        throw new Error('Access Denied');
+      } else if (response.status === 404) {
+        throw new Error('File Not Found');
+      } else if (!response.ok) {
+        throw new Error('Error Loading File');
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Split content into lines without filtering
+      let lines = data.content.split('\n');
+      
+      // Add truncation message if we received exactly 1000 lines and there are more lines
+      if (lines.length === 1000 && data.total_lines > 1000) {
+        lines.unshift(`--- Output truncated. Showing last 1000 lines (${data.start_line}-${data.total_lines}) ---`);
+      }
+      
+      // Clear previous content
+      textContainer.innerHTML = '';
+      
+      // Create pre element for the output
+      const pre = document.createElement('pre');
+      pre.className = 'output-text';
+      
+      // Calculate the number of digits in the largest line number
+      const maxLineNumber = data.total_lines;
+      const numDigits = maxLineNumber.toString().length;
+      
+      // Add a CSS variable to the pre element to store the character width
+      pre.style.setProperty('--line-number-chars', numDigits);
+      
+      lines.forEach((line, index) => {
+        const lineDiv = document.createElement('div');
+        
+        if (index === 0 && line.startsWith('--- Output truncated')) {
+          lineDiv.className = 'output-line truncation-message';
+          const lineContent = document.createElement('span');
+          lineContent.className = 'line-content';
+          lineContent.textContent = line;
+          lineDiv.appendChild(lineContent);
+        } else {
+          lineDiv.className = 'output-line';
+          const lineNumber = document.createElement('span');
+          lineNumber.className = 'line-number';
+          const actualLineNumber = data.start_line + (index - (lines[0].startsWith('--- Output truncated') ? 1 : 0));
+          // Pad the line number with spaces to match the maximum width
+          lineNumber.textContent = actualLineNumber.toString().padStart(numDigits, ' ');
+          
+          const lineContent = document.createElement('span');
+          lineContent.className = 'line-content';
+          lineContent.textContent = line;
+          
+          lineDiv.appendChild(lineNumber);
+          lineDiv.appendChild(lineContent);
+        }
+        
+        pre.appendChild(lineDiv);
+      });
+      
+      textContainer.appendChild(pre);
+
+      // Show content
+      textContainer.classList.remove('d-none');
+      loadingPlaceholder.classList.add('d-none');
+
+      // Initial scroll to bottom
+      textContainer.scrollTo({
+        top: textContainer.scrollHeight,
+        behavior: 'smooth'
+      });
+
+      // Remove any existing event listeners
+      $(`#${tabId}-tab`).off('shown.bs.tab.initial-scroll');
+
+      // Only add the event listener if we're not currently on this tab
+      if (!$(`#${tabId}-tab`).hasClass('active')) {
+        $(`#${tabId}-tab`).one('shown.bs.tab.initial-scroll', function (e) {
+          textContainer.scrollTo({
+            top: textContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        });
+      }
+    })
+    .catch(error => {
+      const errorDescriptions = {
+        'File Not Found': 'File not found',
+        'Access Denied': 'You do not have permission to view this file',
+        'Error Loading File': 'Error loading file'
+      };
+      content.innerHTML = `
+        <div class="d-flex flex-column align-items-center text-center p-4 m-3 bg-light rounded-lg border">
+          <div class="d-flex align-items-center justify-content-center bg-danger-light rounded p-2 mb-2">
+            <i class="fas fa-exclamation-circle text-danger fa-3x"></i>
+          </div>
+          <h5 class="font-weight-bold text-dark mb-2">${error.message}</h5>
+          <p class="text-secondary mb-0">${errorDescriptions[error.message] || 'Error loading file'}</p>
+        </div>
+      `;
+    });
+}
+
+function renderJobData(data) {
+  // Store current tab state before rendering
+  const activeTabId = $('.nav-tabs .nav-link.active').attr('href') || '#info';
+  
+  const jobState = get(data, 'State', 'UNKNOWN');
+  
+  // Add auto-refresh for COMPLETING state
+  if (jobState === 'COMPLETING') {
+    setTimeout(() => loadJobData(true), 3000);
+  }
+
+  const stateColors = getJobStateColor(jobState);
+  const stateDescription = getStateDescription(jobState, data.state_reason);
+  
+  const submitTime = get(data, 'Submit');
+  const eligibleTime = get(data, 'Eligible');
+  const startTime = get(data, 'Start');
+  const endTime = get(data, 'End');
+
+  // Calculate timeline progress
+  let timelineProgress = 0;
+  let currentPoint = null;
+  let baseProgress = 0;
+  let progressColor = '';
+
+  if (submitTime) {
+    // Get current Unix timestamp in seconds
+    const now = Math.floor(Date.now() / 1000);
+    const submit = submitTime;    // Already in epoch seconds
+    const eligible = eligibleTime;
+    const start = startTime;
+    const end = endTime;
+
+    // Reset progress and current point
+    timelineProgress = 0;
+    currentPoint = null;
+    baseProgress = 0;
+
+    // Helper function to check if a timestamp exists and is in the past
+    const isReachedPoint = (timestamp) => timestamp && timestamp <= now;
+
+    // Check each point in sequence and set the last valid one as current
+    if (isReachedPoint(submit)) {
+      timelineProgress = 25;
+      currentPoint = 'submit';
+      baseProgress = 25;
+      progressColor = getJobStateColor(jobState).bg;
+    }
+
+    if (isReachedPoint(eligible)) {
+      timelineProgress = 50;
+      currentPoint = 'eligible';
+      baseProgress = 50;
+      progressColor = getJobStateColor(jobState).bg;
+    }
+
+    if (isReachedPoint(start)) {
+      timelineProgress = 75;
+      currentPoint = 'start';
+      baseProgress = 75;
+      progressColor = getJobStateColor(jobState).bg;
+
+      // For running jobs, calculate progress between start and time limit
+      if (jobState === 'RUNNING') {
+        const elapsed = now - start;
+        const timeLimit = get(data, 'Timelimit');
+        
+        if (timeLimit) {
+          // timeLimit is already in seconds
+          const timeLimitSeconds = parseInt(timeLimit);
+          
+          if (timeLimitSeconds > 0) {
+            const progress = Math.min((elapsed / timeLimitSeconds) * 25, 25);
+            timelineProgress = 75 + progress;
+          }
+        }
+      }
+    }
+
+    if (isReachedPoint(end)) {
+      timelineProgress = 100;
+      currentPoint = 'end';
+      baseProgress = 100;
+      progressColor = getJobStateColor(jobState).bg;
+    }
+
+    // Add a small extension past the current checkpoint (unless we're at 100%)
+    if (baseProgress < 100) {
+      timelineProgress = Math.min(baseProgress + 5, timelineProgress);
+    }
+
+    // Validate timestamps are in chronological order
+    if (submit > eligible || eligible > start || start > end) {
+      console.warn('Timeline timestamps are not in chronological order');
+    }
+  }
+
+  const timelineHtml = `
+    <div class="timeline-container mb-4">
+      <div class="timeline">
+        <div class="timeline-progress" style="width: ${timelineProgress}%; background: ${progressColor}"></div>
+        
+        <div class="timeline-point ${timelineProgress >= 25 ? 'reached' : ''} ${currentPoint === 'submit' ? 'current' : ''}"
+            style="--point-color: ${progressColor}; 
+                   --point-shadow: ${progressColor}40;
+                   --point-shadow-light: ${progressColor}30;
+                   --point-shadow-lighter: ${progressColor}20;
+                   --point-shadow-lightest: ${progressColor}10;">
+          <div class="timeline-point-marker"></div>
+          <div class="timeline-point-label">Submit</div>
+          <div class="timeline-point-time">
+            ${get(data, 'Submit') ? `
+              ${formatDateTime(get(data, 'Submit', ''))}
+            ` : ''}
+          </div>
+        </div>
+        
+        <div class="timeline-point ${timelineProgress >= 50 ? 'reached' : ''} ${currentPoint === 'eligible' ? 'current' : ''}"
+            style="--point-color: ${progressColor}; 
+                   --point-shadow: ${progressColor}40;
+                   --point-shadow-light: ${progressColor}30;
+                   --point-shadow-lighter: ${progressColor}20;
+                   --point-shadow-lightest: ${progressColor}10;">
+          <div class="timeline-point-marker"></div>
+          <div class="timeline-point-label">Eligible</div>
+          <div class="timeline-point-time">
+            ${get(data, 'Eligible') ? `
+              ${formatDateTime(get(data, 'Eligible', ''))}
+            ` : ''}
+          </div>
+        </div>
+        
+        <div class="timeline-point ${timelineProgress >= 75 ? 'reached' : ''} ${currentPoint === 'start' ? 'current' : ''}"
+            style="--point-color: ${progressColor}; 
+                   --point-shadow: ${progressColor}40;
+                   --point-shadow-light: ${progressColor}30;
+                   --point-shadow-lighter: ${progressColor}20;
+                   --point-shadow-lightest: ${progressColor}10;">
+          <div class="timeline-point-marker"></div>
+          <div class="timeline-point-label">Start</div>
+          <div class="timeline-point-time">
+            ${get(data, 'Start') ? `
+              ${formatDateTime(get(data, 'Start', ''))}
+            ` : ''}
+          </div>
+        </div>
+        
+        <div class="timeline-point ${timelineProgress >= 100 ? 'reached' : ''} ${currentPoint === 'end' ? 'current' : ''}"
+            style="--point-color: ${progressColor}; 
+                   --point-shadow: ${progressColor}40;
+                   --point-shadow-light: ${progressColor}30;
+                   --point-shadow-lighter: ${progressColor}20;
+                   --point-shadow-lightest: ${progressColor}10;">
+          <div class="timeline-point-marker"></div>
+          <div class="timeline-point-label">End</div>
+          <div class="timeline-point-time">
+            ${get(data, 'End') ? `
+              ${formatDateTime(get(data, 'End', ''))}
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // New tabs HTML structure
+  const tabsHtml = `
+    <ul class="nav nav-tabs mb-3" id="jobTabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link ${activeTabId === '#info' ? 'active' : ''}" id="info-tab" data-toggle="tab" href="#info" role="tab">
+          <i class="fas fa-info-circle mr-2"></i>Overview
+        </a>
+      </li>
+      ${get(data, 'SessionId') ? `
+        <li class="nav-item">
+          <a class="nav-link ${activeTabId === '#session' ? 'active' : ''}" id="session-tab" data-toggle="tab" href="#session" role="tab">
+            <i class="fas fa-desktop mr-2"></i>Session
+          </a>
+        </li>
+      ` : ''}
+      ${get(data, 'JobArray') && Array.isArray(data.JobArray) && data.JobArray.length > 0 ? `
+        <li class="nav-item">
+          <a class="nav-link ${activeTabId === '#tasks' ? 'active' : ''}" id="tasks-tab" data-toggle="tab" href="#tasks" role="tab">
+            <i class="fas fa-layer-group mr-2"></i>Job Array
+          </a>
+        </li>
+      ` : ''}
+      ${get(data, 'StdOut') ? `
+        <li class="nav-item">
+          <a class="nav-link ${activeTabId === '#output' ? 'active' : ''}" id="output-tab" data-toggle="tab" href="#output" role="tab">
+            <i class="fas fa-terminal mr-2"></i>Output
+          </a>
+        </li>
+      ` : ''}
+      ${get(data, 'StdErr') ? `
+        <li class="nav-item">
+          <a class="nav-link ${activeTabId === '#error' ? 'active' : ''}" id="error-tab" data-toggle="tab" href="#error" role="tab">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Error
+          </a>
+        </li>
+      ` : ''}
+    </ul>
+    
+    <div class="tab-content" id="jobTabContent">
+      <div class="tab-pane fade ${activeTabId === '#info' ? 'show active' : ''}" id="info" role="tabpanel">
+        <div class="job-card-grid">
+          <!-- Job Information Card -->
+          <div class="job-card-container">
+            <div class="info-card">
+              <div class="info-card-header py-4 px-4 border-bottom">
+                <i class="fas fa-info-circle text-primary mr-2"></i>
+                Job Information
+              </div>
+              <div class="info-card-body p-4">
+                <div class="info-item">
+                  <span class="info-label">Name</span>
+                  <span class="info-value">${get(data, 'JobName')}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">User</span>
+                  <span class="info-value">${get(data, 'User')}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Account</span>
+                  <span class="info-value">${get(data, 'Account')}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Partition</span>
+                  <span class="info-value">${get(data, 'Partition')}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">QOS</span>
+                  <span class="info-value">${get(data, 'QOS')}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Resources Card -->
+          <div class="job-card-container">
+            <div class="info-card">
+              <div class="info-card-header py-4 px-4 border-bottom">
+                <i class="fas fa-microchip text-success mr-2"></i>
+                Resources
+              </div>
+              <div class="info-card-body p-4">
+                <div class="info-item">
+                  <span class="info-label">CPUs</span>
+                  <span class="info-value">${get(data, 'NCPUS')}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Nodes</span>
+                  <span class="info-value d-flex align-items-center">
+                    ${get(data, 'NNodes')}
+                    ${data.NodeList && data.NodeList.length > 0 && data.NodeList[0] !== "None assigned" ? `
+                      <button class="nodelist-toggle ml-2" onclick="toggleNodeList(this)" type="button">
+                        <i class="fas fa-caret-down"></i>
+                      </button>
+                    ` : ''}
+                  </span>
+                </div>
+                ${data.NodeList && data.NodeList.length > 0 && data.NodeList[0] !== "None assigned" ? `
+                <div class="nodelist" style="margin-top: -0.75rem;">
+                  ${createNodeList(data.NodeList)}
+                </div>
+                ` : ''}
+                <div class="info-item">
+                  <span class="info-label">Memory</span>
+                  <span class="info-value">${formatMemory(get(data, 'ReqMem'))}</span>
+                </div>
+                ${data.AllocTRES && data.AllocTRES.includes('gres/gpu=') ? `
+                <div class="info-item">
+                  <span class="info-label">GPUs</span>
+                  <span class="info-value">${data.AllocTRES.match(/gres\/gpu=(\d+)/)[1]}</span>
+                </div>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+
+          <!-- Time Card -->
+          <div class="job-card-container">
+            <div class="info-card">
+              <div class="info-card-header py-4 px-4 border-bottom">
+                <i class="fas fa-clock text-warning mr-2"></i>
+                Time
+              </div>
+              <div class="info-card-body p-4">
+                <div class="info-item">
+                  <span class="info-label">Wall Time</span>
+                  <span class="info-value duration-tooltip" 
+                        data-toggle="tooltip" 
+                        data-placement="right" 
+                        title="${format_time_display(get(data, 'Elapsed')).raw}">
+                    ${format_time_display(get(data, 'Elapsed')).formatted}
+                  </span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Time Limit</span>
+                  <span class="info-value duration-tooltip" 
+                        data-toggle="tooltip" 
+                        data-placement="right" 
+                        title="${format_time_display(get(data, 'Timelimit')).raw}">
+                    ${format_time_display(get(data, 'Timelimit')).formatted}
+                  </span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">CPU Time</span>
+                  <span class="info-value duration-tooltip" 
+                        data-toggle="tooltip" 
+                        data-placement="right" 
+                        title="${format_time_display(get(data, 'TotalCPU')).raw}">
+                    ${format_time_display(get(data, 'TotalCPU')).formatted}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Efficiency Card -->
+          <div class="job-card-container">
+            <div class="info-card">
+              <div class="info-card-header py-4 px-4 border-bottom">
+                <i class="fas fa-chart-line text-info mr-2"></i>
+                Efficiency
+              </div>
+              <div class="info-card-body p-4">
+                <div class="info-item">
+                  <span class="info-label">CPU</span>
+                  <span class="info-value">${formatEfficiency(data.cpu_efficiency)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Memory</span>
+                  <span class="info-value">${formatEfficiency(data.memory_efficiency)}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">Time</span>
+                  <span class="info-value">${formatEfficiency(data.time_efficiency)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      ${get(data, 'SessionId') ? `
+        <div class="tab-pane fade ${activeTabId === '#session' ? 'show active' : ''}" id="session" role="tabpanel">
+          <div class="info-section">
+            <div class="info-item">
+              <span class="info-label">Session App</span>
+              <span class="info-value">
+                <a href="${get(data, 'SessionAppUrl')}" target="_blank">
+                  ${get(data, 'SessionAppName')}
+                </a>
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Session ID</span>
+              <span class="info-value">
+                ${get(data, 'SessionId')}
+              </span>
+            </div>
+            ${get(data, 'SessionPath') ? `
+              <div class="info-item">
+                <span class="info-label">Session Path</span>
+                <span class="info-value text-monospace">
+                  <a href="<%= files_path %>${get(data, 'SessionPath')}" class="text-primary">
+                    ${get(data, 'SessionPath')}
+                  </a>
+                </span>
+              </div>
+            ` : ''}
+            ${get(data, 'SessionConnection') ? `
+              <hr>
+              <div class="info-item d-block">
+                ${get(data, 'SessionConnectionInfo')}
+                ${get(data, 'SessionConnection')}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+      ${get(data, 'JobArray') && Array.isArray(data.JobArray) && data.JobArray.length > 0 ? `
+        <div class="tab-pane fade ${activeTabId === '#tasks' ? 'show active' : ''}" id="tasks" role="tabpanel">
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th scope="col">Job Task ID</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Nodes</th>
+                  <th scope="col">Submit Time</th>
+                  <th scope="col">Start Time</th>
+                  <th scope="col">End Time</th>
+                  <th scope="col">Elapsed</th>
+                  <th scope="col">Exit Code</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${data.JobArray.map(task => `
+                  <tr>
+                    <td>
+                      <a href="${"<%= job_path('JOB_ID') %>".replace('JOB_ID', get(task, 'JobID'))}"
+                         class="text-primary font-weight-medium">
+                        ${get(task, 'JobID')}
+                      </a>
+                    </td>
+                    <td>
+                      <span class="badge badge-pill duration-tooltip" 
+                            data-toggle="tooltip" 
+                            data-placement="bottom"
+                            data-trigger="hover"
+                            data-container="body"
+                            title="${getStateDescription(get(task, 'State'), get(task, 'Reason')) || ''}"
+                            style="background-color: ${getJobStateColor(get(task, 'State')).bg}; 
+                                   color: ${getJobStateColor(get(task, 'State')).fg};">
+                        ${get(task, 'State')}
+                      </span>
+                    </td>
+                    <td>
+                      ${get(task, 'NodeList') && Array.isArray(task.NodeList) && 
+                        task.NodeList.length > 0 && 
+                        task.NodeList[0] !== "None assigned" ? 
+                          task.NodeList.map(node => `
+                            <a href="${"<%= node_path('NODE_ID') %>".replace('NODE_ID', node)}"
+                               class="node-link">
+                              ${node}
+                            </a>
+                          `).join('') 
+                        : ''}
+                    </td>
+                    <td>${formatDateTime(get(task, 'Submit'))}</td>
+                    <td>${formatDateTime(get(task, 'Start'))}</td>
+                    <td>${formatDateTime(get(task, 'End'))}</td>
+                    <td>
+                      <span class="duration-tooltip" 
+                            data-toggle="tooltip" 
+                            data-placement="bottom" 
+                            title="${format_time_display(get(task, 'Elapsed')).raw}">
+                        ${get(task, 'Elapsed') && get(task, 'Elapsed') !== '0' ? 
+                          format_time_display(get(task, 'Elapsed')).formatted : 
+                          ''}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-monospace">${get(task, 'ExitCode')}</span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ` : ''}
+      ${get(data, 'StdOut') ? `
+        <div class="tab-pane fade ${activeTabId === '#output' ? 'show active' : ''}" id="output" role="tabpanel">
+          <div class="output-container px-2">
+            <div class="output-header d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-file-alt mr-2 text-primary" style="font-size: 1.25rem;"></i>
+                <h5 class="mb-0 text-muted">
+                  ${(() => {
+                    const path = get(data, 'StdOut');
+                    const parts = path.split('/');
+                    const fileName = parts.pop();
+                    return `${parts.join('/')}/`
+                      + `<span class="text-dark font-weight-bolder" style="font-size: 1.2em; text-shadow: 0 0 0.5px currentColor;">${fileName}</span>`;
+                  })()}
+                </h5>
+              </div>
+              <a href="<%= files_path %>${get(data, 'StdOut')}" 
+                 class="btn btn-sm btn-outline-secondary rounded-pill ml-3 text-nowrap"
+                 target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                <span class="d-none d-md-inline ml-1">Open in New Tab</span>
+              </a>
+            </div>
+            <div class="mt-3">
+              <div class="output-content position-relative border rounded bg-white">
+                <div class="loading-placeholder">
+                  <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+                    <div class="spinner-border text-secondary" role="status">
+                      <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2">Loading output file...</p>
+                  </div>
+                </div>
+                <div class="output-text-container d-none">
+                  <pre class="output-text"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+      ${get(data, 'StdErr') ? `
+        <div class="tab-pane fade ${activeTabId === '#error' ? 'show active' : ''}" id="error" role="tabpanel">
+          <div class="output-container px-2">
+            <div class="output-header d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle mr-2 text-danger" style="font-size: 1.25rem;"></i>
+                <h5 class="mb-0 text-muted">
+                  ${(() => {
+                    const path = get(data, 'StdErr');
+                    const parts = path.split('/');
+                    const fileName = parts.pop();
+                    return `${parts.join('/')}/`
+                      + `<span class="text-dark font-weight-bolder" style="font-size: 1.2em; text-shadow: 0 0 0.5px currentColor;">${fileName}</span>`;
+                  })()}
+                </h5>
+              </div>
+              <a href="<%= files_path %>${get(data, 'StdErr')}" 
+                 class="btn btn-sm btn-outline-secondary rounded-pill ml-3 text-nowrap"
+                 target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+                <span class="d-none d-md-inline ml-1">Open in New Tab</span>
+              </a>
+            </div>
+            <div class="mt-3">
+              <div class="output-content position-relative border rounded bg-white">
+                <div class="loading-placeholder">
+                  <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+                    <div class="spinner-border text-secondary" role="status">
+                      <span class="sr-only">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2">Loading error output...</p>
+                  </div>
+                </div>
+                <div class="output-text-container d-none">
+                  <pre class="output-text"></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  // Combine timeline and tabs HTML
+  document.getElementById('job_content').innerHTML = timelineHtml + tabsHtml;
+
+  const stateBadgeHtml = `
+    <span class="badge badge-pill duration-tooltip ml-sm-3" 
+          data-toggle="tooltip" 
+          data-placement="bottom"
+          title="${getStateDescription(jobState, data.state_reason) || ''}"
+          style="background-color: ${stateColors.bg}; color: ${stateColors.fg};">
+      ${jobState}
+    </span>
+    ${data.Reason ? `
+      <div class="d-inline-block d-md-inline-flex align-items-center mx-2 my-1 my-md-0">
+        <span class="text-dark text-nowrap" style="font-size: 1.1rem; font-weight: 500;">due to</span>
+      </div>
+      <span class="badge badge-pill badge-light duration-tooltip"
+            data-toggle="tooltip"
+            data-placement="bottom"
+            title="${SIMPLE_JOB_REASON_CODES[data.Reason] || JOB_REASON_CODES[data.Reason] || ''}">
+        ${data.Reason}
+      </span>
+    ` : ''}
+  `;
+
+  document.getElementById('jobState').innerHTML = stateBadgeHtml;
+  document.getElementById('jobStateDesktop').innerHTML = stateBadgeHtml;
+
+  // Initialize all tooltips after content is rendered
+  $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
+    trigger: 'hover',
+    container: 'body',
+    boundary: 'window',
+    animation: false
+  });
+
+  // Update cancel button visibility based on job state and ownership
+  const cancelJobContainer = document.getElementById('cancel-job-container');
+  const cancelableStates = ['PENDING', 'RUNNING', 'REQUEUED', 'SUSPENDED'];
+  const jobUser = get(data, 'User', '').split('(')[0].trim(); // Get username without parenthetical ID
+  const currentUser = '<%= @user.name %>'; // Get current user from Ruby
+  
+  if (cancelableStates.includes(jobState.split(" ")[0].toUpperCase()) && jobUser === currentUser) {
+    cancelJobContainer.classList.remove('d-none');
+    cancelJobContainer.classList.add('d-block');
+  } else {
+    cancelJobContainer.classList.remove('d-block');
+    cancelJobContainer.classList.add('d-none');
+  }
+}
+
+function loadJobData(forceRefresh = false) {
+  // Add spinning class to refresh icon
+  $('.btn-outline-secondary .fa-sync-alt').addClass('fa-spin');
+  
+  fetchWithCache('<%= job_api_path(@job_id) %>', {
+    cacheDuration: 15 * 1000, // 15 seconds in milliseconds
+    forceRefresh: forceRefresh
+  })
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      renderJobData(data);
+
+      loadFile(data, 'output', 'StdOut');
+      loadFile(data, 'error', 'StdErr');
+      
+      // Re-initialize tooltips after any dynamic updates
+      $('[data-toggle="tooltip"]').tooltip('dispose').tooltip({
+        trigger: 'hover',
+        container: 'body',
+        boundary: 'window',
+        animation: false
+      });
+    })
+    .catch(error => {
+      const errorHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+          <div class="text-danger mb-3">
+            <i class="fas fa-exclamation-circle fa-2x"></i>
+          </div>
+          <h5 class="mb-2">Unable to Load Job Information</h5>
+          <p class="text-muted small mb-3">${error.message}</p>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="loadJobData(true)">
+            <i class="fas fa-sync-alt me-1"></i> Retry
+          </button>
+        </div>
+      `;
+      document.getElementById('job_content').innerHTML = errorHtml;
+    })
+    .finally(() => {
+      // Remove spinning class when request completes
+      $('.btn-outline-secondary .fa-sync-alt').removeClass('fa-spin');
+    });
+}
+
+// Initialize tooltips on page load
+$(document).ready(function() {
+  $('[data-toggle="tooltip"]').tooltip({
+    trigger: 'hover',
+    container: 'body'
+  });
+});
+
+// Destroy tooltips before modal shows to prevent stuck tooltips
+$('#cancelJobModal').on('show.bs.modal', function () {
+  $('[data-toggle="tooltip"]').tooltip('dispose');
+});
+
+// Re-initialize tooltips after modal is hidden
+$('#cancelJobModal').on('hidden.bs.modal', function () {
+  $('[data-toggle="tooltip"]').tooltip({
+    trigger: 'hover',
+    container: 'body'
+  });
+});
+
+// Initial load without force refresh to use cache if available
+document.addEventListener('DOMContentLoaded', () => loadJobData());
+
+function cancelJob() {
+  const modal = document.getElementById('cancelJobModal');
+  const keepRunningBtn = document.getElementById('keepRunningBtn');
+  
+  $(modal).modal({
+    keyboard: true,
+    backdrop: 'static',
+    focus: false
+  });
+  
+  // Show modal and handle focus
+  $(modal).modal('show');
+  setTimeout(() => keepRunningBtn.focus(), 150);
+}
+
+function confirmCancelJob() {
+  const modal = document.getElementById('cancelJobModal');
+  const cancelBtn = document.getElementById('cancelJobBtn');
+  
+  $(modal).modal('hide');
+  setTimeout(() => cancelBtn.focus(), 150);
+  
+  const jobId = document.getElementById('jobId').textContent;
+  
+  fetch('<%= cancel_job_api_path(jobid: @job_id) %>', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    const toast = createToast('success', data.message || 'Job cancelled successfully');
+    document.body.appendChild(toast);
+    loadJobData(true);
+  })
+  .catch(error => {
+    const errorMessage = error.message || 'Failed to cancel job';
+    const toast = createToast('error', errorMessage);
+    document.body.appendChild(toast);
+  });
+}
+
+// Add event listener for modal close
+$(document).ready(function() {
+  const modal = document.getElementById('cancelJobModal');
+  const cancelBtn = document.getElementById('cancelJobBtn');
+  
+  $(modal).on('hidden.bs.modal', function () {
+    cancelBtn.focus();
+  });
+});
+
+// Add toast notification helper
+function createToast(type, message) {
+  const toast = document.createElement('div');
+  toast.className = `job-toast job-toast-${type}`;
+  toast.innerHTML = `
+    <div class="toast-content">
+      <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+      <span>${message}</span>
+    </div>
+  `;
+  
+  // Remove toast after 3 seconds
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+  
+  return toast;
+}
+</script>
+
+<style>
+/* Badge styling */
+.badge-pill {
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Make the state badge container more prominent */
+.card-body .d-flex.align-items-center.mb-3 {
+  margin: 1rem 0;
+}
+
+/* Adjust the reason text next to the badge */
+.card-body .d-flex.align-items-center.mb-3 .text-muted {
+  font-size: 0.95rem;
+  margin-left: 1.25rem;
+  padding: 0.5rem 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  border-left: 3px solid #6c757d;
+}
+
+/* Remove outline from back button */
+.btn-link:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Optional: Add a subtle hover effect instead */
+.btn-link:hover {
+  opacity: 0.75;
+}
+
+/* Timeline styles */
+.timeline-container {
+  margin-bottom: 2.5rem;
+}
+
+.timeline {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  padding-top: 1.5rem;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 1.5rem;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #edf2f7;
+  z-index: 1;
+}
+
+.timeline-progress {
+  position: absolute;
+  top: 1.5rem;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+  z-index: 2;
+  transition: width 0.5s ease;
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.3);
+}
+
+.timeline-point {
+  position: relative;
+  z-index: 3;
+  width: 20%;
+  text-align: center;
+}
+
+.timeline-point-marker {
+  width: 16px;
+  height: 16px;
+  background-color: #edf2f7;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  margin: -6px auto 0.5rem;
+  transition: all 0.4s ease;
+  box-shadow: 0 0 0 2px #edf2f7;
+}
+
+.timeline-point.reached .timeline-point-marker {
+  background-color: var(--point-color);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.timeline-point.current .timeline-point-marker {
+  background-color: var(--point-color);
+  box-shadow: 0 0 0 2px var(--point-shadow-light),
+              0 0 0 4px var(--point-shadow-lighter),
+              0 0 0 8px var(--point-shadow-lightest);
+  transform: scale(1.4);
+}
+
+.timeline-point-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 0.125rem;
+  transition: color 0.3s ease;
+}
+
+.timeline-point.reached .timeline-point-label {
+  color: #1e293b;
+}
+
+.timeline-point.current .timeline-point-label {
+  color: #1e293b;
+  font-weight: 600;
+  transform: scale(1.05);
+}
+
+.timeline-point-time {
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.2;
+  transition: color 0.3s ease;
+}
+
+.timeline-point.reached .timeline-point-time {
+  color: #475569;
+}
+
+.timeline-point.current .timeline-point-time {
+  color: #475569;
+  font-weight: 500;
+  transform: scale(1.05);
+}
+
+/* Larger font size on desktop */
+@media (min-width: 768px) {
+  .timeline-point-label {
+    font-size: 1rem;
+  }
+  .timeline-point-time {
+    font-size: 0.9375rem;
+  }
+  .timeline-point-label {
+    margin-bottom: 0.25rem;
+  }
+}
+
+/* Node button styling */
+.node-link {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  font-size: 1rem;
+  border-radius: 0.25rem;
+  white-space: normal;
+  color: #3b82f6;
+  border-color: #e2e8f0;
+  font-weight: 500;
+  border: 1px solid;
+  text-decoration: none;
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+  word-break: break-all;
+}
+
+/* Remove the margin-right from the last node in a row */
+.node-link:last-child {
+  margin-right: 0;
+}
+
+.node-link:hover {
+  color: #2563eb;
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: #3b82f6;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+/* Remove the existing margins since we're handling them in .node-link */
+.node-link.mr-1 {
+  margin-right: 0.25rem !important;
+}
+
+.node-link.mb-1 {
+  margin-bottom: 0.25rem !important;
+}
+
+/* Date separator styling */
+.separator {
+  color: #9CA3AF;
+  margin: 0;
+}
+
+/* Duration tooltip styling */
+.duration-tooltip {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+  cursor: help;
+  border-bottom: none;
+  display: inline;
+}
+
+/* Remove dotted underline when in a badge */
+.badge .duration-tooltip {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: currentColor;
+}
+
+/* Header state badge styling */
+#jobState .badge-pill {
+  font-size: 0.9rem;
+  padding: 0.4rem 1rem;
+  margin-left: 0.5rem;
+  transform: translateY(-1px);
+  margin: 0 0.15rem;
+}
+
+/* Adjust the dotted underline for header state badge */
+#jobState .badge-pill.duration-tooltip {
+  text-underline-offset: 3px;
+}
+
+/* Ensure vertical alignment with job ID */
+#jobState {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Ensure the job ID and badge container are aligned */
+h3.font-weight-bold {
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile state badge styling */
+@media (max-width: 767.98px) {
+  #jobState {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0;
+  }
+
+  #jobState .badge-pill {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    text-align: center;
+    transform: none;
+  }
+  
+  #jobState .badge-pill + .badge-pill,
+  #jobState .badge-pill + .reason-text {
+    margin-top: 0.5rem;
+  }
+
+  #jobState .badge-light {
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    border-radius: 0.375rem;
+  }
+}
+
+/* Desktop state badge styling */
+#jobStateDesktop {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+#jobStateDesktop .badge-pill {
+  font-size: 0.9rem;
+  padding: 0.4rem 1rem;
+  transform: translateY(-1px);
+}
+
+/* Ensure proper spacing in the flex container */
+#jobStateDesktop {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Adjust the dotted underline for state badges */
+#jobState .badge-pill.duration-tooltip,
+#jobStateDesktop .badge-pill.duration-tooltip {
+  text-underline-offset: 3px;
+}
+
+/* Ensure vertical alignment with job ID on desktop */
+#jobStateDesktop {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+/* Remove margin from last efficiency metric in each row */
+@media (min-width: 576px) {
+  .efficiency-metric {
+    margin-bottom: 0;
+  }
+}
+
+/* Add pulse animation for current point */
+@keyframes timeline-pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--point-shadow);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 0, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+.timeline-point.current .timeline-point-marker::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  animation: timeline-pulse 2s infinite;
+}
+
+/* Add CSS for the node list container and toggle */
+.nodelist-container {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.nodelist {
+  display: none;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.nodelist.expanded {
+  display: flex;
+}
+
+.nodelist-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #3b82f6;
+  padding: 0.15rem 0.35rem;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.nodelist-toggle:hover {
+  color: #2563eb;
+}
+
+.nodelist-toggle:focus {
+  outline: none;
+}
+
+/* Position the caret next to the node count */
+.info-value .nodelist-toggle {
+  padding: 0 0.35rem;
+  margin-top: -2px;
+}
+
+.info-value .nodelist-toggle .fas {
+  font-size: 1rem;
+}
+
+/* Info Cards Styling */
+.info-card {
+  background: white;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  height: 100%;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.info-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05),
+              0 2px 4px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.info-card-header {
+  padding: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.info-card-header i {
+  font-size: 1.125rem;
+}
+
+.info-card-body {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  min-width: 90px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.info-value {
+  font-size: 1.125rem;
+  color: #0f172a;
+  font-weight: 500;
+  word-break: break-all;
+  max-width: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+  .info-card {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .col:last-child {
+    margin-bottom: 0;
+  }
+
+  .info-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .info-label {
+    min-width: auto;
+    color: #64748b;
+    font-size: 0.9375rem;
+  }
+
+  .info-value {
+    font-size: 1.0625rem;
+  }
+
+  .info-card-body {
+    gap: 0.5rem;
+  }
+  
+  /* Add spacing between cards on mobile */
+  .row.mb-4 {
+    margin: 0 -0.25rem;
+  }
+  
+  .row.mb-4 > .col {
+    flex: 0 0 calc(100% - 0.5rem);
+    max-width: calc(100% - 0.5rem);
+    margin: 0 0.25rem 0.75rem;
+  }
+}
+
+/* Duration tooltip styling */
+.duration-tooltip {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: currentColor;
+  text-underline-offset: 2px;
+  cursor: help;
+  border-bottom: none;
+  display: inline;
+}
+
+/* Remove dotted border when in a badge */
+.badge .duration-tooltip {
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: currentColor;
+}
+
+/* Special handling for nodelist info item */
+.info-item-nodelist {
+  width: 100%;
+}
+
+.nodelist-wrapper {
+  width: 100%;
+}
+
+/* Update mobile styles to not affect nodelist */
+@media (max-width: 767.98px) {
+  .info-item:not(.info-item-nodelist) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.125rem;
+  }
+}
+
+/* Keep only these nodelist styles */
+.nodelist {
+  display: none;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  width: 100%;
+}
+
+.nodelist.expanded {
+  display: flex;
+}
+
+/* Update mobile styles */
+@media (max-width: 767.98px) {
+  .nodelist {
+    padding-left: 0 !important;
+  }
+}
+
+/* Toast notification styling */
+.job-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  animation: slide-in 0.3s ease-out;
+  max-width: 400px;
+}
+
+.job-toast-success {
+  background-color: #d1fae5;
+  border: 1px solid #34d399;
+  color: #065f46;
+}
+
+.job-toast-error {
+  background-color: #fee2e2;
+  border: 1px solid #f87171;
+  color: #991b1b;
+}
+
+.toast-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.toast-content i {
+  font-size: 1.25rem;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.fade-out {
+  animation: fade-out 0.3s ease-out forwards;
+}
+
+@keyframes fade-out {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Cancel button styling */
+.btn-outline-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-outline-danger:hover {
+  color: #fff;
+  background-color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-outline-danger:focus {
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Adjust button spacing */
+.d-flex .btn-outline-danger {
+  margin-right: 0.5rem;
+}
+
+/* Ensure icon is vertically centered */
+.btn-outline-danger .fas {
+  line-height: 1;
+  position: relative;
+  top: 1px;
+}
+
+/* Mobile optimization */
+@media (max-width: 767.98px) {
+  .job-toast {
+    top: auto;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+  }
+}
+
+/* Modal styling */
+.modal {
+  z-index: 1060;
+}
+
+.modal-backdrop {
+  z-index: 1050;
+}
+
+.modal-content {
+  border: none;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.modal-header .close {
+  padding: 1.25rem;
+  margin: -1rem -1rem -1rem auto;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+.modal-header .close:hover {
+  opacity: 1;
+}
+
+.modal-body {
+  padding: 1.5rem;
+  padding-bottom: 0.125rem;
+  font-size: 1rem;
+  color: #4a5568;
+}
+
+.modal-footer {
+  padding: 0.5rem 1.5rem;
+  border: none;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.modal-footer .btn {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+/* Mobile optimization for modal footer */
+@media (max-width: 767.98px) {
+  .modal-footer {
+    padding: 0.5rem 1rem;
+  }
+  
+  .modal-footer .btn {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+.badge-light {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Mobile optimization for state and reason badges */
+@media (max-width: 767.98px) {
+  #jobState {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #jobState .badge-pill,
+  #jobState .badge-light {
+    margin: 0;
+  }
+
+  #jobState .badge-light {
+    order: 2;
+    width: 100%;
+  }
+}
+
+/* Replace the .row.mb-4 styles with these new custom classes */
+
+.job-card-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.job-card-container {
+  flex: 0 0 calc(25% - 1rem);
+  max-width: calc(25% - 1rem);
+  margin: 0 0.5rem 0.5rem;
+  min-width: 280px;
+}
+
+/* Update tablet/medium screens */
+@media (min-width: 768px) and (max-width: 1199.98px) {
+  .job-card-container {
+    flex: 0 0 calc(50% - 1rem);
+    max-width: calc(50% - 1rem);
+  }
+}
+
+/* Update mobile styles */
+@media (max-width: 767.98px) {
+  .job-card-grid {
+    margin: 0 -0.5rem;
+  }
+  
+  .job-card-container {
+    flex: 0 0 calc(100% - 1rem);
+    max-width: calc(100% - 1rem);
+    margin: 0 0.5rem 0.5rem;
+  }
+  
+  .job-card-container:last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Responsive header styling */
+@media (max-width: 767.98px) {
+  h3.font-weight-bold {
+    font-size: 1.25rem; /* Smaller font size on mobile */
+  }
+  
+  h3.font-weight-bold .fas {
+    font-size: 1rem; /* Smaller icon size */
+  }
+  
+  #jobId {
+    font-size: 1.25rem; /* Match header size */
+  }
+}
+
+/* Even smaller screens */
+@media (max-width: 374.98px) {
+  h3.font-weight-bold {
+    font-size: 1.125rem;
+  }
+  
+  h3.font-weight-bold .fas {
+    font-size: 0.875rem;
+  }
+  
+  #jobId {
+    font-size: 1.125rem;
+  }
+}
+
+.nav-tabs {
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.nav-tabs .nav-link {
+  border: none;
+  color: #64748b;
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  color: #3b82f6;
+  border: none;
+}
+
+.nav-tabs .nav-link.active {
+  color: #3b82f6;
+  border: none;
+  background: none;
+}
+
+.nav-tabs .nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #3b82f6;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  min-width: 120px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #0f172a;
+  font-weight: 500;
+}
+
+/* Mobile optimizations */
+@media (max-width: 767.98px) {
+  .nav-tabs .nav-link {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+  }
+  
+  .nav-tabs .nav-link i {
+    margin-right: 0.375rem;
+  }
+  
+  .info-item {
+    flex-direction: column;
+    gap: 0.125rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .info-label {
+    min-width: auto;
+  }
+}
+
+/* Add these styles */
+.output-content {
+  position: relative;
+  min-height: 100px;  /* Minimum height to show loading state nicely */
+}
+
+.output-text-container {
+  position: relative;  /* Changed from absolute */
+  height: 500px;
+  overflow: auto;
+  background: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  padding: 0;
+}
+
+/* Scrollbar styles */
+.output-text-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.output-text-container::-webkit-scrollbar-track {
+  background: #f6f8fa;
+}
+
+.output-text-container::-webkit-scrollbar-thumb {
+  background-color: #d0d7de;
+  border-radius: 6px;
+  border: 3px solid #f6f8fa;
+}
+
+.output-text-container::-webkit-scrollbar-thumb:hover {
+  background-color: #afb8c1;
+}
+
+.output-text-container::-webkit-scrollbar-corner {
+  background: #f6f8fa;
+}
+
+/* Add these styles */
+.output-header h5 {
+  font-size: 0.9375rem;
+  font-family: 'Consolas', 'Monaco', monospace;
+  word-break: break-all;
+}
+
+.output-header h5 .font-weight-bolder {
+  font-weight: 900 !important;
+  letter-spacing: 0.01em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+  .output-header h5 {
+    font-size: 0.875rem;
+  }
+  
+  .output-header h5 .font-weight-bolder {
+    font-size: 1em;
+  }
+}
+
+/* Update the font-weight-bolder styles */
+.output-header h5 .font-weight-bolder {
+  font-weight: 900 !important;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 0.5px currentColor;
+  color: #000;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+  .output-header h5 {
+    font-size: 0.875rem;
+  }
+  
+  .output-header h5 .font-weight-bolder {
+    font-size: 1.1em;
+    text-shadow: 0 0 0.3px currentColor;
+  }
+}
+
+/* Update the scrollbar styles to use GitHub light theme colors */
+.output-text-container::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.output-text-container::-webkit-scrollbar-track {
+  background: #f6f8fa; /* GitHub's scrollbar track color */
+}
+
+.output-text-container::-webkit-scrollbar-thumb {
+  background-color: #d0d7de; /* GitHub's scrollbar thumb color */
+  border-radius: 6px;
+  border: 3px solid #f6f8fa;
+}
+
+.output-text-container::-webkit-scrollbar-thumb:hover {
+  background-color: #afb8c1; /* GitHub's scrollbar thumb hover color */
+}
+
+.output-text {
+  margin: 0;
+  padding: 0 !important;
+  min-width: 100%;
+  width: fit-content;
+}
+
+.output-line {
+  display: flex;
+  align-items: stretch;  /* Changed from center to stretch */
+  min-height: 24px;
+  white-space: pre;
+  font-size: 0.9375rem;  /* Increased font size */
+}
+
+.output-line .line-number {
+  display: inline-block;
+  /* Add 2 extra characters of width for padding */
+  width: calc((var(--line-number-chars) + 2) * 1ch);
+  padding: 0 0.5rem;
+  text-align: right;
+  color: #6e7781;
+  user-select: none;
+  font-size: 0.8125rem;
+  background-color: #f6f8fa;
+  border-right: 1px solid #d0d7de;
+  flex: 0 0 auto;
+  font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+}
+
+.output-line .line-content {
+  color: #1F2328;
+  padding: 0 0.3rem;  /* Add padding to the content */
+  background-color: #ffffff;  /* White background for content */
+  flex: 1;  /* Allow content to take remaining space */
+}
+
+/* Special handling for truncation message */
+.output-line.truncation-message {
+  color: #6e7781;
+  font-style: italic;
+  background-color: #f6f8fa !important;  /* Same grey as line numbers */
+}
+
+/* Remove hover effect from truncation message */
+.output-line.truncation-message:hover {
+  background-color: #f6f8fa;  /* Keep the same grey on hover */
+}
+
+/* Remove hover effect from truncation message content */
+.output-line.truncation-message .line-content {
+  background-color: #f6f8fa;  /* Same grey as line numbers */
+}
+
+.output-line.truncation-message:hover .line-content {
+  background-color: #f6f8fa;  /* Keep the same grey on hover */
+}
+
+/* Remove hover effect */
+.output-line:hover {
+  background: transparent;
+}
+
+/* Add hover effect only to content */
+.output-line:hover .line-content {
+  background-color: #f6f8fa;
+}
+
+/* Remove the vertical line styles */
+.output-line::before {
+  display: none;
+}
+
+/* Task table styles */
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  border-top: none;
+  background-color: #f8fafc;
+  color: #64748b;
+  font-weight: 600;
+  font-size: 0.875rem; /* 14px */
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.625rem 1rem;
+  white-space: nowrap; /* Prevent header wrapping */
+}
+
+.table td {
+  vertical-align: middle;
+  padding: 0.5rem 1rem;
+  color: #1e293b;
+  font-size: 1rem; /* 16px */
+  border-top: 1px solid #f1f5f9;
+}
+
+.table tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Adjust badge sizes in table */
+.table .badge-pill {
+  font-size: 0.875rem; /* 14px */
+  padding: 0.375rem 0.75rem; /* Increased padding */
+  white-space: nowrap;
+  display: inline-block; /* Ensure padding is respected */
+}
+
+/* Node link adjustments in table */
+.table .node-link {
+  font-size: 0.875rem; /* Slightly smaller font for better fit */
+  padding: 0.175rem 0.375rem;
+  margin: 0.125rem;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: none; /* Remove max-width constraint */
+  word-break: keep-all; /* Prevent word breaking */
+}
+
+/* Add horizontal scrolling for the node list cell */
+.table td {
+  /* ... existing styles ... */
+  white-space: nowrap; /* Prevent cell content from wrapping */
+}
+
+/* Ensure table cell content stays on one line */
+.table tbody tr td {
+  white-space: nowrap;
+}
+
+/* Add horizontal scrolling for the entire table */
+.table-responsive {
+  margin: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Add smooth scrolling on supported browsers */
+  scroll-behavior: smooth;
+  /* Improve scrollbar appearance */
+  scrollbar-width: thin;
+  scrollbar-color: #d0d7de #f6f8fa;
+}
+
+/* Customize scrollbar appearance for WebKit browsers */
+.table-responsive::-webkit-scrollbar {
+  height: 8px; /* Smaller height for horizontal scrollbar */
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f6f8fa;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background-color: #d0d7de;
+  border-radius: 4px;
+  border: 2px solid #f6f8fa;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background-color: #afb8c1;
+}
+</style>

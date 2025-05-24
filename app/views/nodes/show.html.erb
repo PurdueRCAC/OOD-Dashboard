@@ -1,0 +1,1128 @@
+<div id="node-container" class="container-fluid">
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+          <a href="<%= cluster_status_path %>" class="btn btn-link text-secondary p-0 mr-3" aria-label="Back to cluster status">
+            <i class="fas fa-arrow-left" aria-hidden="true"></i>
+          </a>
+          <h3 class="font-weight-bold mb-0">
+            <i class="fas fa-microchip text-primary mr-2"></i>
+            Node: <span id="nodeName"><%= @node_name %></span>
+          </h3>
+        </div>
+        <button onclick="loadNodeData(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" aria-label="Refresh node data">
+          <i class="fas fa-sync-alt" aria-hidden="true"></i>
+          <span class="d-none d-md-inline ml-1">Refresh</span>
+        </button>
+      </div>
+
+      <div id="node_content" class="position-relative" style="min-height: 400px;">
+        <div class="loading-placeholder">
+          <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+            <div class="spinner-border text-secondary" role="status" aria-label="Loading">
+              <span class="sr-only">Loading...</span>
+            </div>
+            <p class="text-muted mt-2">Loading node information...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function formatMemory(memInMB) {
+  const mem = Number(memInMB);
+  if (!mem || isNaN(mem)) return '0 MB';
+  
+  if (memInMB >= 1048576) {
+    return `${(memInMB/1048576).toFixed(2)} TB`;
+  }
+  if (memInMB >= 1024) {
+    return `${(memInMB/1024).toFixed(2)} GB`;
+  }
+  return `${Math.round(memInMB)} MB`;
+}
+
+function getNodeColor(state) {
+  if (state.includes('DOWN')) return '#dc3545';
+  if (state.includes('DRAIN')) return '#ffc107';
+  if (state.includes('MAINT')) return '#fd7e14';
+  return '#28a745';
+}
+
+function getJobStateColor(state) {
+  state = state.toUpperCase();
+  const stateColors = JOB_STATE_COLORS[state];
+  if (stateColors) {
+    return {
+      bg: stateColors.bg,
+      fg: stateColors.fg
+    };
+  }
+  // Default colors if state not found
+  return {
+    bg: '#f3f4f6',
+    fg: '#374151'
+  };
+}
+
+function formatJobMemory(memStr) {
+  if (!memStr || memStr === 'N/A') return 'N/A';
+  
+  // Convert 'G', 'M', 'T' to 'GB', 'MB', 'TB'
+  const match = memStr.match(/^(\d+(?:\.\d+)?)([GMTgmt])$/);
+  if (!match) return memStr;
+  
+  const [, value, unit] = match;
+  const unitMap = {
+    'G': 'GB',
+    'g': 'GB',
+    'M': 'MB',
+    'm': 'MB',
+    'T': 'TB',
+    't': 'TB'
+  };
+  
+  return `${value} ${unitMap[unit] || unit}`;
+}
+
+function parseTRES(tres) {
+  if (!tres) return {};
+  
+  const result = {};
+  tres.split(',').forEach(item => {
+    const [type, value] = item.split('=');
+    result[type] = value;
+  });
+  return result;
+}
+
+function renderNodeData(data) {
+  // Store current tab state before rendering
+  const activeTabId = $('.nav-tabs .nav-link.active').attr('href') || '#details';
+  
+  // Helper function to safely get nested values
+  const get = (obj, key, defaultValue = 'N/A') => {
+    const value = obj.hasOwnProperty(key) ? obj[key] : defaultValue;
+    // Handle special values
+    if (['None', '(null)', 'N/A', 'Unknown'].includes(value)) return defaultValue;
+    return value;
+  };
+  
+  // Helper for date formatting
+  const formatDate = (dateStr) => {
+    if (!dateStr || ['None', 'N/A', 'Unknown'].includes(dateStr)) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
+  
+  const memTotal = Number(data.RealMemory || 0);
+  const memAlloc = Number(data.AllocMem || 0);
+  const cpuTotal = Number(data.CPUTot || data.CPUs || 0);
+  const cpuAlloc = Number(data.CPUAlloc || 0);
+  const gpuTotal = Number(data.gpu_info.total);
+  const gpuAlloc = Number(data.gpu_info.allocated);
+  const cpuUsagePercent = cpuTotal ? Math.round((cpuAlloc/cpuTotal)*100) : 0;
+  const gpuUsagePercent = gpuTotal != 0 ? Math.round((gpuAlloc/gpuTotal)*100) : 0;
+  const memUsagePercent = memTotal ? Math.round((memAlloc/memTotal)*100) : 0;
+  
+  // CPU configuration
+  const cpuDetails = [];
+  if (data.CoresPerSocket) cpuDetails.push(`${data.CoresPerSocket} cores/socket`);
+  if (data.Sockets) cpuDetails.push(`${data.Sockets} sockets`);
+  if (data.ThreadsPerCore) cpuDetails.push(`${data.ThreadsPerCore} threads/core`);
+  const cpuDetailsText = cpuDetails.length > 0 ? cpuDetails.join(', ') : 'N/A';
+  
+  // Handle powered down state
+  const isPoweredDown = (data.State || '').includes('POWERED_DOWN');
+  
+  const html = `
+    <div class="row">
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted">Status</h6>
+            <div class="d-flex align-items-center mb-3">
+              <div class="status-box mr-2" style="background-color: ${getNodeColor(get(data, 'State', 'UNKNOWN'))}"></div>
+              <h5 class="mb-0 status-text">${get(data, 'State')}</h5>
+            </div>
+            ${get(data, 'Reason') !== 'N/A' ? `<p class="text-muted mb-0">Reason: ${get(data, 'Reason')}</p>` : ''}
+            <p class="text-muted mb-0">Last Active: ${formatDate(data.LastBusyTime)}</p>
+            ${isPoweredDown ? '<p class="text-muted mb-0"><i class="fas fa-power-off mr-1"></i>Powered Down</p>' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-6 col-lg-8 mb-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-3 text-muted">Resource Usage</h6>
+            <div class="row">
+              <div class="col-sm-6 mb-3">
+                <label class="d-flex justify-content-between mb-2">
+                  <span>CPU Usage</span>
+                  <span>${data.CPUAlloc || 0}/${data.CPUTot || data.CPUs || 0}</span>
+                </label>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar ${
+                    cpuUsagePercent > 90 ? 'bg-danger' :
+                    cpuUsagePercent > 75 ? 'bg-warning' :
+                    'bg-success'
+                  }" 
+                    role="progressbar" 
+                    style="width: ${cpuUsagePercent}%"></div>
+                </div>
+                ${data.gpu_info.total != 0 ? `
+                  <label class="d-flex justify-content-between mb-2">
+                    <span>GPU Usage</span>
+                    <span>${data.gpu_info.allocated}/${data.gpu_info.total}</span>
+                  </label>
+                  <div class="progress" style="height: 8px;">
+                    <div class="progress-bar ${
+                      gpuUsagePercent > 90 ? 'bg-danger' :
+                      gpuUsagePercent > 75 ? 'bg-warning' :
+                      'bg-success'
+                    }" 
+                      role="progressbar" 
+                      style="width: ${gpuUsagePercent}%"></div>
+                  </div>
+                ` : ''}
+              </div>
+              <div class="col-sm-6 mb-3">
+                <label class="d-flex justify-content-between mb-2">
+                  <span>CPU Memory Usage</span>
+                  <span>${formatMemory(memAlloc)}/${formatMemory(memTotal)}</span>
+                </label>
+                <div class="progress" style="height: 8px;">
+                  <div class="progress-bar ${
+                    memUsagePercent > 90 ? 'bg-danger' :   // Red for >90%
+                    memUsagePercent > 75 ? 'bg-warning' :  // Yellow for >75%
+                    'bg-success'                           // Green for ≤75%
+                  }" 
+                       role="progressbar" 
+                       style="width: ${memUsagePercent}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <!-- Single set of tabs for both desktop and mobile -->
+            <ul class="nav nav-tabs modern-tabs" id="nodeTabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link ${activeTabId === '#details' ? 'active' : ''}" id="details-tab" data-toggle="tab" href="#details" role="tab">
+                  <i class="fas fa-info-circle mr-2"></i>Node Details
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link ${activeTabId === '#jobs' ? 'active' : ''}" id="jobs-tab" data-toggle="tab" href="#jobs" role="tab">
+                  <i class="fas fa-tasks mr-2"></i>Running Jobs
+                </a>
+              </li>
+            </ul>
+
+            <div class="tab-content pt-4" id="nodeTabContent">
+              <div class="tab-pane fade ${activeTabId === '#details' ? 'show active' : ''}" id="details" role="tabpanel">
+                <div class="row">
+                  <div class="col-md-6">
+                    <table class="node-details-table">
+                      <tbody>
+                        <tr>
+                          <th scope="row">Partitions</th>
+                          <td>${get(data, 'Partitions')}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Available Features</th>
+                          <td>${get(data, 'AvailableFeatures')}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Active Features</th>
+                          <td>${get(data, 'ActiveFeatures')}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Architecture</th>
+                          <td>${get(data, 'Arch')}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">OS</th>
+                          <td>${get(data, 'OS')}</td>
+                        </tr>
+                        ${get(data, 'Owner') !== 'N/A' ? `
+                          <tr>
+                            <th scope="row">Owner</th>
+                            <td>${get(data, 'Owner')}</td>
+                          </tr>
+                        ` : ''}
+                        <tr>
+                          <th scope="row">GPU Details</th>
+                          <td>
+                            ${data.gpu_info.total != 0 ? 
+                              `${data.gpu_info.total}x ${data.gpu_info.model}` : 
+                              'No GPUs available'
+                            }
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="col-md-6">
+                    <table class="node-details-table">
+                      <tbody>
+                        <tr>
+                          <th scope="row">CPU Details</th>
+                          <td>${cpuDetailsText}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Gres</th>
+                          <td>${get(data, 'Gres')}</td>
+                        </tr>
+                        ${get(data, 'Weight') !== 'N/A' ? `
+                          <tr>
+                            <th scope="row">Weight</th>
+                            <td>${get(data, 'Weight')}</td>
+                          </tr>
+                        ` : ''}
+                        <tr>
+                          <th scope="row">Boot Time</th>
+                          <td>${formatDate(data.BootTime)}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Slurmd Start Time</th>
+                          <td>${formatDate(data.SlurmdStartTime)}</td>
+                        </tr>
+                        <tr>
+                          <th scope="row">Version</th>
+                          <td>${get(data, 'Version')}</td>
+                        </tr>
+                        ${get(data, 'CfgTRES') !== 'N/A' ? `
+                          <tr>
+                            <th scope="row">Configured TRES</th>
+                            <td>${get(data, 'CfgTRES')}</td>
+                          </tr>
+                        ` : ''}
+                        ${get(data, 'AllocTRES') !== 'N/A' ? `
+                          <tr>
+                            <th scope="row">Allocated TRES</th>
+                            <td>${get(data, 'AllocTRES')}</td>
+                          </tr>
+                        ` : ''}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="tab-pane fade ${activeTabId === '#jobs' ? 'show active' : ''}" id="jobs" role="tabpanel">
+                <!-- Desktop table view -->
+                <div class="d-none d-md-block">
+                  <div class="table-responsive">
+                    <table class="table table-hover" id="jobsTable">
+                      <thead>
+                        <tr>
+                          <th>Job ID</th>
+                          <th>Name</th>
+                          <th>User</th>
+                          <th>Partition</th>
+                          <th>State</th>
+                          <th>${data.gpu_info ? 'GPUs' : 'CPU Cores'}</th>
+                          <th>Memory</th>
+                          <th>Runtime</th>
+                          <th>Time Limit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${data.jobs.map(job => {
+                          const colors = getJobStateColor(job.state || '');
+                          const stateDescription = SIMPLE_JOB_STATE_CODES[job.state] || JOB_STATE_CODES[job.state] || 'Unknown state';
+                          
+                          return `
+                            <tr>
+                              <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-id-link">${job.id}</a></td>
+                              <td>${job.name || 'N/A'}</td>
+                              <td>${job.user || 'N/A'}</td>
+                              <td>${job.partition || 'N/A'}</td>
+                              <td>
+                                <span class="badge badge-pill has-tooltip" 
+                                      data-toggle="tooltip" 
+                                      title="${stateDescription}"
+                                      style="background-color: ${colors.bg}; color: ${colors.fg}">
+                                  ${job.state || 'N/A'}
+                                </span>
+                              </td>
+                              <td>${data.gpu_info ? (job.gpus || 'N/A') : (job.cpus || 'N/A')}</td>
+                              <td>${job.memory && job.memory.display !== 'N/A' ? 
+                                `<span class="has-tooltip" data-toggle="tooltip" title="${job.memory.mb} MB">${job.memory.display}</span>` : 
+                                'N/A'}</td>
+                              <td>${job.time || 'N/A'}</td>
+                              <td>${job.time_limit || 'N/A'}</td>
+                            </tr>
+                          `;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Mobile cards view -->
+                <div class="d-md-none">
+                  <div id="jobCards">
+                    <!-- Jobs cards will be inserted here -->
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById('node_content').innerHTML = html;
+  
+  // Update jobs table
+  const jobsTableBody = document.querySelector('#jobsTable tbody');
+  const jobCards = document.querySelector('#jobCards');
+
+  const jobRowHtml = job => {
+    const colors = getJobStateColor(job.state || '');
+    const stateDescription = SIMPLE_JOB_STATE_CODES[job.state] || JOB_STATE_CODES[job.state] || 'Unknown state';
+    
+    return `
+      <tr>
+        <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-id-link">${job.id}</a></td>
+        <td>${job.name || 'N/A'}</td>
+        <td>${job.user || 'N/A'}</td>
+        <td>${job.partition || 'N/A'}</td>
+        <td>
+          <span class="badge badge-pill has-tooltip" 
+                data-toggle="tooltip" 
+                title="${stateDescription}"
+                style="background-color: ${colors.bg}; color: ${colors.fg}">
+            ${job.state || 'N/A'}
+          </span>
+        </td>
+        <td>${data.gpu_info ? (job.gpus || 'N/A') : (job.cpus || 'N/A')}</td>
+        <td>${job.memory && job.memory.display !== 'N/A' ? 
+          `<span class="has-tooltip" data-toggle="tooltip" title="${job.memory.mb} MB">${job.memory.display}</span>` : 
+          'N/A'}</td>
+        <td>${job.time || 'N/A'}</td>
+        <td>${job.time_limit || 'N/A'}</td>
+      </tr>
+    `;
+  };
+
+  const jobCardHtml = job => {
+    const colors = getJobStateColor(job.state || '');
+    const stateDescription = SIMPLE_JOB_STATE_CODES[job.state] || JOB_STATE_CODES[job.state] || 'Unknown state';
+    
+    return `
+      <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-card">
+        <div class="job-card-header">
+          <div class="job-id">
+            <i class="fas fa-terminal text-muted mr-1" aria-hidden="true"></i>
+            <span class="job-id-text">${job.id}</span>
+          </div>
+          <div class="d-flex align-items-center">
+            <span class="badge badge-pill mr-2 has-tooltip" 
+                  data-toggle="tooltip" 
+                  title="${stateDescription}"
+                  style="background-color: ${colors.bg}; color: ${colors.fg}">
+              ${job.state || 'N/A'}
+            </span>
+          </div>
+        </div>
+        <div class="job-card-body">
+          <div class="job-info-row">
+            <i class="fas fa-tag text-muted mr-2"></i>
+            <span class="job-name">${job.name || 'N/A'}</span>
+          </div>
+          <div class="job-info-row">
+            <i class="fas fa-user text-muted mr-2"></i>
+            <span>${job.user || 'N/A'}</span>
+          </div>
+          <div class="job-info-row">
+            <i class="fas fa-layer-group text-muted mr-2"></i>
+            <span>${job.partition || 'N/A'}</span>
+          </div>
+          <div class="job-info-row">
+            <i class="fas fa-microchip text-muted mr-2"></i>
+            <div class="resource-info">
+              <div class="resource-item">
+                <span class="resource-label">${data.gpu_info ? 'GPUs:' : 'CPU Cores:'}</span>
+                <span class="resource-value">${data.gpu_info ? (job.gpus || 'N/A') : (job.cpus || 'N/A')}</span>
+              </div>
+              <div class="resource-item">
+                <span class="resource-label">Memory:</span>
+                <span class="resource-value ${job.memory && job.memory.display !== 'N/A' ? 'has-tooltip' : ''}" 
+                      ${job.memory && job.memory.display !== 'N/A' ? `data-toggle="tooltip" title="${job.memory.mb} MB"` : ''}>
+                  ${job.memory ? job.memory.display : 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="job-info-row time-row">
+            <i class="fas fa-clock text-muted mr-2"></i>
+            <div class="time-info">
+              <div class="time-item">
+                <span class="time-label">Runtime:</span>
+                <span class="time-value" title="How long the job has been running">${job.time || 'N/A'}</span>
+              </div>
+              <div class="time-item">
+                <span class="time-label">Time Limit:</span>
+                <span class="time-value" title="Maximum allowed runtime">${job.time_limit || 'N/A'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </a>
+    `;
+  };
+
+  if (data.jobs && data.jobs.length > 0) {
+    jobsTableBody.innerHTML = data.jobs.map(jobRowHtml).join('');
+    jobCards.innerHTML = data.jobs.map(jobCardHtml).join('');
+  } else {
+    // Show no jobs message for both views
+    const noJobsMessage = `
+      <tr>
+        <td colspan="9" class="text-center py-5">
+          <div class="empty-state">
+            <div class="empty-state-icon mb-3">
+              <i class="fas fa-tasks"></i>
+            </div>
+            <h5 class="text-muted mb-2">No Active Jobs</h5>
+            <p class="text-muted small mb-0">There are no jobs currently running on this node</p>
+          </div>
+        </td>
+      </tr>
+    `;
+    jobsTableBody.innerHTML = noJobsMessage;
+    
+    jobCards.innerHTML = `
+      <div class="text-center text-muted py-4">
+        <i class="fas fa-info-circle mr-1"></i>
+        No jobs currently running on this node
+      </div>
+    `;
+  }
+  
+  // Re-initialize Bootstrap tabs
+  $('#nodeTabs a').on('click', function (e) {
+    e.preventDefault();
+    $(this).tab('show');
+  });
+
+  // Re-initialize tooltips after content updates
+  $('[data-toggle="tooltip"]').tooltip('dispose'); // Remove any existing tooltips
+  $('[data-toggle="tooltip"]').tooltip({
+    placement: 'top',
+    container: 'body',
+    html: true,
+    trigger: 'hover',
+    boundary: 'window'
+  });
+}
+
+function loadNodeData(forceRefresh = false) {
+  // Add spinning class to refresh icon
+  $('.btn-outline-secondary .fa-sync-alt').addClass('fa-spin');
+  
+  // Use fetchWithCache with 15 second duration
+  fetchWithCache('<%= url_for(controller: "api/nodes", action: "show", name: @node_name) %>', {
+    cacheDuration: 15 * 1000, // 15 seconds
+    forceRefresh: forceRefresh
+  })
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      renderNodeData(data);
+    })
+    .catch(error => {
+      const errorHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100 py-5">
+          <div class="text-danger mb-3">
+            <i class="fas fa-exclamation-circle fa-2x"></i>
+          </div>
+          <h5 class="mb-2">Unable to Load Node Information</h5>
+          <p class="text-muted small mb-3">${error.message}</p>
+          <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="loadNodeData(true)">
+            <i class="fas fa-sync-alt me-1"></i> Retry
+          </button>
+        </div>
+      `;
+      document.getElementById('node_content').innerHTML = errorHtml;
+    })
+    .finally(() => {
+      // Remove spinning class when request completes
+      $('.btn-outline-secondary .fa-sync-alt').removeClass('fa-spin');
+    });
+}
+
+// Initial load with loading animation
+document.addEventListener('DOMContentLoaded', () => loadNodeData());
+
+// Replace both tab change handlers with this updated one
+$(document).on('shown.bs.tab', 'a[data-toggle="tab"]', function (e) {
+  const activeTabId = $(e.target).attr('href');
+  
+  // Update desktop tabs
+  $('.nav-tabs .nav-link').removeClass('active');
+  $(`.nav-tabs .nav-link[href="${activeTabId}"]`).addClass('active');
+  
+  // Update tab content
+  $('.tab-pane').removeClass('show active');
+  $(activeTabId).addClass('show active');
+});
+
+// Remove the window resize handler since we don't need it anymore
+$(window).off('resize');
+</script>
+
+<style>
+.status-box {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+/* Mobile-friendly styles */
+.node-details-table {
+  width: 100%;
+}
+
+.node-details-table th,
+.node-details-table td {
+  padding: 0.5rem;
+  vertical-align: top;
+}
+
+.node-details-table th {
+  white-space: nowrap;
+  width: 140px;
+}
+
+.node-details-table td {
+  word-break: break-word;
+}
+
+.node-details-table tr {
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.node-details-table tr:last-child {
+  border-bottom: none;
+}
+
+@media (max-width: 768px) {
+  #node-container {
+    padding: 10px;
+  }
+  
+  .card-body {
+    padding: 1rem;
+  }
+  
+  .node-details-table,
+  .node-details-table tbody,
+  .node-details-table tr,
+  .node-details-table th,
+  .node-details-table td {
+    display: block;
+  }
+  
+  .node-details-table tr {
+    margin-bottom: 1rem;
+  }
+  
+  .node-details-table tr:last-child {
+    margin-bottom: 0;
+  }
+  
+  .node-details-table th {
+    padding-bottom: 0.25rem;
+    color: #6c757d;
+    font-size: 0.875rem;
+    width: auto;
+  }
+  
+  .node-details-table td {
+    padding-top: 0.25rem;
+    font-weight: 500;
+  }
+  
+  /* Ensure status text wraps nicely on mobile */
+  .status-text {
+    word-break: break-word;
+  }
+}
+
+/* Modern tabs styling - updated for both desktop and mobile */
+.modern-tabs {
+  border-bottom: 1px solid #dee2e6 !important;
+  margin-bottom: 0;
+  margin-top: -1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding: 0 1rem;
+}
+
+.modern-tabs .nav-item {
+  margin-bottom: -1px;
+  margin-right: 1.5rem;
+}
+
+.modern-tabs .nav-link {
+  border: none !important;
+  color: #6c757d;
+  padding: 0.75rem 0;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  background: transparent !important;
+}
+
+/* Only show hover effects on desktop */
+@media (min-width: 769px) {
+  .modern-tabs .nav-link:hover {
+    color: #495057;
+  }
+
+  .modern-tabs .nav-link:hover::after {
+    background-color: rgba(0, 123, 255, 0.5);
+  }
+}
+
+.modern-tabs .nav-link.active {
+  color: #007bff !important;
+}
+
+.modern-tabs .nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: transparent;
+  transition: all 0.2s ease-in-out;
+}
+
+.modern-tabs .nav-link.active::after {
+  background-color: #007bff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .modern-tabs {
+    margin-top: -0.5rem;
+    padding: 0 1rem;
+  }
+
+  .modern-tabs .nav-item {
+    margin-right: 1rem;
+  }
+  
+  .modern-tabs .nav-link {
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    /* Remove transition on mobile */
+    transition: none;
+  }
+
+  .modern-tabs .nav-link i {
+    font-size: 0.875rem;
+  }
+}
+
+/* Job cards styling */
+.job-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.job-card-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+}
+
+.job-card-header .job-id {
+  font-weight: 500;
+  color: #2b6cb0;
+}
+
+.job-card-header .job-id a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.job-card-header .job-state {
+  font-size: 0.875rem;
+  color: #4a5568;
+}
+
+.job-card-body {
+  padding: 1rem;
+}
+
+.job-info-row {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: #4a5568;
+  border-bottom: 1px solid #f0f0f0;
+  overflow: hidden;  /* Ensure content doesn't overflow */
+}
+
+.job-info-row > span {
+  flex: 1;
+  min-width: 0;  /* Allow text to truncate */
+}
+
+.job-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.job-info-row:first-child {
+  padding-top: 0;
+}
+
+.time-row {
+  border-bottom: none;
+}
+
+.time-info {
+  background-color: #f8fafc;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.time-label {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.time-value {
+  color: #1a202c;
+  font-weight: 500;
+}
+
+/* Badge updates */
+.badge-pill {
+  padding: 0.375rem 0.75rem;
+  font-weight: 500;
+  font-size: 0.75rem;
+  border-radius: 1rem;
+}
+
+/* Icons in job info rows */
+.job-info-row i {
+  width: 1.25rem;
+  color: #94a3b8;
+  margin-right: 0.75rem;
+}
+
+/* Job name styling */
+.job-name {
+  font-weight: 500;
+  color: #1a202c;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;  /* Ensures the truncation works */
+}
+
+/* Job ID styling */
+.job-card-header .job-id a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.job-card-header .job-id a:hover {
+  color: #1d4ed8;
+}
+
+/* Empty state styling */
+#jobCards .text-center {
+  padding: 2rem;
+  background-color: #f8fafc;
+  border-radius: 0.5rem;
+  color: #64748b;
+}
+
+.resource-info {
+  background-color: #f8fafc;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  width: 100%;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.resource-item:first-child {
+  margin-bottom: 0.25rem;
+}
+
+.resource-label {
+  color: inherit;
+  margin-right: 0.5rem;
+  font-weight: inherit;
+}
+
+.resource-value {
+  color: #1a202c;
+  font-weight: 500;
+}
+
+/* Add this to your CSS */
+[data-toggle="tooltip"] {
+  border-bottom: 1px dotted #718096;
+  cursor: help;
+}
+
+/* Adjust the resource-value tooltip style to avoid double borders */
+.resource-value[data-toggle="tooltip"] {
+  border-bottom: 1px dotted #718096;
+  display: inline-block;  /* Ensures the border spans only the text width */
+}
+
+/* Remove default table cell border when it has a tooltip */
+td[data-toggle="tooltip"] {
+  border-bottom: none;
+}
+
+td[data-toggle="tooltip"] > span {
+  border-bottom: 1px dotted #718096;
+}
+
+/* Add these styles */
+@media (min-width: 768px) {
+  .table td, 
+  .table th {
+    white-space: nowrap;
+    max-width: 200px;  /* Prevent cells from getting too wide */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* Allow job name column to wrap if needed */
+  .table td:nth-child(2) {
+    white-space: normal;
+  }
+}
+
+.empty-state {
+  padding: 2rem;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  background-color: #f1f5f9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+.empty-state-icon i {
+  font-size: 1.25rem;
+  color: #64748b;
+}
+
+.empty-state h5 {
+  font-weight: 500;
+  color: #475569;
+}
+
+.empty-state p {
+  color: #64748b;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+/* Add these styles to your CSS section */
+.job-card-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.job-card-header:hover {
+  background-color: #f8fafc;
+}
+
+.job-card-header:active {
+  background-color: #f1f5f9;
+}
+
+.job-collapse-icon {
+  font-size: 0.875rem;
+  color: #64748b;
+  transition: transform 0.2s ease;
+}
+
+.job-collapse-icon.rotated {
+  transform: rotate(180deg);
+}
+
+/* Remove the link styling from job ID in mobile view */
+@media (max-width: 767.98px) {
+  .job-card-header .job-id {
+    color: #1a202c;
+    font-weight: 500;
+  }
+  
+  .job-card-header {
+    padding: 0.875rem 1rem;
+  }
+  
+  /* Prevent click events on the job ID to allow card expansion */
+  .job-card-header .job-id {
+    pointer-events: none;
+  }
+}
+
+/* Remove outline from back button */
+.btn-link:focus {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+/* Optional: Add a subtle hover effect instead */
+.btn-link:hover {
+  opacity: 0.75;
+}
+
+/* Only show outline on keyboard focus, not mouse clicks */
+.job-card-header:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.job-card-header:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+  border-radius: 0.375rem;
+}
+
+.resource-status {
+  font-size: 1rem !important;  /* 16px, equivalent to ~14pt */
+  font-weight: 500;
+}
+
+/* Update the resource labels and values styling */
+
+.progress + label,
+label + .progress {
+  margin-top: 0.5rem;
+}
+
+label {
+  font-size: 1.0625rem !important;  /* 17px */
+  margin-bottom: 0.25rem;
+}
+
+/* Add spacing between progress bar and the status text */
+.progress {
+  margin-bottom: 0.25rem;
+}
+
+.resource-label {
+  color: inherit;
+  margin-right: 0.5rem;
+  font-weight: inherit;
+}
+
+/* Update tooltip styling to only show dotted border for elements with actual tooltips */
+[data-toggle="tooltip"] .has-tooltip {
+  border-bottom: 1px dotted #718096;
+  cursor: help;
+}
+
+/* Remove default table cell border when it has a tooltip */
+td[data-toggle="tooltip"] {
+  border-bottom: none;
+}
+
+td[data-toggle="tooltip"] > span.has-tooltip {
+  border-bottom: 1px dotted #718096;
+}
+
+/* Update resource value tooltip style */
+.resource-value.has-tooltip {
+  border-bottom: 1px dotted #718096;
+  display: inline-block;
+}
+
+/* Add these styles to your existing CSS section */
+.table tbody tr:hover {
+  background-color: #f8fafc;
+  transition: background-color 0.2s ease;
+}
+
+.job-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.job-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 
+              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Tooltip styling */
+.tooltip {
+  pointer-events: none;
+  z-index: 1070;
+}
+
+.tooltip-inner {
+  max-width: 300px;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background-color: #1a202c;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+/* Ensure tooltips are clickable on mobile */
+@media (max-width: 768px) {
+  .tooltip {
+    pointer-events: auto;
+  }
+}
+</style> 

@@ -1,0 +1,6 @@
+<%= render partial: "layouts/nav/top/dropdown",
+    locals: {
+      icon_class: "fas fa-folder",
+      title: group.title,
+      groups: OodAppGroup.groups_for(apps: group.apps, group_by: :subcategory)
+    } %> 

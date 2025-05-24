@@ -1,0 +1,6 @@
+<li class="nav-item">
+  <%= link_to apps_index_path,
+      class: "nav-link #{current_page?(apps_index_path) ? 'active' : ''}" do %>
+    <i class="fas fa-th"></i> <%= t('dashboard.nav_all_apps') %>
+  <% end %>
+</li> 

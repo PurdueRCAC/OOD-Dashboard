@@ -1,0 +1,417 @@
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="mb-4">Gautschi Dashboard Guide</h1>
+      
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-chart-bar text-primary"></i> 
+            Balance & Usage
+          </h2>
+          <p>Monitor your allocation usage and remaining balance on Gautschi.</p>
+          
+          <h4 class="mt-3">How to Use:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-check-circle text-success"></i> <strong>Balance Information:</strong>
+              <ul>
+                <li>View your current allocation balance</li>
+                <li>Track usage history and trends</li>
+                <li>Receive warnings when balance is low</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-hdd text-warning"></i> 
+            Disk Usage
+          </h2>
+          <p>Monitor your storage utilization across Gautschi's file systems.</p>
+          
+          <h4 class="mt-3">Storage Information:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-chart-pie text-primary"></i> <strong>Usage Overview:</strong>
+              <ul>
+                <li>View current usage for each storage type</li>
+                <li>Monitor quota limits and usage percentages</li>
+                <li>Get alerts when approaching storage limits</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-tasks text-success"></i> 
+            Job Queue
+          </h2>
+          <p>View and manage your running and queued jobs on Gautschi.</p>
+          
+          <h4 class="mt-3">Features:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-list text-info"></i> <strong>Job Management:</strong>
+              <ul>
+                <li>Monitor active and queued jobs</li>
+                <li>View job details and resource usage</li>
+                <li>Access job output and error files</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Look for efficiency warnings that suggest ways to optimize your resource requests and reduce queue times.
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-newspaper text-info"></i>
+            News Feed
+          </h2>
+          <p>Stay updated with the latest Gautschi news and announcements.</p>
+          
+          <h4 class="mt-3">Information Available:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-bullhorn text-warning"></i> <strong>Updates:</strong>
+              <ul>
+                <li>System maintenance notifications</li>
+                <li>New feature announcements</li>
+                <li>Important system alerts</li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-server text-primary"></i> 
+            Partition Status
+          </h2>
+          <p>Monitor the current state of Gautschi's compute partitions.</p>
+          
+          <h4 class="mt-3">Status Information:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-info-circle text-info"></i> <strong>Available Data:</strong>
+              <ul>
+                <li>Current partition availability</li>
+                <li>Node usage statistics</li>
+                <li>Queue lengths and wait times</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-external-link-alt"></i> <strong>Note:</strong> Click "View Queue Limits" for detailed information about partition configurations and limitations.
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-server text-primary"></i> 
+            Cluster Status
+          </h2>
+          <p>Get a comprehensive view of Gautschi's compute nodes and their current status.</p>
+          
+          <h4 class="mt-3">Features:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-th text-info"></i> <strong>Grid View:</strong>
+              <ul>
+                <li>Visual representation of all compute nodes</li>
+                <li>Color-coded status indicators</li>
+                <li>Group nodes by type (CPU, GPU, Login, etc.)</li>
+                <li>Quick status overview at a glance</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-list text-success"></i> <strong>List View:</strong>
+              <ul>
+                <li>Detailed node information in table format</li>
+                <li>Sort nodes by various criteria</li>
+                <li>Search and filter nodes</li>
+                <li>View CPU and memory usage</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-circle-info text-warning"></i> <strong>Status Types:</strong>
+              <ul>
+                <li>Online - Nodes available for jobs</li>
+                <li>Drained - Nodes transitioning offline</li>
+                <li>Maintenance - Nodes under maintenance</li>
+                <li>Down - Nodes currently unavailable</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Click any node to view detailed information about its current state, specifications, and running jobs.
+          </div>
+
+          <div class="mt-3">
+            <%= link_to cluster_status_path, class: "btn btn-outline-primary" do %>
+              <i class="fas fa-external-link-alt"></i> View Cluster Status
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-microchip text-info"></i> 
+            Node Overview
+          </h2>
+          <p>Access detailed information about individual compute nodes.</p>
+          
+          <h4 class="mt-3">Available Information:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-gauge-high text-primary"></i> <strong>Resource Usage:</strong>
+              <ul>
+                <li>Real-time CPU utilization</li>
+                <li>Memory usage and availability</li>
+                <li>Current state and status</li>
+                <li>Resource allocation details</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-info-circle text-success"></i> <strong>Node Details:</strong>
+              <ul>
+                <li>Hardware specifications</li>
+                <li>Available features and partitions</li>
+                <li>Operating system information</li>
+                <li>Boot time and version details</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-tasks text-warning"></i> <strong>Running Jobs:</strong>
+              <ul>
+                <li>List of currently running jobs</li>
+                <li>Job resource utilization</li>
+                <li>User and partition information</li>
+                <li>Job runtime and time limits</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Access node details by clicking any node in the Cluster Status view or searching for a specific node name.
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-table text-primary"></i> 
+            My Jobs Page
+          </h2>
+          <p>Access detailed information about your jobs through the My Jobs interface.</p>
+          
+          <h4 class="mt-3">Features Available:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-list-ul text-info"></i> <strong>Job Management:</strong>
+              <ul>
+                <li>View all your jobs in an interactive table</li>
+                <li>Sort and filter jobs by various criteria</li>
+                <li>Expand rows to see detailed job information</li>
+                <li>Access job output and error files directly</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Efficiency Warnings:</strong>
+              <ul>
+                <li>Time efficiency warnings when jobs use less time than requested</li>
+                <li>Memory efficiency warnings when jobs use less memory than requested</li>
+                <li>Suggestions for optimizing resource requests</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Click the <i class="fas fa-caret-right"></i> icon next to any job to view detailed metrics and efficiency warnings.
+          </div>
+
+          <div class="mt-3">
+            <%= link_to my_jobs_path, class: "btn btn-outline-primary" do %>
+              <i class="fas fa-external-link-alt"></i> Go to My Jobs Page
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="card-body">
+          <h2 class="card-title">
+            <i class="fas fa-chart-line text-success"></i> 
+            Performance Metrics Page
+          </h2>
+          <p>Analyze your job performance and resource utilization patterns over time.</p>
+          
+          <h4 class="mt-3">Available Metrics:</h4>
+          <ul class="list-unstyled ml-4">
+            <li><i class="fas fa-clock text-primary"></i> <strong>Time Periods:</strong>
+              <ul>
+                <li>All Time statistics</li>
+                <li>Past Year metrics</li>
+                <li>Past Month analysis</li>
+              </ul>
+            </li>
+            <li class="mt-2"><i class="fas fa-chart-bar text-info"></i> <strong>Efficiency Metrics:</strong>
+              <ul>
+                <li>Average Memory Efficiency</li>
+                <li>Average CPU Efficiency</li>
+                <li>Time Efficiency tracking</li>
+                <li>Most and least efficient jobs</li>
+              </ul>
+            </li>
+          </ul>
+
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-lightbulb"></i> <strong>Tip:</strong> Use these metrics to optimize your resource requests and improve job efficiency over time.
+          </div>
+
+          <div class="mt-3">
+            <%= link_to performance_metrics_path, class: "btn btn-outline-primary" do %>
+              <i class="fas fa-external-link-alt"></i> View Performance Metrics
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-center mb-4">
+        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3">
+          <a href="https://www.rcac.purdue.edu/help" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0">
+            <i class="fas fa-question-circle"></i> Need Help?
+          </a>
+          <a href="<%= root_path %>" class="btn btn-secondary w-100 w-md-auto">
+            <i class="fas fa-arrow-left"></i> Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 
+
+<style>
+/* General mobile responsiveness improvements */
+@media (max-width: 768px) {
+  .container {
+    padding: 0.5rem;
+  }
+
+  .card {
+    margin-bottom: 1rem;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+    margin-bottom: 1rem;
+  }
+
+  h2.card-title {
+    font-size: 1.25rem;
+  }
+
+  h4 {
+    font-size: 1.1rem;
+  }
+
+  .alert {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  /* Improve list readability on mobile */
+  .list-unstyled {
+    margin-left: 0.5rem !important;
+  }
+
+  ul ul {
+    padding-left: 1rem;
+  }
+
+  /* Button improvements */
+  .btn {
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  /* Add spacing between stacked buttons */
+  .gap-3 {
+    gap: 0.75rem !important;
+  }
+
+  /* Improve icon spacing */
+  .btn i {
+    margin-right: 0.5rem;
+  }
+}
+
+/* Utility classes for responsive widths */
+@media (min-width: 768px) {
+  .w-md-auto {
+    width: auto !important;
+  }
+}
+
+/* Improve card spacing and readability */
+.card {
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* Improve alert styling */
+.alert {
+  border-radius: 0.5rem;
+}
+
+/* Improve button styling */
+.btn {
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* Add spacing between icons and text in lists */
+.list-unstyled i {
+  width: 1.25rem;
+  text-align: center;
+  margin-right: 0.5rem;
+}
+
+/* Improve spacing between sections */
+.mt-3 {
+  margin-top: 1rem !important;
+}
+
+.mb-4 {
+  margin-bottom: 1.5rem !important;
+}
+
+/* Utility class for gaps */
+.gap-3 {
+  gap: 1rem;
+}
+</style> 

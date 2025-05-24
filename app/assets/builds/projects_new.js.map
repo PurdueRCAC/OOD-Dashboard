@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../javascript/projects_new.js"],
+  "sourcesContent": ["'use strict';\n\njQuery(function() {\n  $(\"#project_template\").on('change', (event) => templateChange(event));\n});\n\nfunction templateChange(event) {\n  const choice = $(`#project_template option[value=\"${event.target.value}\"]`)[0];\n  if(choice === undefined) {\n    return;\n  }\n\n  const name = choice.label;\n  const description = choice.dataset.description;\n  const icon = choice.dataset.icon;\n\n  $(\"#project_name\").val(name);\n  $(\"#project_description\").val(description);\n  $(\"#product_icon_select\").val(icon);\n  $(\"#product_icon_select\").trigger('change');\n}\n"],
+  "mappings": ";AAEA,OAAO,WAAW;AAChB,IAAE,mBAAmB,EAAE,GAAG,UAAU,CAAC,UAAU,eAAe,KAAK,CAAC;AACtE,CAAC;AAED,SAAS,eAAe,OAAO;AAC7B,QAAM,SAAS,EAAE,mCAAmC,MAAM,OAAO,SAAS,EAAE;AAC5E,MAAG,WAAW,QAAW;AACvB;AAAA,EACF;AAEA,QAAM,OAAO,OAAO;AACpB,QAAM,cAAc,OAAO,QAAQ;AACnC,QAAM,OAAO,OAAO,QAAQ;AAE5B,IAAE,eAAe,EAAE,IAAI,IAAI;AAC3B,IAAE,sBAAsB,EAAE,IAAI,WAAW;AACzC,IAAE,sBAAsB,EAAE,IAAI,IAAI;AAClC,IAAE,sBAAsB,EAAE,QAAQ,QAAQ;AAC5C;",
+  "names": []
+}

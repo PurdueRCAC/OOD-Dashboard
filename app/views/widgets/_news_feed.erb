@@ -1,0 +1,233 @@
+<div class="d-flex flex-column h-100">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="d-flex align-items-center flex-grow-1">
+      <h3 class="font-weight-bold mb-0 mr-3 text-nowrap">
+        <i class="fas fa-bullhorn" style="color: #20c997"></i> Announcements
+      </h3>
+      <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
+         class="btn btn-sm btn-outline-info mt-1 rounded-pill shadow-sm text-nowrap d-none d-md-inline-block"
+         target="_blank">
+        <i class="far fa-newspaper mr-1"></i> View All <i class="fas fa-chevron-right"></i>
+      </a>
+    </div>
+    <div class="d-flex align-items-center">
+      <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
+         class="btn btn-sm btn-outline-info rounded-pill shadow-sm text-nowrap d-inline-block d-md-none mr-2"
+         title="View All Announcements"
+         target="_blank">
+        <i class="fas fa-external-link-alt"></i>
+      </a>
+      <button onclick="load_news_feed(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </div>
+  <div id="news_feed_card_content" class="flex-grow-1 news-feed-scroll-container" style="height: 200px; overflow-y: auto;"></div>
+  <div class="news-feed-gradient-fade"></div>
+</div>
+
+<style>
+  .news-feed-scroll-container {
+    position: relative;
+  }
+
+  .news-feed-gradient-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background: linear-gradient(to bottom, 
+      rgba(248, 249, 250, 0) 0%,
+      rgba(248, 249, 250, 0.8) 50%,
+      var(--main-bg-color) 100%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .update-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    background-color: #17a2b8;
+    color: white;
+  }
+
+  .update-badge-past {
+    background-color: #6c757d;
+  }
+
+  .update-item {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+  }
+
+  .border-left-active {
+    border-left: 3px solid #17a2b8 !important;
+  }
+
+  .border-left-past {
+    border-left: 3px solid #6c757d !important;
+  }
+
+  .updates-container {
+    margin-left: 1rem;
+  }
+</style>
+
+<script defer>
+    function load_news_feed(forceRefresh = false) {
+        const loadingHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="position-relative mb-3">
+                <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <p class="text-muted mb-0">Loading announcements...</p>
+        </div>
+        `;
+        
+        $("#news_feed_card_content").html(loadingHtml);
+        
+        return fetchWithCache(`<%= url_for controller: "api/news_feed", action: "get" %>`, {
+            forceRefresh,
+            cacheDuration: 60 * 60 * 1000  // Cache for 1 hour
+        }).then(data => {
+            const now = moment();
+            const PREVIEW_DAYS = 14; // Show announcements 14 days before they start
+            
+            const filteredData = data.filter((article) => true)
+                .map((article) => {
+                    const startDate = moment(article.datetimenews);
+                    const endDate = moment(article.datetimenewsend);
+                    const previewDate = moment(startDate).subtract(
+                        [1, 7].includes(article.type?.id) ? PREVIEW_DAYS : 0, 
+                        'days'
+                    );
+                    
+                    return {
+                        ...article,
+                        isActive: now.isAfter(previewDate) && now.isBefore(endDate)
+                    };
+                })
+                .slice(0, 8);
+
+            const activeArticles = filteredData.filter(article => article.isActive);
+            const hasActiveAnnouncements = activeArticles.length > 0;
+
+            const noActiveAnnouncementsHtml = !hasActiveAnnouncements ? 
+                `<div class="d-flex flex-column align-items-center justify-content-center py-3 mb-3 bg-light rounded" style="min-height: 200px">
+                    <div class="mb-3">
+                        <i class="fas fa-bullhorn text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-2">No Current Announcements</h5>
+                    <p class="text-muted mb-0">Check back later for updates. Scroll down to view past announcements.</p>
+                </div>
+                <hr class="my-3">` : '';
+
+            const newsHtml = `${noActiveAnnouncementsHtml}${
+                filteredData.map((article) => {
+                    const updatesHtml = article.updates?.length > 0 ? 
+                        `<div class="updates-container mb-3">
+                            ${article.updates
+                                .sort((a, b) => new Date(b.datetimecreated) - new Date(a.datetimecreated))
+                                .map(update => `
+                                    <div class="update-item mb-2">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="update-badge ${!article.isActive ? 'update-badge-past' : ''} mr-2">
+                                                <i class="fas fa-info-circle"></i> Update
+                                            </div>
+                                            <small class="${!article.isActive ? 'text-black-50' : 'text-muted'}">
+                                                ${update.formattedcreateddate}
+                                            </small>
+                                        </div>
+                                        <div class="update-content pl-3 ${!article.isActive ? 'border-left-past' : 'border-left-active'} ${!article.isActive ? 'text-black-50' : ''}">
+                                            ${update.formattedbody}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                        </div>` : '';
+
+                    const articleHtml = `
+                    <div class="mb-2 ${!article.isActive ? 'bg-light rounded p-2' : ''}">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1">
+                                <h5 class="mb-1 d-flex align-items-center">
+                                    ${article.isActive ? 
+                                        `<i class="fas fa-circle text-success mr-2" style="font-size: 0.5em; vertical-align: middle;"></i>` 
+                                        : '<span class="badge badge-secondary mr-2 align-middle">Past</span>'}
+                                    <a href="${article.uri}" class="${!article.isActive ? 'text-muted' : ''}" style="${!article.isActive ? '' : 'font-weight: 600; font-size: 22px;'} text-decoration: underline !important;">${article.headline}</a>
+                                </h5>
+                                ${updatesHtml}
+                                <div class="initial-announcement">
+                                    <p class="mb-1 small ${!article.isActive ? 'text-black-50' : 'text-muted'}">
+                                        <i class="far fa-clock"></i> ${article.formatteddate}
+                                    </p>
+                                    <div class="mt-1 ${!article.isActive ? 'text-black-50' : ''}" 
+                                            style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;">
+                                        ${article.formattedbody || ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                    return articleHtml;
+                }).join('<hr class="my-2">')}`;
+            $("#news_feed_card_content").html(newsHtml);
+        }).catch(res => {
+            const errorHtml = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <h5 class="mb-2">Unable to Load Announcements</h5>
+                <p class="text-muted small mb-3">There was a problem retrieving the announcements feed</p>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_news_feed(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Retry
+                </button>
+            </div>
+            `;
+
+            $("#news_feed_card_content").html(errorHtml);
+        });
+    }
+
+    // Update scroll handler
+    $(document).ready(function() {
+        const container = document.getElementById('news_feed_card_content');
+        const fadeElement = container.nextElementSibling;
+
+        function updateGradient() {
+            // Calculate if we're at the bottom
+            const isAtBottom = Math.abs((container.scrollHeight - container.scrollTop) - container.clientHeight) < 1;
+            
+            // Show gradient only if we can scroll and aren't at the bottom
+            if (container.scrollHeight > container.clientHeight && !isAtBottom) {
+                fadeElement.style.opacity = '1';
+            } else {
+                fadeElement.style.opacity = '0';
+            }
+        }
+
+        // Update on scroll
+        container.addEventListener('scroll', updateGradient);
+
+        // Update when content changes
+        const observer = new MutationObserver(updateGradient);
+        observer.observe(container, { childList: true, subtree: true });
+
+        // Initial check
+        updateGradient();
+    });
+</script>

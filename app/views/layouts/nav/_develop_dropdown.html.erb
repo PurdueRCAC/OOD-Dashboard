@@ -1,0 +1,26 @@
+<%= render layout: "layouts/nav/dropdown", locals: { 
+      id: "develop",
+      icon: "code",
+      title: t('dashboard.nav_develop_title'),
+      text: t('dashboard.nav_develop_title')
+    } do %>
+  <%= link_to restart_url, class: "nav-link submenu-item", id: "develop-restart-server-link" do %>
+    <i class="fas fa-sync" id="develop-restart-icon"></i> <%= t('dashboard.nav_restart_server') %>
+  <% end %>
+  
+  <%= link_to Configuration.developer_docs_url, class: "nav-link submenu-item", target: "_blank" do %>
+    <i class="fas fa-book"></i> <%= t('dashboard.nav_develop_docs') %>
+  <% end %>
+  
+  <%= link_to products_path(type: "dev"), 
+      class: "nav-link submenu-item #{current_page?(products_path(type: 'dev')) || request.path.start_with?('/admin/dev/') ? 'active' : ''}" do %>
+    <i class="fas fa-cog"></i> <%= products_title(:dev) %>
+  <% end %>
+  
+  <% if Configuration.app_sharing_enabled? %>
+    <%= link_to products_path(type: "usr"), 
+        class: "nav-link submenu-item #{current_page?(products_path(type: 'usr')) || request.path.start_with?('/admin/usr/') ? 'active' : ''}" do %>
+      <i class="fas fa-share-alt"></i> <%= products_title(:usr) %>
+    <% end %>
+  <% end %>
+<% end %>

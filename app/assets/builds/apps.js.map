@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../javascript/apps.js"],
+  "sourcesContent": ["'use strict';\n\njQuery(function() {\n  $('#all-apps-table').DataTable({\n    stateSave: true\n  });\n});\n"],
+  "mappings": ";AAEA,OAAO,WAAW;AAChB,IAAE,iBAAiB,EAAE,UAAU;AAAA,IAC7B,WAAW;AAAA,EACb,CAAC;AACH,CAAC;",
+  "names": []
+}

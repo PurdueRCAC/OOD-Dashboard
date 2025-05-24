@@ -1,0 +1,7 @@
+<li class="nav-item" title="<%= t('dashboard.breadcrumbs_my_sessions') %>">
+  <%= tag.a class: "nav-link #{current_page?(batch_connect_sessions_path) ? 'active' : ''}", 
+            href: batch_connect_sessions_path, 
+            aria: ({ current: ('page' if current_page?(batch_connect_sessions_path)) }) do %>
+    <i class="fas fa-window-restore" aria-hidden="true"></i> <%= t('dashboard.nav_sessions') %>
+  <% end %>
+</li>

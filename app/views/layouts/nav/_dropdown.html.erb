@@ -1,0 +1,16 @@
+<li class="nav-item">
+  <button type="button" 
+          class="nav-link w-100 text-left d-flex align-items-center"
+          onclick="toggleSubmenu(this)"
+          aria-expanded="false"
+          aria-controls="<%= id %>-submenu"
+          title="<%= title %>">
+    <i class="fas fa-<%= icon %>"></i>
+    <span class="flex-grow-1"><%= text %></span>
+    <i class="fas fa-chevron-down ml-2"></i>
+  </button>
+
+  <div class="submenu" id="<%= id %>-submenu" style="display: none;">
+    <%= yield %>
+  </div>
+</li> 

@@ -1,0 +1,168 @@
+<h3 class="font-weight-bold mb-3 d-flex justify-content-between align-items-center">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-layer-group text-warning"></i>
+        <span class="mx-2">My Accounts</span>
+        <a href="https://www.rcac.purdue.edu/knowledge/gautschi/run/slurm/queues" 
+           class="ms-1" 
+           style="color: #6c757d; font-size: 1.1rem;"
+           data-toggle="tooltip" 
+           title="Click to learn more about accounts and queues on Gautschi"
+           aria-label="Documentation about accounts and queues on Gautschi"
+           target="_blank">
+            <i class="fas fa-info-circle" aria-hidden="true"></i>
+        </a>
+    </div>
+    <button onclick="load_account_list(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+        <i class="fas fa-sync-alt"></i>
+    </button>
+</h3>
+<div style="border-bottom: 1px solid rgba(0,0,0,0.1);" class="mb-3"></div>
+<div id="account_list_card_content"></div>
+
+<script defer>
+    function formatLargeNumber(num, decimals = 1) {
+        const fullNum = num.toLocaleString(undefined, {maximumFractionDigits: 2});
+        if (num >= 1000000) {
+            const formatted = (num/1000000).toFixed(decimals);
+            const isExact = num === Math.round(num/1000000) * 1000000;
+            const style = isExact ? '' : ' style="border-bottom: 1px dotted #6c757d; cursor: help" data-toggle="tooltip" data-trigger="hover click"';
+            return `<span${style} title="${isExact ? '' : fullNum}">${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}M</span>`;
+        }
+        if (num >= 1000) {
+            const formatted = (num/1000).toFixed(decimals);
+            const isExact = num === Math.round(num/1000) * 1000;
+            const style = isExact ? '' : ' style="border-bottom: 1px dotted #6c757d; cursor: help" data-toggle="tooltip" data-trigger="hover click"';
+            return `<span${style} title="${isExact ? '' : fullNum}">${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}K</span>`;
+        }
+        return num.toLocaleString(undefined, {maximumFractionDigits: 2});
+    }
+
+    function load_account_list(forceRefresh = false) {
+        const loadingHtml = `
+        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+            <div class="position-relative mb-3">
+                <div class="spinner-border text-secondary" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="sr-only">Loading...</span>
+                </div>
+            </div>
+            <p class="text-muted mb-0">Loading account data...</p>
+        </div>
+        `;
+        
+        $("#account_list_card_content").html(loadingHtml);
+
+        return fetchWithCache(`<%= url_for controller: "api/account_list", action: "get" %>`, {
+            forceRefresh,
+            cacheDuration: 1 * 60 * 1000  // Cache for 1 minute
+        }).then(data => {
+            const tableHtml = data.length === 0 ? '<div class="h5 mb-2">No allocations available</div>' : data.map((row) => {
+                const percentCPU = (row.cpu_running / row.cpu_total) * 100;
+                const percentGPU = (row.gpu_used / row.gpu_total) * 100;
+                const barHtml = `
+                <div class="mb-3">
+                    <div class="pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <div class="h5 mb-0">
+                                ${row.account}
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column gap-1">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-nowrap" style="font-size: 1rem;">
+                                    ${row.limit === "No limit" ? 
+                                        `<b>${formatLargeNumber(+row.cpu_running)}</b> CPUs in use <span class="text-muted">(No CPU limit)</span>` :
+                                        `<b>${formatLargeNumber(+row.cpu_running)}</b> / 
+                                        <b>${formatLargeNumber(+row.cpu_total)}</b> CPUs in use
+                                        <span class="text-muted">
+                                            (<b>${formatLargeNumber(+row.cpu_queue)}</b> queued)
+                                        </span>`
+                                    }
+                                </div>
+                                <div class="text-muted ml-2 text-nowrap" style="min-width: 3rem; text-align: right; font-size: 1rem;">
+                                    ${row.cpu_total === "No limit" ? '' : `${Math.round(percentCPU)}%`}
+                                </div>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px; border-radius: 4px;">
+                                <div class="progress-bar" role="progressbar" 
+                                    style="background-color: ${row.cpu_total === "No limit" ? '#28a745' : 
+                                        percentCPU > 95 ? '#dc3545' : 
+                                        percentCPU > 75 ? '#ffc107' : '#28a745'}; 
+                                    width: 0; transition: width 0.6s ease-in-out;" 
+                                    aria-valuenow="${row.cpu_total === "No limit" ? 0 : percentCPU}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-nowrap" style="font-size: 1rem;">
+                                    ${row.limit === "No limit" ? 
+                                        `<b>${formatLargeNumber(+row.gpu_used)}</b> <span class="text-muted">(No GPU limit)</span>` :
+                                        `<b>${formatLargeNumber(+row.gpu_used)}</b> / 
+                                        <b>${formatLargeNumber(+row.gpu_total)}</b> GPU hours
+                                        `
+                                    }
+                                </div>
+                                <div class="text-muted ml-2 text-nowrap" style="min-width: 3rem; text-align: right; font-size: 1rem;">
+                                    ${row.gpu_total === "No limit" ? '' : `${Math.round(percentGPU)}%`}
+                                </div>
+                            </div>
+                            <div class="progress mt-2" style="height: 8px; border-radius: 4px;">
+                                <div class="progress-bar" role="progressbar" 
+                                    style="background-color: ${row.gpu_total === "No limit" ? '#28a745' : 
+                                        percentGPU > 95 ? '#dc3545' : 
+                                        percentGPU > 75 ? '#ffc107' : '#28a745'}; 
+                                    width: 0; transition: width 0.6s ease-in-out;" 
+                                    aria-valuenow="${row.gpu_total === "No limit" ? 0 : percentGPU}" 
+                                    aria-valuemin="0" 
+                                    aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+                return barHtml;
+            }).join("");
+
+            $("#account_list_card_content").html(tableHtml);
+            // Add small delay to trigger animation
+            setTimeout(() => {
+                $('.progress-bar').each(function() {
+                    $(this).css('width', $(this).attr('aria-valuenow') + '%');
+                });
+            }, 50);
+
+            $('[data-toggle="tooltip"]').tooltip({
+                boundary: 'window',
+                trigger: 'hover click'
+            }).on('show.bs.tooltip', function() {
+                // Hide all other tooltips
+                $('[data-toggle="tooltip"]').not(this).tooltip('hide');
+            });
+
+            // Hide tooltips when clicking anywhere else on the document
+            $(document).on('click', function(event) {
+                if (!$(event.target).closest('[data-toggle="tooltip"]').length) {
+                    $('[data-toggle="tooltip"]').tooltip('hide');
+                }
+            });
+        }).catch(res => {
+            const errorHtml = `
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
+                <div class="text-danger mb-3">
+                    <i class="fas fa-exclamation-circle fa-2x"></i>
+                </div>
+                <h5 class="mb-2">Unable to Load Account List</h5>
+                <p class="text-muted small mb-3">There was a problem retrieving your account information</p>
+                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_account_list(true)">
+                    <i class="fas fa-sync-alt me-1"></i> Retry
+                </button>
+            </div>
+            `;
+
+            $("#account_list_card_content").html(errorHtml);
+        });
+    }
+</script>

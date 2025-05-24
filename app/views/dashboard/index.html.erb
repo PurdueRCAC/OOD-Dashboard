@@ -1,0 +1,137 @@
+<noscript>
+  <div class="alert alert-warning" role="alert">
+    JavaScript must be enabled to view widgets.
+  </div>
+</noscript>
+
+<div class="row d-none homepage-widgets mx-0 mt-n2" style="background-color: var(--main-bg-color);">
+  <div class="col-lg-5 col-12 p-2">
+    <div class="d-flex flex-column rounded px-2 my-2" style="min-width: 0; word-wrap: break-word;">
+      <%= render partial: "widgets/news_feed" %>
+    </div>
+  </div>
+  <div class="col-lg-7 col-12 p-2">
+    <div class="d-flex flex-column rounded px-2 my-2" style="overflow-x: auto; min-width: 0; word-wrap: break-word;">
+      <%= render partial: "widgets/job_queue" %>
+    </div>
+  </div>
+</div>
+
+<div class="row d-none homepage-widgets mx-0 mt-2" style="background-color: var(--main-bg-color);">
+  <div class="col-lg-5 col-md-6 col-12 order-1 p-2">
+    <div class="d-flex flex-column rounded px-2 my-2" style="overflow-x: auto; min-width: 0; word-wrap: break-word;">
+      <%= render partial: "widgets/partition_status" %>
+    </div>
+  </div>
+
+  <div class="col-lg-7 col-md-6 col-12 order-2 p-2">
+    <div class="row mx-0">
+      <div class="col-12 col-lg-6 px-2">
+        <div class="d-flex flex-column rounded px-2 my-2 h-100" style="overflow-x: auto; min-width: 0; word-wrap: break-word;">
+          <%= render partial: "widgets/account_list" %>
+        </div>
+      </div>
+      <div class="col-12 col-lg-6 px-2">
+        <div class="d-flex flex-column rounded px-2 my-2 h-100" style="overflow-x: auto; min-width: 0; word-wrap: break-word;">
+          <%= render partial: "widgets/disk_usage" %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<a href="https://www.rcac.purdue.edu/help" class="fab-button" target="_blank">
+  <i class="far fa-question-circle"></i>
+  <span class="fab-text">Need Help?</span>
+</a>
+
+<script>
+  $(document).ready(async () => {
+    $(".homepage-widgets").removeClass("d-none");
+
+    load_account_list();
+    load_news_feed();
+    load_partition_status();
+    load_job_queue();
+    load_disk_usage();
+  });
+</script>
+
+<style>
+  .fab-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background-color: #2196F3 !important;
+    color: white !important;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    z-index: 1000;
+  }
+
+  .fab-button:hover,
+  .fab-button:focus,
+  .fab-button:active {
+    color: white !important;
+    text-decoration: none;
+    opacity: 1 !important;
+  }
+
+  .fab-button i {
+    font-size: 24px;
+    position: absolute;
+    left: 18px;
+    color: white !important;
+  }
+
+  .fab-text {
+    margin-left: 55px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    white-space: nowrap;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: white !important;
+  }
+
+  /* For non-touch devices only */
+  @media (hover: hover) {
+    .fab-button:hover {
+      width: 160px;
+      padding-right: 20px;
+      border-radius: 30px;
+    }
+
+    .fab-button:hover .fab-text {
+      opacity: 1;
+    }
+  }
+
+  /* For touch devices */
+  @media (hover: none) {
+    .fab-button {
+      width: 160px;
+      padding-right: 20px;
+      border-radius: 30px;
+    }
+
+    .fab-text {
+      opacity: 1;
+      margin-left: 55px;
+    }
+  }
+
+  .fab-button:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+</style>
+

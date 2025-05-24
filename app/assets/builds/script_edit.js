@@ -1,0 +1,281 @@
+// app/javascript/script_edit.js
+var newFieldTemplate = void 0;
+var newFieldData = {
+  "bc_num_hours": {
+    label: "Hours",
+    help: "How long the job can run for."
+  },
+  auto_queues: {
+    label: "Queues",
+    help: "Which queue the job will submit too."
+  },
+  auto_accounts: {
+    label: "Account",
+    help: "The account the job will be submitted with."
+  },
+  bc_num_slots: {
+    label: "Nodes",
+    help: "How many nodes the job will run on."
+  }
+};
+function addNewFieldButton() {
+  return $("#add_new_field_button");
+}
+function enableNewFieldButton() {
+  const newFieldButton = addNewFieldButton();
+  for (let newField in newFieldData) {
+    const field = document.getElementById(`script_${newField}`);
+    if (field === null) {
+      newFieldButton.text("Add new option");
+      newFieldButton.attr("disabled", false);
+      return;
+    }
+  }
+  newFieldButton.text("No more options");
+}
+function addNewField(_event) {
+  const newFieldButton = addNewFieldButton();
+  newFieldButton.attr("disabled", true);
+  newFieldButton.before(newFieldTemplate.html());
+  const justAdded = newFieldButton.prev();
+  const deleteButton = justAdded.find(".btn-danger");
+  const addButton = justAdded.find(".btn-success");
+  const selectMenu = justAdded.find("select");
+  deleteButton.on("click", (event) => {
+    removeInProgressField(event);
+  });
+  addButton.on("click", (event) => {
+    addInProgressField(event);
+  });
+  selectMenu.on("change", (event) => {
+    addHelpTextForOption(event);
+  });
+  updateNewFieldOptions(selectMenu.get(0));
+  addHelpTextForOption({ target: selectMenu.get(0) });
+}
+function updateNewFieldOptions(selectMenu) {
+  for (let newField in newFieldData) {
+    const field = document.getElementById(`script_${newField}`);
+    if (field === null) {
+      const option = document.createElement("option");
+      option.value = newField;
+      option.text = newFieldData[newField].label;
+      selectMenu.add(option);
+    }
+  }
+}
+function addHelpTextForOption(event) {
+  const helpText = newFieldData[event.target.value].help;
+  const topLevelDiv = event.target.parentElement.parentElement;
+  const helpTextDiv = topLevelDiv.firstElementChild;
+  helpTextDiv.innerText = helpText;
+}
+function removeInProgressField(event) {
+  const entireDiv = event.target.parentElement.parentElement.parentElement;
+  entireDiv.remove();
+  enableNewFieldButton();
+}
+function removeField(event) {
+  const entireDiv = event.target.parentElement;
+  entireDiv.remove();
+  enableNewFieldButton();
+}
+function showEditField(event) {
+  const entireDiv = event.target.parentElement;
+  const editField = entireDiv.querySelector(".edit-group");
+  editField.classList.remove("d-none");
+  const saveButton = entireDiv.querySelector(".btn-success");
+  const editButton = entireDiv.querySelector(".btn-primary");
+  saveButton.classList.remove("d-none");
+  editButton.disabled = true;
+  saveButton.onclick = (event2) => {
+    saveEdit(event2);
+  };
+}
+function saveEdit(event) {
+  const entireDiv = event.target.parentElement;
+  const editField = entireDiv.querySelector(".edit-group");
+  editField.classList.add("d-none");
+  const saveButton = entireDiv.querySelector(".btn-success");
+  const editButton = entireDiv.querySelector(".btn-primary");
+  saveButton.classList.add("d-none");
+  editButton.disabled = false;
+}
+function addInProgressField(event) {
+  const selectMenu = event.target.parentElement.parentElement.firstElementChild;
+  const choice = selectMenu.value;
+  const template = $(`#${choice}_template`);
+  const newFieldButton = addNewFieldButton();
+  newFieldButton.before(template.html());
+  const justAdded = newFieldButton.prev();
+  justAdded.find(".btn-danger").on("click", (event2) => {
+    removeField(event2);
+  });
+  justAdded.find(".btn-primary").on("click", (event2) => {
+    showEditField(event2);
+  });
+  justAdded.find("[data-select-toggler]").on("click", (event2) => {
+    enableOrDisableSelectOption(event2);
+  });
+  justAdded.find("[data-fixed-toggler]").on("click", (event2) => {
+    toggleFixedField(event2);
+  });
+  const entireDiv = event.target.parentElement.parentElement.parentElement;
+  entireDiv.remove();
+  enableNewFieldButton();
+}
+function fixExcludeBasedOnSelect(selectElement) {
+  const excludeElementId = selectElement.dataset.excludeId;
+  const selectOptions = Array.from(selectElement.options);
+  const itemsToExclude = selectOptions.filter((opt) => !opt.selected).map((opt) => opt.text);
+  const excludeElement = document.getElementById(excludeElementId);
+  excludeElement.value = itemsToExclude.join(",");
+}
+function fixedFieldEnabled(checkbox, dataElement) {
+  dataElement.disabled = true;
+  const input = $("<input>").attr("type", "hidden").attr("name", dataElement.name).attr("value", dataElement.value);
+  $(checkbox).after(input);
+  if (dataElement.nodeName == "SELECT") {
+    const selectOptions = Array.from(dataElement.options);
+    const selectedOption = selectOptions.filter((opt) => opt.selected)[0];
+    const selectOptionsConfig = $(dataElement).parents(".editable-form-field").find("li.list-group-item").get();
+    selectOptionsConfig.forEach((configItemLi) => {
+      const textContent = $(configItemLi).find("[data-select-value]")[0].textContent;
+      if (selectedOption.text == textContent) {
+        enableRemoveOption(configItemLi, true);
+      } else {
+        enableAddOption(configItemLi, true);
+      }
+    });
+  }
+}
+function toggleFixedField(event) {
+  event.target.disabled = true;
+  const targetId = event.target.dataset.fixedToggler;
+  const dataElement = document.getElementById(targetId);
+  if (event.target.checked) {
+    fixedFieldEnabled(event.target, dataElement);
+  } else {
+    dataElement.disabled = false;
+    $(`input[type=hidden][name="${dataElement.name}"]`).remove();
+    if (dataElement.nodeName == "SELECT") {
+      fixExcludeBasedOnSelect(dataElement);
+      initSelect(dataElement);
+    }
+  }
+  event.target.disabled = false;
+}
+function enableAddOption(optionLi, addButtonDisabled = false) {
+  optionLi.classList.add("list-group-item-danger", "text-strike");
+  const addButton = $(optionLi).find('[data-select-toggler="add"]')[0];
+  addButton.disabled = addButtonDisabled;
+  const removeButton = $(optionLi).find('[data-select-toggler="remove"]')[0];
+  removeButton.disabled = true;
+}
+function enableRemoveOption(optionLi, removeButtonDisabled = false) {
+  optionLi.classList.remove("list-group-item-secondary", "list-group-item-danger", "text-strike");
+  const addButton = $(optionLi).find('[data-select-toggler="add"]')[0];
+  addButton.disabled = true;
+  const removeButton = $(optionLi).find('[data-select-toggler="remove"]')[0];
+  removeButton.disabled = removeButtonDisabled;
+}
+function enableOrDisableSelectOption(event) {
+  const toggleAction = event.target.dataset.selectToggler;
+  const li = event.target.parentElement;
+  event.target.disabled = true;
+  const choice = $(li).find("[data-select-value]")[0].textContent;
+  const select = document.getElementById(event.target.dataset.selectId);
+  const excludeId = select.dataset.excludeId;
+  const selectOptions = Array.from(select.options);
+  const optionToToggle = selectOptions.filter((opt) => opt.text == choice)[0];
+  const selectOptionsEnabled = selectOptions.filter((opt) => !opt.disabled);
+  if (selectOptionsEnabled.length <= 1 && toggleAction == "remove") {
+    alert("Cannot remove the last option available");
+    event.target.disabled = false;
+    return;
+  }
+  if (toggleAction == "add") {
+    enableRemoveOption(li);
+    removeFromExcludeInput(excludeId, choice);
+    optionToToggle.disabled = false;
+  } else {
+    enableAddOption(li);
+    addToExcludeInput(excludeId, choice);
+    optionToToggle.disabled = true;
+    if (optionToToggle.selected) {
+      optionToToggle.selected = false;
+      selectOptionsEnabled.filter((opt) => opt.text !== choice)[0].selected = true;
+    }
+  }
+}
+function getExcludeList(excludeElementId) {
+  const excludeInput = document.getElementById(excludeElementId);
+  const excludeList = excludeInput.value.split(",").filter((word) => word != "");
+  return { excludeInput, excludeList };
+}
+function addToExcludeInput(id, item) {
+  const { excludeInput, excludeList } = getExcludeList(id);
+  excludeList.push(item);
+  excludeInput.value = excludeList.join(",");
+}
+function removeFromExcludeInput(id, item) {
+  const { excludeInput, excludeList } = getExcludeList(id);
+  const newList = excludeList.filter((word) => word != item);
+  excludeInput.value = newList.join(",");
+}
+function initSelectFields() {
+  const selectFields = Array.from($("select[data-exclude]"));
+  selectFields.forEach((select) => {
+    initSelect(select);
+  });
+}
+function initSelect(selectElement) {
+  const excludeId = selectElement.dataset.excludeId;
+  const selectOptions = Array.from(selectElement.options);
+  const selectOptionsConfig = $(selectElement).parents(".editable-form-field").find("li.list-group-item").get();
+  const { excludeList } = getExcludeList(excludeId);
+  selectOptions.forEach((option) => {
+    option.disabled = false;
+    if (excludeList.includes(option.text)) {
+      option.disabled = true;
+      option.selected = false;
+    }
+  });
+  selectOptionsConfig.forEach((configItem) => {
+    enableRemoveOption(configItem);
+    const textContent = $(configItem).find("[data-select-value]")[0].textContent;
+    if (excludeList.includes(textContent)) {
+      enableAddOption(configItem);
+    }
+  });
+}
+function initFixedFields() {
+  const fixedCheckboxes = Array.from($("[data-fixed-toggler]"));
+  fixedCheckboxes.filter((fixedFieldCheckbox) => {
+    return fixedFieldCheckbox.checked;
+  }).map((fixedFieldCheckbox) => {
+    const dataElement = document.getElementById(fixedFieldCheckbox.dataset.fixedToggler);
+    fixedFieldEnabled(fixedFieldCheckbox, dataElement);
+  });
+}
+jQuery(() => {
+  newFieldTemplate = $("#new_field_template");
+  $("#add_new_field_button").on("click", (event) => {
+    addNewField(event);
+  });
+  $(".new_script").find(".editable-form-field").find(".btn-danger").on("click", (event) => {
+    removeField(event);
+  });
+  $(".new_script").find(".editable-form-field").find(".btn-primary").on("click", (event) => {
+    showEditField(event);
+  });
+  $("[data-select-toggler]").on("click", (event) => {
+    enableOrDisableSelectOption(event);
+  });
+  $("[data-fixed-toggler]").on("click", (event) => {
+    toggleFixedField(event);
+  });
+  initSelectFields();
+  initFixedFields();
+});
+//# sourceMappingURL=script_edit.js.map

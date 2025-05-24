@@ -1,0 +1,33 @@
+<%#
+locals:
+title - required - text for the link
+url - required - link url string
+class - optional, default "nav-link" - main css class for the link.
+icon_uri - optional, default "fas://cog" - font awesome icon to use
+new_tab - optional, default false - link target
+role - optional, default ""
+data - optional, data parameter for the link_to helper
+%>
+<%
+  title = local_assigns.fetch(:title, 'No title')
+  url = local_assigns.fetch(:url)
+  icon_uri = local_assigns.fetch(:icon_uri, URI("fas://cog"))
+%>
+<li role="none">
+<%=
+  link_to(
+    url,
+    title: title,
+    class: "#{local_assigns.fetch(:class, 'nav-link')}",
+    target: local_assigns.fetch(:new_tab, false) ? "_blank" : nil,
+    aria: ({ current: ('page' if (current_page?(url))) }),
+    role: 'menuitem',
+    data: local_assigns.fetch(:data, nil)
+  ) do
+%>
+  <%= icon_tag(icon_uri) unless icon_uri.to_s.blank? %>
+  <%= tag.span do %>
+    <%= title %>
+  <% end %>
+<% end %>
+</li>

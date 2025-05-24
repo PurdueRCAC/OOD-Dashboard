@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="<%= Configuration.locale %>" style="font-size: 16px;">
+<head>
+  <script>
+    // Block rendering until we determine the initial state
+    (function() {
+      if (localStorage.getItem('showInTop') === 'false') {
+        document.documentElement.classList.add('show-in-sidebar');
+      }
+    })();
+  </script>
+
+  <title><%= content_for?(:title) ? yield(:title) : "Dashboard - #{OodAppkit.dashboard.title}" %></title>
+  <%= favicon_link_tag "favicon.ico", href: OodAppkit.public.url.join("favicon.ico"), skip_pipeline: true %>
+
+  <%= render partial: "shared/indexed_db_cache" %>
+
+  <!-- Lodash -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.21/lodash.min.js"></script>
+
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://code.jquery.com/jquery-migrate-3.5.2.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery-ujs@1.2.3/src/rails.min.js"></script>
+
+  <script>
+    jQuery.migrateMute = true;
+  </script>
+
+  <!-- Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+
+  <!-- Bootstrap -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.min.js" integrity="sha384-+sLIOodYLS7CIrQpBjl+C7nPvqq+FbNUBDunl/OZv93DB7Ln/533i8e/mZXLi/P+" crossorigin="anonymous"></script>
+
+  <!-- Oboe -->
+  <script src="https://cdn.jsdelivr.net/npm/oboe@2.1.5/dist/oboe-browser.min.js"></script>
+
+  <!--Datatables.net-->
+  <% if local_assigns[:datatables_version] == 'old' %>
+    <link href="https://cdn.datatables.net/v/bs4/dt-1.10.24/sl-1.3.3/datatables.min.css" rel="stylesheet">
+    <script src="https://cdn.datatables.net/v/bs4/dt-1.10.24/sl-1.3.3/datatables.min.js"></script>
+  <% else %>
+    <link href="https://cdn.datatables.net/v/bs4/dt-2.0.8/fh-4.0.1/r-3.0.2/sl-2.0.3/datatables.min.css" rel="stylesheet">
+    <script src="https://cdn.datatables.net/v/bs4/dt-2.0.8/fh-4.0.1/r-3.0.2/sl-2.0.3/datatables.min.js"></script>
+  <% end %>
+
+  <!--Moment-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.30.1/moment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.45/moment-timezone.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-duration-format/2.3.2/moment-duration-format.min.js"></script>
+
+  <!--Font Awesome 5-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" />
+
+  <!-- SheetJS -->
+  <script lang="javascript" src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!--Chartjs-->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-stacked100@1.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.1/dist/chartjs-chart-treemap.min.js"></script>
+
+  <!-- Patternomaly -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/patternomaly/1.3.2/patternomaly.min.js"></script>
+
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" />
+
+  <!-- Data Confirm Modal -->
+  <script src="https://cdn.jsdelivr.net/npm/data-confirm-modal@1.6.2/vendor/assets/javascripts/data-confirm-modal.min.js"></script>
+
+  <!-- Handlebars -->
+  <script src="https://cdn.jsdelivr.net/npm/handlebars@4.7.8/dist/handlebars.min.js"></script>
+
+  <!-- Highlight.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/r.min.js"></script>
+
+  <!-- (Legacy) Sprockets -->
+  <%= stylesheet_link_tag "application", media: "all" %>
+  <%= javascript_include_tag "application" %>
+
+<!--Toastr-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+  <%= render partial: "layouts/constants" %>
+  <%= render partial: "layouts/util" %>
+
+  <style>
+    /* Base styles */
+    :root {
+      --main-bg-color: #f8f9fa;
+    }
+
+    body {
+      background-color: var(--main-bg-color);
+      padding-top: 0;
+    }
+
+    /* Navbar styles */
+    nav#header-navbar {
+      background-color: white;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 1041;
+      height: 64px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      padding-left: 0.75rem;
+      padding-right: 1.25rem;
+      overflow-x: auto;  /* Allow horizontal scroll */
+      overflow-y: visible !important; /* Change from auto to visible to allow dropdowns */
+      -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+
+    /* Container styles to prevent dropdown cutoff */
+    nav#header-navbar .container-fluid {
+      min-width: max-content; /* Ensure container fits all content */
+      padding-bottom: 2px; /* Add small padding to account for scrollbar */
+    }
+
+    /* Ensure dropdowns appear above scrollbar */
+    .navbar-nav-top .dropdown-menu {
+      z-index: 1042;
+    }
+
+    /* Hide scrollbar on most browsers but keep functionality */
+    @media (min-width: 992px) {
+      nav#header-navbar {
+        /* Hide scrollbar in Firefox */
+        scrollbar-width: none;
+      }
+
+      /* Hide scrollbar in Chrome/Safari/Edge */
+      nav#header-navbar::-webkit-scrollbar {
+        display: none;
+      }
+      
+      /* Ensure navbar content doesn't wrap */
+      nav#header-navbar .container-fluid {
+        flex-wrap: nowrap;
+      }
+      
+      .navbar-nav-top {
+        flex-wrap: nowrap;
+      }
+    }
+
+    /* Preserve mobile layout */
+    @media (max-width: 991.98px) {
+      nav#header-navbar {
+        overflow: visible; /* Reset overflow on mobile */
+      }
+      
+      nav#header-navbar .container-fluid {
+        min-width: 0; /* Reset min-width on mobile */
+      }
+    }
+
+    /* Menu toggle button styles - remove all interactions */
+    .menu-toggle {
+      padding: 8px !important;
+      background: none;
+      border: none;
+      cursor: pointer;
+      margin-left: 0.25rem;
+      margin-right: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      transition: transform 0.2s ease;
+    }
+
+    /* Increase icon size */
+    .menu-toggle i {
+      font-size: 1.15rem;
+    }
+
+    /* Add hover and click animations */
+    .menu-toggle:hover {
+      transform: scale(1.1);
+    }
+
+    .menu-toggle:active {
+      transform: scale(0.85);
+    }
+
+    /* Brand styles */
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      color: #333;
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      text-decoration: none;
+      margin-left: 0;
+    }
+
+    .sidebar-brand:hover {
+      text-decoration: none;
+      color: #000;
+    }
+
+    /* Sidebar styles */
+    .sidebar {
+      height: calc(100vh - 64px);
+      width: 280px;
+      position: fixed;
+      top: 64px;
+      left: -280px;
+      background-color: white;
+      transition: 0.25s ease-in-out;
+      box-shadow: 1px 0 2px rgba(0,0,0,0.05);
+      z-index: 1040;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar.active {
+      left: 0;
+    }
+
+    /* Sidebar content styles */
+    .sidebar-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .sidebar .navbar-nav {
+      padding: 0.75rem;
+    }
+
+    .sidebar .nav-link {
+      padding: 10px 16px;
+      color: #444;
+      transition: all 0.15s ease;
+      border-radius: 8px;
+      margin: 2px 0;
+      font-weight: 500;
+      font-size: 0.95rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar .nav-link:hover {
+      background-color: rgba(0, 0, 0, 0.03);
+      color: #000;
+      transform: translateX(2px);
+    }
+
+    .sidebar .nav-link i {
+      width: 20px;
+      text-align: center;
+      margin-right: 12px;
+      color: #666;
+    }
+
+    /* Sidebar footer styles */
+    .sidebar-footer {
+      display: none;  /* Hidden by default */
+      padding: 0.75rem;
+      background-color: white;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+
+    /* Only show footer on desktop */
+    @media (min-width: 992px) {
+      .sidebar-footer {
+        display: block;
+      }
+    }
+
+    /* Divider styles */
+    .nav-divider {
+      height: 1px;
+      background-color: rgba(0,0,0,0.06);
+      margin: 1rem 0;
+    }
+
+    /* Main content styles */
+    #main-container {
+      padding-top: 64px;
+      width: 100%;
+      margin-left: 0;
+      max-width: 100vw;
+      overflow-x: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Footer styles */
+    .footer {
+      width: 100%;
+      margin-left: 0;
+      padding: 1rem;
+      position: relative;
+      max-width: 100vw;
+      overflow-x: hidden;
+    }
+
+    /* Add focus styles for keyboard navigation */
+    .menu-toggle:focus-visible {
+      outline: 2px solid #4A90E2 !important;
+      outline-offset: 2px !important;
+    }
+
+    .sidebar .nav-link:focus-visible {
+      outline: 2px solid #4A90E2;
+      outline-offset: -2px;
+    }
+
+    /* Hide focus ring for mouse users */
+    .sidebar .nav-link:focus:not(:focus-visible) {
+      outline: none;
+    }
+
+    /* Update the container content class */
+    .container.content {
+      margin-top: 1rem !important;
+      max-width: 100%;
+      padding-right: 15px;
+      padding-left: 15px;
+    }
+
+    /* Dropdown styles to match sidebar */
+    .sidebar .dropdown-menu {
+      position: static !important;
+      float: none;
+      width: 100%;
+      padding: 0.25rem;
+      margin: 0;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      transform: none !important;
+      margin-left: 1rem !important;
+      border-left: 2px solid rgba(0,0,0,0.1);
+    }
+
+    .sidebar .dropdown-toggle::after {
+      float: right;
+      margin-top: 8px;
+      opacity: 0.5;
+    }
+
+    .sidebar .dropdown-toggle[aria-expanded="true"] {
+      background-color: #f0f2f5;
+      color: #000;
+    }
+
+    .sidebar .dropdown-item {
+      padding: 8px 12px;
+      color: #666;
+      border-radius: 6px;
+      margin: 2px 0;
+      font-weight: normal;
+      font-size: 0.9rem;
+      white-space: normal;
+      line-height: 1.4;
+      display: flex;
+      align-items: flex-start;
+      min-height: 40px;
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar .dropdown-item:hover,
+    .sidebar .dropdown-item:focus {
+      background-color: rgba(0, 0, 0, 0.03);
+      color: #000;
+      transform: translateX(2px);
+    }
+
+    .sidebar .dropdown-item i {
+      width: 16px;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-right: 8px;
+      color: #888;
+      flex-shrink: 0;
+      margin-top: 3px;
+    }
+
+    .sidebar .dropdown-item span {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .sidebar .dropdown-item small {
+      padding-left: 0 !important;
+      display: block;
+      margin-top: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sidebar .dropdown-header {
+      color: #666;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .sidebar .dropdown-divider {
+      border-color: rgba(0,0,0,0.06);
+      margin: 0.5rem 0;
+    }
+
+    /* Remove Bootstrap's default dropdown animations */
+    .sidebar .dropdown-menu {
+      animation: none;
+      -webkit-animation: none;
+    }
+
+    /* Make the dropdown toggle more distinct */
+    .sidebar .dropdown-toggle {
+      font-weight: 600 !important;
+    }
+
+    /* Add margin to the first nav-divider */
+    .sidebar .navbar-nav > .nav-divider:first-of-type {
+      margin: 0.5rem 0;
+    }
+
+    /* User dropdown styles */
+    #userDropdown {
+      color: #444;
+      padding: 8px 16px;
+      border-radius: 20px;
+    }
+
+    /* Accessibility focus styles */
+    #userDropdown:focus-visible {
+      outline: 2px solid #4A90E2;
+      outline-offset: 2px;
+    }
+
+    .dropdown-menu {
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border: 1px solid rgba(0,0,0,0.08);
+    }
+
+    .dropdown-item {
+      padding: 8px 16px;
+      color: #444;
+    }
+
+    .dropdown-item:hover {
+      background-color: #f8f9fa;
+    }
+
+    /* Add these new styles */
+    .sidebar .nav-link.active {
+      background-color: #f0f2f5;
+      color: #444;
+      font-weight: 500;
+      box-shadow: none;
+    }
+
+    .sidebar .nav-link.active i {
+      color: #666;
+    }
+
+    /* Add these new styles for dropdown items */
+    .sidebar .dropdown-item.active {
+      background-color: #f0f2f5;
+      color: #444;
+      font-weight: 500;
+      box-shadow: none;
+    }
+
+    .sidebar .dropdown-item.active i {
+      color: #666;
+    }
+
+    /* Add these styles to override Bootstrap's default active state for dropdowns */
+    .sidebar .nav-link.dropdown-toggle:active,
+    .sidebar .nav-link.dropdown-toggle:focus,
+    .sidebar .nav-link.dropdown-toggle[aria-expanded="true"] {
+      background-color: transparent !important;
+      color: #444 !important;
+      font-weight: 500 !important;
+    }
+
+    .sidebar .nav-link.dropdown-toggle[aria-expanded="true"] i {
+      color: #666 !important;
+    }
+
+    /* Add these new submenu styles */
+    .submenu {
+      padding-left: 1rem;
+      border-left: 2px solid rgba(0,0,0,0.1);
+      margin-left: 1rem;
+    }
+
+    .submenu-item {
+      padding: 8px 12px !important;
+      color: #666 !important;
+      border-radius: 6px !important;
+      margin: 2px 0 !important;
+      font-weight: normal !important;
+      font-size: 0.9rem !important;
+    }
+
+    .submenu-item:hover {
+      background-color: #f0f2f5 !important;
+      color: #333 !important;
+    }
+
+    .submenu-header {
+      color: #666;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.5rem 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .nav-divider {
+      height: 1px;
+      background-color: rgba(0,0,0,0.06);
+      margin: 0.5rem 0;
+    }
+
+    /* Rotate chevron when submenu is open */
+    .nav-link[aria-expanded="true"] .fa-chevron-down {
+      transform: rotate(180deg);
+    }
+
+    .fa-chevron-down {
+      transition: transform 0.2s ease;
+    }
+
+    /* Add these new styles for images in dropdown items */
+    .sidebar .dropdown-item img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      margin-right: 8px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Add fallback for broken images */
+    .sidebar .dropdown-item img:before {
+      content: "";
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+      background-color: #f0f2f5;
+      border-radius: 4px;
+    }
+
+    /* Add these styles for submenu items as well */
+    .submenu-item img {
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      margin-right: 8px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .submenu-item img:before {
+      content: "";
+      width: 20px;
+      height: 20px;
+      display: inline-block;
+      background-color: #f0f2f5;
+      border-radius: 4px;
+    }
+
+    /* Add these styles where your other sidebar styles are */
+    .sidebar .nav-link.w-100 {
+      background: none;
+      border: none;
+      padding: 10px 16px;
+      transition: all 0.2s ease;
+    }
+
+    .sidebar .nav-link.w-100:focus {
+      outline: none;
+      box-shadow: none;
+    }
+
+    .sidebar .nav-link.w-100:hover {
+      background-color: rgba(0, 0, 0, 0.03);
+      color: #000;
+      transform: translateX(2px);
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .icon-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    /* Navbar styles for desktop */
+    @media (min-width: 992px) {
+      .navbar-nav-top {
+        margin-left: 1rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .navbar-nav-top .dropdown-menu {
+        margin-top: -4px !important;
+        top: 60px !important;
+        border-top-width: 0;
+        padding-top: 6px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border: 1px solid rgba(0,0,0,0.08);
+        max-height: calc(100vh - 80px);
+        overflow-y: auto;
+        position: fixed !important;
+        transform: none !important;
+        z-index: 1045;
+      }
+
+      .navbar-nav-top .dropdown-menu {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+      }
+
+      .navbar-nav-top .dropdown-menu::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .navbar-nav-top .dropdown-menu::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .navbar-nav-top .dropdown-menu::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+      }
+
+      .navbar-nav-top .dropdown-header {
+        background-color: white;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+      }
+
+      .navbar-nav-top .dropdown-item {
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        color: #444;
+        transition: all 0.2s ease;
+      }
+
+      .navbar-nav-top .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: #000;
+      }
+
+      /* Add these new styles for active/focus states */
+      .navbar-nav-top .dropdown-item:active,
+      .navbar-nav-top .dropdown-item:focus {
+        background-color: #f0f2f5;
+        color: #000;
+      }
+
+      /* Ensure icons maintain their color on click */
+      .navbar-nav-top .dropdown-item:active i,
+      .navbar-nav-top .dropdown-item:focus i {
+        color: inherit;
+      }
+
+      .navbar-nav-top .dropdown-header {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #666;
+      }
+
+      .navbar-nav-top .nav-link {
+        padding: 0.5rem 1rem;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+      }
+
+      .navbar-nav-top .nav-link i {
+        margin-right: 0.5rem;
+      }
+
+      .navbar-nav-top .nav-item {
+        margin-right: 0.5rem;
+      }
+
+      .navbar-nav-top .nav-link {
+        padding: 8px 10px;
+        border-radius: 6px;
+        color: #444;
+        transition: all 0.2s ease;
+      }
+
+      .navbar-nav-top .nav-link:hover {
+        background-color: #f8f9fa;
+        color: #000;
+      }
+
+      .navbar-nav-top .nav-link.active {
+        background-color: #f0f2f5;
+        color: #000;
+        font-weight: 500;
+      }
+
+      /* Hide these items in the sidebar on desktop */
+      /*
+      .sidebar .featured-nav,
+      .sidebar .groups-nav,
+      .sidebar .sessions-nav,
+      .sidebar .all-apps-nav {
+        display: none;
+      }
+      */
+
+      /* Add this to ensure dropdown position is relative to its parent */
+      .navbar-nav-top .nav-item.dropdown {
+        position: static !important;
+      }
+
+      /* Ensure the dropdown appears below its trigger */
+      .navbar-nav-top .dropdown-menu {
+        top: 64px !important;
+        left: auto !important;
+      }
+    }
+
+    /* Show these items in sidebar only on mobile */
+    @media (max-width: 992px) {
+      .navbar-nav-top {
+        display: none;
+      }
+    }
+
+    /* Nav Location Toggle styles */
+    .nav-location-toggle {
+      display: none;  /* Hidden by default */
+      padding: 12px 16px;
+      align-items: center;  /* Remove duplicate display: flex */
+      gap: 12px;
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      color: #666;
+      user-select: none;
+    }
+
+    /* Toggle Switch styles */
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #e0e0e0;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .toggle-slider {
+      background-color: #4A90E2;
+    }
+
+    input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    /* Show toggle ONLY on desktop */
+    @media (min-width: 992px) {
+      .nav-location-toggle {
+        display: flex;  /* Only show on desktop */
+      }
+    }
+
+    /* Add these CSS rules */
+    .show-in-sidebar .navbar-nav-top {
+      display: none !important;
+    }
+    
+    .show-in-sidebar .mobile-nav,
+    .show-in-sidebar .mobile-nav + .nav-divider {
+      display: block !important;
+    }
+    
+    /* Default state - hidden in sidebar */
+    @media (min-width: 992px) {
+      .mobile-nav,
+      .mobile-nav + .nav-divider {
+        display: none !important;
+      }
+    }
+
+    /* Add styles for the click/active state */
+    .sidebar .nav-link:active {
+      transform: scale(0.98);
+      background-color: #e8eaed;
+    }
+
+    /* Pulse animation for the menu toggle */
+    @keyframes togglePulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(74, 144, 226, 0.7);
+        transform: scale(var(--scale, 1));
+      }
+      70% {
+        box-shadow: 0 0 0 15px rgba(74, 144, 226, 0);
+        transform: scale(var(--scale, 1));
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(74, 144, 226, 0);
+        transform: scale(var(--scale, 1));
+      }
+    }
+
+    /* Class to apply the pulse animation */
+    .menu-toggle-pulse {
+      animation: togglePulse 1.5s infinite;
+      border-radius: 50%;
+      transform-origin: center;
+      --scale: 1;
+    }
+
+    /* Update pulse animation to work with hover/click states */
+    .menu-toggle-pulse:hover {
+      --scale: 1.1;
+    }
+
+    .menu-toggle-pulse:active {
+      --scale: 0.85;
+    }
+
+    #userDropdown + .dropdown-menu .dropdown-item:active,
+    #userDropdown + .dropdown-menu .dropdown-item:focus {
+      background-color: #f0f2f5;
+      color: #444;
+    }
+
+    #userDropdown + .dropdown-menu .dropdown-item:active i,
+    #userDropdown + .dropdown-menu .dropdown-item:focus i {
+      color: inherit;
+    }
+
+    /* Update dropdown menu styles */
+    #userDropdown + .dropdown-menu {
+      position: fixed !important;
+      top: 60px !important;
+      transform: none !important;
+      z-index: 1045;
+    }
+  </style>
+
+  <%= csrf_meta_tags %>
+
+  <%= yield :head %>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="turbolinks-root" content="<%= ENV["RAILS_RELATIVE_URL_ROOT"] || "/" %>">
+</head>
+<body>
+  <nav class="navbar navbar-expand-md py-2" id="header-navbar" aria-label="Main navigation">
+    <div class="container-fluid px-0">
+      <div class="d-flex align-items-center">
+        <div class="menu-toggle-container">
+          <button 
+            class="menu-toggle" 
+            type="button" 
+            id="sidebar-toggle" 
+            aria-expanded="false"
+            aria-controls="sidebar-menu"
+            aria-label="Toggle navigation menu">
+            <i class="fas fa-bars" aria-hidden="true"></i>
+          </button>
+        </div>
+        <a class="sidebar-brand d-flex align-items-center" href="<%= root_path %>" aria-label="Anvil home">
+          <img class="d-inline-block mr-2" width="32" height="32" src="https://b.fssta.com/uploads/application/college/team-logos/Purdue.png" alt="Purdue logo">
+          <span style="font-weight: 500;">Gautschi</span>
+        </a>
+
+        <!-- Add this new section for desktop navigation -->
+        <ul class="navbar-nav navbar-nav-top d-lg-flex">
+          <%= render partial: "layouts/nav/top/featured_apps", locals: { group: @featured_group } if @featured_group.present? %>
+          <%= render partial: "layouts/nav/top/group", collection: @nav_groups %>
+          <%= render partial: "layouts/nav/top/sessions", nav_groups: @nav_groups if Configuration.app_development_enabled? || @nav_groups.any?(&:has_batch_connect_apps?) %>
+        </ul>
+      </div>
+
+      <div class="ml-auto d-flex align-items-center">
+        <div class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <i class="fas fa-user mr-2"></i><%= @user.name %>
+          </a>
+          <div class="dropdown-menu dropdown-menu-right" aria-labelledby="userDropdown">
+            <a class="dropdown-item" href="/logout">
+              <i class="fas fa-sign-out-alt mr-2"></i><%= t("dashboard.nav_logout") %>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- New Sidebar -->
+  <div class="sidebar-overlay"></div>
+  <div 
+    class="sidebar" 
+    id="sidebar-menu" 
+    role="navigation" 
+    aria-label="Main menu"
+    aria-hidden="true">
+    <div class="sidebar-content">
+      <nav aria-label="Navigation menu">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a href="<%= root_path %>" class="nav-link <%= current_page?(root_path) ? 'active' : '' %>">
+              <i class="fas fa-home"></i> Home
+            </a>
+          </li>
+          
+          <div class="nav-divider"></div>
+          
+          <!-- Mobile-only navigation items wrapped in one div -->
+          <div class="mobile-nav d-lg-none">
+            <div class="featured-nav">
+              <%= render partial: "layouts/nav/featured_apps", locals: { group: @featured_group } if @featured_group.present? %>
+            </div>
+            <div class="groups-nav">
+              <%= render partial: "layouts/nav/group", collection: @nav_groups %>
+            </div>
+            <div class="sessions-nav">
+              <%= render partial: "layouts/nav/sessions", nav_groups: @nav_groups if Configuration.app_development_enabled? || @nav_groups.any?(&:has_batch_connect_apps?) %>
+            </div>
+          </div>
+          
+          <div class="nav-divider"></div>
+          
+          <li class="nav-item">
+            <a href="<%= url_for my_jobs_path %>" class="nav-link <%= current_page?(my_jobs_path) ? 'active' : '' %>">
+              <i class="fas fa-briefcase"></i> My Jobs
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="<%= performance_metrics_path %>" class="nav-link <%= current_page?(performance_metrics_path) ? 'active' : '' %>">
+              <i class="fas fa-chart-line"></i> Performance Metrics
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="<%= cluster_status_path %>" class="nav-link <%= current_page?(cluster_status_path) ? 'active' : '' %>">
+              <i class="fas fa-server"></i> Cluster Status
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="<%= help_dashboard_guide_path %>" class="nav-link <%= current_page?(help_dashboard_guide_path) ? 'active' : '' %>">
+              <i class="fas fa-bullhorn"></i> New Features
+            </a>
+          </li>
+          <%= render partial: "layouts/nav/develop_dropdown" if Configuration.app_development_enabled? %>
+          <%= render partial: "layouts/nav/help_dropdown" %>
+        </ul>
+      </nav>
+    </div>
+    <div class="sidebar-footer">
+      <div class="nav-location-toggle">
+        <label class="toggle-switch">
+          <input type="checkbox" id="navLocationToggle">
+          <span class="toggle-slider"></span>
+        </label>
+        <span class="toggle-label">Sidebar-Only Navigation</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container content px-lg-4" role="main" id="main-container">
+    <div class="row" id="warnings"></div>
+    
+    <script type="text/coffee-script-template" id="js-alert-danger-template">
+      <div class="alert alert-danger alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        ALERT_MSG
+      </div>
+    </script>
+
+    <% if alert %>
+      <div class="alert alert-danger alert-dismissible" role="alert">
+        <button type="button" class="close" data-dismiss="alert">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <%= alert %>
+      </div>
+    <% end %>
+
+    <% if notice %>
+      <div class="alert alert-success" role="alert">
+        <button type="button" class="close" data-dismiss="alert">
+          <span aria-hidden="true">&times;</span>
+          <span class="sr-only">Close</span>
+        </button>
+        <%= notice %>
+      </div>
+    <% end %>
+
+    <%= yield %>
+  </div>
+
+  <%= render "layouts/footer" %>
+
+  <script>
+    function getValuesByKey(data, key) {
+      return data.map(item => item[key]);
+    }
+
+    function showWarning(id, body, showClose) {
+      const alertHtml = `
+      <div class="col-12" id="${id}">
+          <div class="alert alert-danger ${showClose ? "alert-dismissible fade show" : ""}" role="alert" style="border-radius: 25px; box-shadow: 0 0 5px #ccc;">
+              ${body}
+              ${showClose ? `
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+              ` : ""}
+          </div>
+      </div>
+      `;
+
+      if ($(`#warnings #${id}`).length > 0) {
+          $(`#warnings #${id}`).remove();
+      }
+      $("#warnings").append(alertHtml);
+    }
+
+    // Originally from https://stackoverflow.com/a/16348977
+    function stringToColor(str) {
+      let hash = 0;
+      str.split('').forEach(char => {
+          hash = char.charCodeAt(0) + ((hash << 5) - hash);
+      })
+      let color = '#';
+      for (let i = 0; i < 3; i++) {
+          const value = (hash >> (i * 8)) & 0xff;
+          color += value.toString(16).padStart(2, '0');
+      }
+      return color;
+    }
+
+    $(document).ready(function() {
+      const sidebar = $('.sidebar');
+      const toggleButton = $('#sidebar-toggle');
+      const mainContainer = $('#main-container');
+      
+      toggleButton.click(function() {
+        const isExpanded = sidebar.hasClass('active');
+        sidebar.toggleClass('active');
+        
+        // Update ARIA attributes
+        toggleButton.attr('aria-expanded', !isExpanded);
+        sidebar.attr('aria-hidden', isExpanded);
+      });
+
+      // Close sidebar when clicking outside
+      mainContainer.on('click', function(e) {
+        if (sidebar.hasClass('active')) {
+          sidebar.removeClass('active');
+          toggleButton.attr('aria-expanded', 'false');
+          sidebar.attr('aria-hidden', 'true');
+        }
+      });
+
+      // Add keyboard navigation
+      $(document).keyup(function(e) {
+        if (e.key === "Escape" && sidebar.hasClass('active')) {
+          sidebar.removeClass('active');
+          toggleButton.attr('aria-expanded', 'false');
+          sidebar.attr('aria-hidden', 'true');
+          toggleButton.focus();
+        }
+      });
+
+      // Auto-open submenus that contain active items
+      $('.submenu-item.active').each(function() {
+        const submenu = $(this).closest('.submenu');
+        submenu.show();
+        submenu.prev('.nav-link').attr('aria-expanded', 'true');
+      });
+
+      // Keep submenus open when clicking inside them
+      $('.submenu').on('click', function(e) {
+        e.stopPropagation();
+      });
+
+      // Check if this is the first visit
+      if (!localStorage.getItem('hasOpenedSidebarBefore')) {
+        // Add pulse animation
+        $('#sidebar-toggle').addClass('menu-toggle-pulse');
+        
+        // Remove pulse and tooltip after click
+        const removeFirstTimeEffects = () => {
+          $('#sidebar-toggle').removeClass('menu-toggle-pulse');
+          localStorage.setItem('hasOpenedSidebarBefore', 'true');
+        };
+
+        // Remove effects when clicked
+        $('#sidebar-toggle').one('click', function() {
+          // Small delay to ensure the animation is visible during the click
+          setTimeout(removeFirstTimeEffects, 100);
+        });
+      }
+    });
+
+    function toggleSubmenu(element) {
+      event.preventDefault();
+      const submenu = element.nextElementSibling;
+      const isExpanded = element.getAttribute('aria-expanded') === 'true';
+      
+      // Close all other submenus
+      document.querySelectorAll('.submenu').forEach(menu => {
+        if (menu !== submenu) {
+          menu.style.display = 'none';
+          menu.previousElementSibling.setAttribute('aria-expanded', 'false');
+        }
+      });
+      
+      // Toggle current submenu
+      submenu.style.display = isExpanded ? 'none' : 'block';
+      element.setAttribute('aria-expanded', !isExpanded);
+    }
+
+    // Close submenus when clicking outside
+    document.addEventListener('click', function(event) {
+      if (!event.target.closest('.nav-item')) {
+        document.querySelectorAll('.submenu').forEach(menu => {
+          // Don't close submenu if it contains an active item
+          if (!menu.querySelector('.submenu-item.active')) {
+            menu.style.display = 'none';
+            menu.previousElementSibling.setAttribute('aria-expanded', 'false');
+          }
+        });
+      }
+    });
+
+    // Initialize submenus - run this after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+      // Find any submenu items that are marked as active
+      document.querySelectorAll('.submenu-item.active').forEach(activeItem => {
+        const submenu = activeItem.closest('.submenu');
+        if (submenu) {
+          // Show the submenu
+          submenu.style.display = 'block';
+          // Update the toggle button state
+          const toggleButton = submenu.previousElementSibling;
+          if (toggleButton) {
+            toggleButton.setAttribute('aria-expanded', 'true');
+          }
+        }
+      });
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const restartLinks = document.querySelectorAll("a.nav-link.submenu-item");
+      for (const restartLink of restartLinks) {
+        if (restartLink.hasAttribute("href") && restartLink.getAttribute("href").includes("/nginx/stop?redir=") && restartLink?.querySelector("i.fas.fa-sync")) {
+          const restartIcon = restartLink.querySelector("i.fas.fa-sync");
+          restartLink.addEventListener('click', function(e) {
+            restartIcon.classList.add('icon-spin');
+          });
+        }
+      }
+    });
+
+    $(document).ready(function() {
+      const toggle = $('#navLocationToggle');
+      
+      // Match initial state to what we set in the blocking script
+      const initialState = localStorage.getItem('showInTop') === 'false';
+      toggle.prop('checked', initialState);
+      
+      toggle.change(function() {
+        const sidebarOnly = $(this).is(':checked');
+        if (!sidebarOnly) {
+          document.documentElement.classList.remove('show-in-sidebar');
+        } else {
+          document.documentElement.classList.add('show-in-sidebar');
+        }
+        localStorage.setItem('showInTop', !sidebarOnly);
+      });
+    });
+  </script>
+</body>
+</html>

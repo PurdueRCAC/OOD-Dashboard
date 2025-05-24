@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../javascript/utils.js"],
+  "sourcesContent": ["\nexport function cssBadgeForState(state){\n  switch (state) {\n    case 'completed':\n      return 'badge-success';\n    case 'running':\n      return 'badge-primary'\n    case 'queued':\n      return 'badge-info';\n    case 'queued_held':\n      return 'badge-warning';\n    case 'suspended':\n      return 'badge-warning';\n    default:\n      return 'badge-warning';\n  }\n}\n\nexport function capitalizeFirstLetter(string) {\n  return string.charAt(0).toUpperCase() + string.slice(1);\n}\n"],
+  "mappings": ";AACO,SAAS,iBAAiB,OAAM;AACrC,UAAQ;AAAA,SACD;AACH,aAAO;AAAA,SACJ;AACH,aAAO;AAAA,SACJ;AACH,aAAO;AAAA,SACJ;AACH,aAAO;AAAA,SACJ;AACH,aAAO;AAAA;AAEP,aAAO;AAAA;AAEb;AAEO,SAAS,sBAAsB,QAAQ;AAC5C,SAAO,OAAO,OAAO,CAAC,EAAE,YAAY,IAAI,OAAO,MAAM,CAAC;AACxD;",
+  "names": []
+}

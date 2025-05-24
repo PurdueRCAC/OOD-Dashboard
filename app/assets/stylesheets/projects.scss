@@ -1,0 +1,28 @@
+
+.project-icon {
+  padding: 0.3rem;
+  margin: 0.5rem;
+
+  outline: 0.25em solid rgb(26, 118, 211);
+  border-radius: 10%;
+
+  &:hover {
+    outline: 0.4em solid rgb(26, 118, 211);
+  }
+
+  a {
+    text-decoration: none;
+  }
+
+  button {
+    text-decoration: none !important;
+  }
+}
+
+.job-info {
+  cursor: default;
+}
+
+.job-info .job-info-description{
+  display: block;
+}

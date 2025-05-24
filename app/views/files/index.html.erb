@@ -1,0 +1,32 @@
+<%# z-index:999 cause dropdowns are 1000 default sticky-top is 1020 https://getbootstrap.com/docs/4.6/layout/overview/#z-index %>
+
+<div class="text-right sticky-top bg-white border-bottom p-2 m-3 z-index-999">
+  <!-- terminal button href is set via JavaScript because the URL is based on the current directory -->
+  <% if Configuration.files_enable_shell_button %>
+    <%= render partial: 'shell_dropdown' %>
+  <% end %>
+
+    <button id="refresh-btn" type="button" class="btn btn-outline-dark btn-sm"><i class="fa fa-rotate-right" aria-hidden="true"></i> Refresh</button>
+    <button id="new-file-btn" type="button" class="btn btn-outline-dark btn-sm"><i class="fas fa-plus" aria-hidden="true"></i> New File</button>
+    <button id="new-dir-btn" type="button" class="btn btn-outline-dark btn-sm"><i class="fas fa-folder-plus" aria-hidden="true"></i> New Directory</button>
+    <%= render(partial: 'upload_button') %>
+    <%= render(partial: 'download_button') %>
+    <% if Configuration.globus_endpoints %>
+      <%= render partial: 'globus' %>
+    <% end %>
+    <button id="copy-move-btn" type="button" class="btn btn-outline-dark btn-sm"><i class="fas fa-copy" aria-hidden="true"></i> Copy/Move</button>
+    <button id="delete-btn" type="button" class="btn btn-danger btn-sm"><i class="fas fa-trash" aria-hidden="true"></i> Delete</button>
+</div>
+
+<hr>
+
+<div class="row">
+  <div class="col-md-3">
+    <%= render partial: "favorites" %>
+    <%= render partial: "copy_move_popup" %>
+    <%= render partial: "file_action_menu" %>
+    <%= render partial: "default_label_error_messages" %>
+  </div>
+  <%= render partial: "files_table" %>
+</div>
+<%= render partial: "inline_js" %>

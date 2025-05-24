@@ -1,0 +1,51 @@
+<%= javascript_include_tag 'support_ticket', nonce: true %>
+
+<%= javascript_tag nonce: true do -%>
+
+    const SUPPORT_TICKET_RESTRICTIONS = <%= raw @support_ticket.restrictions.to_json %>
+    const SUPPORT_TICKET_MESSAGES = {
+        "items.attachments": "<%= t('dashboard.support_ticket.validation.items.attachments_js') %>",
+        "size.attachments": "<%= t('dashboard.support_ticket.validation.size.attachments_js') %>",
+    }
+
+<% end  %>
+
+<div>
+  <% content_for :title, t('dashboard.support_ticket.title') %>
+
+  <%= render partial: 'batch_connect/shared/breadcrumb',
+   locals: {
+     links: [
+       {
+         text: t('dashboard.breadcrumbs_home'),
+         href: root_path
+       },
+       {
+         text: t('dashboard.breadcrumbs_support_ticket')
+       }]
+   }
+  %>
+
+  <div id="support-ticket-content-container" class="mb-4">
+    <h2><%= t('dashboard.support_ticket.header') %></h2>
+    <p>
+      <%= support_ticket_description_text %>
+    </p>
+  </div>
+
+
+  <div id="form-container" class="mb-5">
+    <%= bootstrap_form_for(@support_ticket, as: "support_ticket", url: support_path, html: { multipart: true }) do |f| %>
+      <% f.object.each do |attrib| %>
+        <%= create_widget(f, attrib, format: @render_format) %>
+      <% end %>
+
+      <input type="submit" name="commit" value="Submit support ticket" class="btn btn-primary btn-block" />
+    <% end %>
+  </div>
+
+</div>
+<div id="full-page-spinner" class="d-none">
+  <div class="spinner-border" role="status"></div>
+</div>
+
