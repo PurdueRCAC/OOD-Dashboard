@@ -4,7 +4,7 @@ module Api
       user = @user.name
 
       allocations = Util.get_user_allocations(user)
-      myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 3.minutes, race_condition_ttl: 3.seconds) do
+      myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds) do
         scontrol_output, scontrol_status = Open3.capture2("scontrol show assoc users=#{user} accounts=#{allocations} flags=assoc -o | tail -n +3")
         squeue_output, squeue_status = Open3.capture2("squeue -h -A #{allocations} -t PENDING,REQUEUED -a -r -o '%.60a|%C' | awk '{$1=$1}1'")
 
@@ -25,13 +25,9 @@ module Api
 
             cpu_total = grp_tres_gres_hp_cpu_match[1].to_i
             cpu_running = grp_tres_gres_hp_cpu_match[2].to_i
-            Rails.logger.debug cpu_running
-            Rails.logger.debug cpu_total
 
             gpu_total = (grp_tres_mins_billing_match[1].to_f / 60.0)
             gpu_used = (grp_tres_mins_billing_match[2].to_f / 60.0)
-            Rails.logger.debug gpu_used
-            Rails.logger.debug gpu_total
             
             {
               account: line_h["Account"],
