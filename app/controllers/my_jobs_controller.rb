@@ -21,6 +21,7 @@ class MyJobsController < ApplicationController
     "cpueff" => { "prefer" => "created", "format" => "string", "formattedname" => "CPU Efficiency" },
     "memeff" => { "prefer" => "created", "format" => "string", "formattedname" => "Memory Efficiency" },
     "partition" => { "prefer" => "first", "format" => "string", "formattedname" => "Partition" },
+    "qos" => { "prefer" => "first", "format" => "string", "formattedname" => "QOS" },
     "state" => { "prefer" => "first", "format" => "string", "formattedname" => "State" },
     "reason" => { "prefer" => "first", "format" => "string", "formattedname" => "Reason" },
     "timelimit" => { "prefer" => "max", "format" => "duration", "formattedname" => "Timelimit", "compare_fn" => Util.method(:timestr_to_seconds) },

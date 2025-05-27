@@ -92,8 +92,6 @@
                 const timestamp = moment.unix(data);
                 return timestamp.isValid() ? timestamp.format("M/DD/YY HH:mm") : "--";
             },
-            visible: false,
-            searchable: false,
         },
         {
             title: "Time Used",
@@ -112,6 +110,8 @@
                 const timestamp = moment.unix(data);
                 return timestamp.isValid() ? timestamp.format("M/DD/YY HH:mm") : "--";
             },
+            visible: false,
+            searchable: false,
         },
         {
             title: "Wait Time",
@@ -142,9 +142,14 @@
             searchable: false,
         },
         {
-            title: "Queue",
+            title: "Partition",
             field: "partition",
-            render: (data, type, row) => `<span class="queue-filter">${data}</span>`,
+            render: (data, type, row) => `<span class="partition-filter">${data}</span>`,
+        },
+        {
+            title: "QOS",
+            field: "qos",
+            render: (data, type, row) => `<span class="qos-filter">${data}</span>`,
         },
         {
             title: "State",
