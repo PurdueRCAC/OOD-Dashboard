@@ -689,6 +689,15 @@ function renderJobData(data) {
                   <span class="info-value">${data.AllocTRES.match(/gres\/gpu=(\d+)/)[1]}</span>
                 </div>
                 ` : ''}
+                ${data.Partition && data.Partition === 'ai' ? `
+                <div class="info-item">
+                  <span class="info-label duration-tooltip" data-toggle="tooltip" title="GPU Hours">GPU Hours</span>
+                  <span class="info-value">
+                    <span class="text-nowrap">${Number(get(data, 'UsedGPUHours', '0')).toFixed(2)} used</span> / 
+                    <span class="text-nowrap">${Number(get(data, 'TotalGPUHours', '0')).toFixed(2)} reserved</span>
+                  </span>
+                </div>
+                ` : ''}
               </div>
             </div>
           </div>

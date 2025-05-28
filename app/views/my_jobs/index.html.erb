@@ -121,6 +121,19 @@
             },
         },
         {
+            title: "Used GPU Hours",
+            field: "used_gpu_hours",
+            visible: true,
+            searchable: false,
+            render: DataTable.render.number(null, null, 2, "", ""),
+        },
+        {
+            title: "Required GPU Hours",
+            field: "required_gpu_hours",
+            visible: false,
+            searchable: false,
+        },
+        {
             title: "Time Efficiency",
             field: "timeeff",
             render: DataTable.render.number(null, null, 2, "", "%"),

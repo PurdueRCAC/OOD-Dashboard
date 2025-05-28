@@ -110,22 +110,21 @@ module Util
   end
 
   # Based on jobsu script
-  def self.get_su_usage(partition, used_seconds, timelimit, reqtres)
-    charge_factor = partition == "highmem" ? 4 : 1
+  def self.get_gpu_hours_usage(partition, qos, used_seconds, timelimit, reqtres)
+    if partition != 'ai'
+      return ["N/A", "N/A"]
+    end
+    
+    charge_factor = qos == "preemptible" ? 0.25 : 1
     used_hours = used_seconds / 3600.to_f
     reserved_hours = timelimit / 3600.to_f
-    reserved_cpus = partition == "wholenode" ? reqtres["node"] * 128 : reqtres["cpu"]
-    reserved_gpus = reqtres["gres/gpu"]
+    req_tres_hash = reqtres.split(",").map { |pair| pair.split("=") }.to_h
+    reserved_gpus = req_tres_hash["gres/gpu"].to_i
 
-    if ["gpu", "gpu-debug"].include?(partition)
-      total_used_sus = reserved_gpus * used_hours * charge_factor
-      total_sus = reserved_gpus * reserved_hours * charge_factor
-    else
-      total_used_sus = reserved_cpus * used_hours * charge_factor
-      total_sus = reserved_cpus * reserved_hours * charge_factor
-    end
+    total_used_gpu_hours = reserved_gpus * used_hours * charge_factor
+    total_gpu_hours = reserved_gpus * reserved_hours * charge_factor
 
-    return [total_used_sus, total_sus]
+    return [total_used_gpu_hours, total_gpu_hours]
   end
 
   def self.scontrol_to_hash(output)

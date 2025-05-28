@@ -167,6 +167,8 @@ class MyJobsController < ApplicationController
         j["cpueff"] = (j["totalcpu"].to_f * 100 / (j["alloccpus"].to_f * j["elapsed"].to_f)).round(2)
         j["memeff"] = (j["maxrss"].to_f * 100 / j["reqmem"].to_f).round(2)
 
+        j["used_gpu_hours"], j["required_gpu_hours"] = Util.get_gpu_hours_usage(j["partition"], j["qos"], j["elapsed"], j["timelimit"], j["reqtres"])
+
         j["reqtres"] = j["reqtres"].split(",").map do |pair|
           key, value = pair.split("=")
           [key, key == "mem" ? Util.to_bytes(value).to_i : value.to_i]

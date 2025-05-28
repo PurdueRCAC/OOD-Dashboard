@@ -194,35 +194,31 @@ module Api
           end
         }
       },
-      "UsedServiceUnits" => {
+      "UsedGPUHours" => {
         type: :float,
         compute: ->(data) {
-          if data["Partition"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
-            used_su, _ = Util.get_su_usage(
+          if data["Partition"] && data["QOS"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
+            used_gpu_hours, _ = Util.get_gpu_hours_usage(
               data["Partition"],
+              data["QOS"],
               data["Elapsed"],
               data["Timelimit"],
-              data["ReqTRES"].split(",").map do |pair|
-                key, value = pair.split("=")
-                [key, key == "mem" ? Util.to_bytes(value).to_i : value.to_i]
-              end.to_h
+              data["ReqTRES"]
             )
-            used_su
+            used_gpu_hours
           end
         }
       },
-      "TotalServiceUnits" => {
+      "TotalGPUHours" => {
         type: :float,
         compute: ->(data) {
-          if data["Partition"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
-            _, total_su = Util.get_su_usage(
+          if data["Partition"] && data["QOS"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
+            _, total_su = Util.get_gpu_hours_usage(
               data["Partition"],
+              data["QOS"],
               data["Elapsed"],
               data["Timelimit"],
-              data["ReqTRES"].split(",").map do |pair|
-                key, value = pair.split("=")
-                [key, key == "mem" ? Util.to_bytes(value).to_i : value.to_i]
-              end.to_h
+              data["ReqTRES"]
             )
             total_su
           end
