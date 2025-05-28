@@ -17,6 +17,8 @@ class MyJobsController < ApplicationController
     "elapsed" => { "prefer" => "max", "format" => "duration", "formattedname" => "Elapsed", "compare_fn" => Util.method(:timestr_to_seconds) },
     "submit" => { "prefer" => "first", "format" => "timestamp", "formattedname" => "Submit Time", "compare_fn" => Util.method(:timestamp_to_epoch) },
     "planned" => { "prefer" => "max", "format" => "duration", "formattedname" => "Planned Time", "compare_fn" => Util.method(:timestr_to_seconds) },
+    "used_gpu_hours" => { "prefer" => "created", "format" => "", "formattedname" => "GPU Hours Used" },
+    "required_gpu_hours" => { "prefer" => "created", "format" => "", "formattedname" => "GPU Hours Required" },
     "timeeff" => { "prefer" => "created", "format" => "string", "formattedname" => "Time Efficiency" },
     "cpueff" => { "prefer" => "created", "format" => "string", "formattedname" => "CPU Efficiency" },
     "memeff" => { "prefer" => "created", "format" => "string", "formattedname" => "Memory Efficiency" },

@@ -91,14 +91,14 @@ class JobInfoController < ApplicationController
             j["memeff"] = "--"
           end
 
+          j["used_gpu_hours"], j["required_gpu_hours"] = Util.get_gpu_hours_usage(j["partition"], j["qos"], j["elapsed"], j["timelimit"], j["reqtres"])
+
           j["reqtres"] = j["reqtres"].split(",").map do |pair|
             key, value = pair.split("=")
             [key, key == "mem" ? Util.to_bytes(value).to_i : value.to_i]
           end.to_h.map { |key, val| "#{key}: #{val}" }.join(", ")
 
           j["nodelist"] = expand_nodelist(j["nodelist"])
-
-          j["used_su"], j["required_su"] = Util.get_su_usage(j["partition"], j["elapsed"], j["timelimit"], j["reqtres"])
 
           if j["state"] == "REQUEUED"
             output = `scontrol show job #{j["jobid"]} -o`
