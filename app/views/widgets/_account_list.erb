@@ -103,6 +103,9 @@
                                             `<b>${formatLargeNumber(+row.gpu_used)}</b> <span class="text-muted">(No GPU hour limit)</span>` :
                                             `<b>${formatLargeNumber(+row.gpu_used)}</b> / 
                                             <b>${formatLargeNumber(+row.gpu_total)}</b> GPU hours used
+                                            <span class="text-muted">
+                                                (user: <b>${formatLargeNumber(+row.user_gpu_used)}</b>)
+                                            </span>
                                             `
                                         }
                                     </div>
