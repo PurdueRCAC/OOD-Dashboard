@@ -71,6 +71,7 @@ Rails.application.routes.draw do
   get "api/news_feed", action: :get, controller: "api/news_feed", as: "news_feed"
   get "api/job_queue", action: :get, controller: "api/job_queue", as: "job_queue"
   get "api/balance_summary", action: :get, controller: "api/balance_summary", as: "balance_summary"
+  get "api/gpu_hour_summary", action: :get, controller: "api/gpu_hour_summary", as: "gpu_hour_summary"
   get "api/cluster_status", action: :get, controller: "api/cluster_status", as: "cluster_status_api"
   get "api/nodes/:name", action: :show, controller: "api/nodes", as: "node_api"
   get "api/jobs/:jobid", action: :show, controller: "api/jobs", as: "job_api"

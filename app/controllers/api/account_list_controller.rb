@@ -1,7 +1,7 @@
 module Api
   class AccountListController < ApplicationController
     def get
-      user = 'jin456'
+      user = @user.name
 
       allocations = Util.get_user_allocations(user)
       myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds) do

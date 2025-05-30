@@ -20,6 +20,58 @@
 <div id="account_list_card_content"></div>
 
 <script defer>
+    function download_balance_summary(allocation, type, total_sus_used, total_sus_limit) {
+        var BALANCE_SUMMARY_COLUMNS = ["Username", "SUs Used", "SU Limit"];
+
+        const $button = $(`#${allocation}-export-dropdown-button`);
+        const $icon = $button.find('i.fas');
+        
+        // Disable the button and save original icon class
+        $button.prop('disabled', true);
+        const originalIconClass = $icon.attr('class');
+        
+        // Replace icon with spinner
+        $icon.removeClass().addClass('spinner-border spinner-border-sm');
+
+        fetchWithCache(`<%= url_for controller: "api/gpu_hour_summary", action: "get" %>?allocation=${encodeURIComponent(allocation)}`, {
+            forceRefresh: false,
+            cacheDuration: 10 * 60 * 1000  // Cache for 10 minutes
+        }).then(data => {
+            var EXPORT_TYPES = {"CSV": "csv", "Excel": "xlsx"};
+            if (data.length === 0) {
+                toastr.error("No data to export");
+            } else if (Object.keys(EXPORT_TYPES).includes(type)) {
+                toastr.info(`Exporting ${data.length} row(s) as ${type}...`);
+                
+                // Create the export data with total SUs in a table format
+                const exportData = [
+                    ["Allocation", "Total GPU Hours Used", "Total GPU Hours Limit", "Generated At (UTC)"],
+                    [allocation, 
+                     total_sus_used.toLocaleString(), 
+                     total_sus_limit === "No limit" ? "No limit" : total_sus_limit.toLocaleString(),
+                     new Date().toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC')
+                    ],
+                    [], // Empty row for spacing
+                    BALANCE_SUMMARY_COLUMNS,
+                    ...data.map(row => Object.values(row))
+                ];
+                
+                const worksheet = XLSX.utils.aoa_to_sheet(exportData);
+                var workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
+                XLSX.writeFile(workbook, `gautschi_service_units_${allocation}_${Date.now()}.${EXPORT_TYPES[type]}`, { compression: true });
+            } else {
+                toastr.error("Invalid export file type");
+            }
+        }).catch(res => {
+            toastr.error("Failed to export allocation service unit usage!");
+        }).finally(() => {
+            // Restore original icon and re-enable button
+            $icon.removeClass().addClass(originalIconClass);
+            $button.prop('disabled', false);
+        });
+    }
+
     function formatLargeNumber(num, decimals = 1) {
         const fullNum = num.toLocaleString(undefined, {maximumFractionDigits: 2});
         if (num >= 1000000) {
@@ -65,6 +117,27 @@
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div class="h5 mb-0">
                                 ${row.account}
+                            </div>
+                            <div class="btn-group">
+                                <button id="${row.account}-export-dropdown-button" 
+                                    class="btn btn-sm btn-outline-info dropdown-toggle rounded-pill shadow-sm" 
+                                    style="font-size: 0.875rem;"
+                                    data-toggle="dropdown" 
+                                    aria-expanded="false">
+                                    <i class="fas fa-download"></i> <span class="d-none d-sm-inline">Export</span>
+                                </button>
+                                <div class="gpu-hour-export-dropdown dropdown-menu dropdown-menu-right shadow-sm" 
+                                    aria-labelledby="${row.account}-export-dropdown-button" 
+                                    data-account="${row.account}"
+                                    data-total-gpu-hours-used="${row.gpu_used}"
+                                    data-total-gpu-hours-limit="${row.gpu_total}">
+                                    <button class="dropdown-item text-body" style="font-size: 0.875rem;">
+                                        <i class="fas fa-file-csv"></i> CSV
+                                    </button>
+                                    <button class="dropdown-item text-body" style="font-size: 0.875rem;">
+                                        <i class="fas fa-file-excel"></i> Excel
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div class="d-flex flex-column">
@@ -153,6 +226,16 @@
                 if (!$(event.target).closest('[data-toggle="tooltip"]').length) {
                     $('[data-toggle="tooltip"]').tooltip('hide');
                 }
+            });
+
+            $('div.gpu-hour-export-dropdown .dropdown-item').on("click", function() {
+                const $dropdown = $(this).parent();
+                const allocation = $dropdown.data("account");
+                const total_gpu_hours_used = $dropdown.data("total-gpu-hours-used");
+                const total_gpu_hours_limit = $dropdown.data("total-gpu-hours-limit");
+                // Extract just the text content, removing any HTML and trimming whitespace
+                const exportType = $(this).text().trim();
+                download_balance_summary(allocation, exportType, total_gpu_hours_used, total_gpu_hours_limit);
             });
         }).catch(res => {
             const errorHtml = `
