@@ -402,6 +402,89 @@
                 },
             },
         },
+        {
+            title: "GPU Hour Usage Distribution",
+            chartObj: null,
+            refreshChart: (table, chart, useGlobalData) => {
+                var counts = {};
+        
+                // Count the number of entries for each position
+                table.rows({ search: useGlobalData ? "none" : "applied" }).every(function(rowIdx, tableLoop, rowLoop) {
+                    var data = this.data();
+
+                    var user = data[getColIndex("User")];
+                    var gpu_hour_used = parseFloat(data[getColIndex("Used GPU Hours")]);
+
+                    if (gpu_hour_used > 0) {
+                        if (!counts[user]) {
+                            counts[user] = 0;
+                        }
+                        counts[user] += gpu_hour_used;
+                    }
+                });
+
+                let data = Object.entries(counts).map((e) => ({
+                    user: e[0],
+                    value: e[1],
+                })).sort((a, b) => parseInt(b.value) - parseInt(a.value)).slice(0, 50);
+
+                if (data.length === 0) {
+                    chart.data = {
+                        datasets: [
+                            {
+                                label: "GPU hours used",
+                                user: [],
+                                tree: [],
+                                backgroundColor: [],
+                            }
+                        ]
+                    };
+                } else {
+                    chart.data = {
+                        datasets: [
+                            {
+                                label: "GPU hours used",
+                                user: data.map(obj => obj.user),
+                                tree: data.map(obj => obj.value),
+                                //backgroundColor: (ctx) => pattern.draw(_.sample(PATTERNS), stringToColor(ctx.dataset.user[ctx.index])),
+                                backgroundColor: (ctx) => stringToColor(ctx.dataset.user[ctx.index]),
+                            }
+                        ]
+                    };
+                }
+
+                chart.update();
+            },
+            config: {
+                type: "treemap",
+                data: {},
+                options: {
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    onClick: (event, elements, chart) => {
+                        toggleFilterText(chart.config._config.data.datasets[0].user[elements[0].index]);
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'GPU Hour Usage Distribution',
+                        },
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    return `${ctx.dataset.user[ctx.dataIndex]}: ${+ctx.dataset.tree[ctx.dataIndex].toFixed(2)} GPU Hours`;
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        },
     ];
 
     selectedChart = charts[0];
