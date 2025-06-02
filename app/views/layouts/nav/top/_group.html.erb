@@ -1,6 +1,8 @@
-<%= render partial: "layouts/nav/top/dropdown",
-    locals: {
-      icon_class: "fas fa-folder",
+<%= render layout: "layouts/nav/top/dropdown", locals: { 
+      id: "group-#{group.title.parameterize}",
+      icon: group.icon_uri || "folder",
       title: group.title,
-      groups: OodAppGroup.groups_for(apps: group.apps, group_by: :subcategory)
-    } %> 
+      text: group.title
+    } do %>
+  <%= render partial: 'layouts/nav/top/group_items', locals: local_assigns %>
+<% end %>

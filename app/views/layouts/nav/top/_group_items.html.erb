@@ -1,0 +1,21 @@
+<% OodAppGroup.groups_for(apps: group.apps, group_by: :subcategory, sort: group.sort).each_with_index do |group, index| %>
+    <%= content_tag "div", "", class: "dropdown-divider", role: "separator" if index > 0 %>
+
+    <% if group.respond_to?(:title_with_nav_limit_caption) %>
+        <%= content_tag "div", group.title_with_nav_limit_caption, class: "dropdown-header" unless group.title_with_nav_limit_caption.empty? %>
+    <% else %>
+        <%= content_tag "div", group.title, class: "dropdown-header" unless group.title.empty? %>
+    <% end %>
+
+    <% items = group.respond_to?(:nav_limit) ? group.apps.take(group.nav_limit) : group.apps %>
+    <% items.each do |item| %>
+        <% links = item.respond_to?(:links) ? item.links : [item] %>
+        <% links.compact.each do |link| %>
+            <%= link_to link.url.to_s,
+                class: "dropdown-item",
+                target: link.new_tab? ? "_blank" : nil do %>
+                <%= icon_tag(link.icon_uri) %>&nbsp;&nbsp;<%= link.title %>
+            <% end %>
+        <% end %>
+    <% end %>
+<% end %>
