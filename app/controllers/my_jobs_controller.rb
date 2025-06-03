@@ -92,6 +92,24 @@ class MyJobsController < ApplicationController
     start_time = Date.today - 7.days
     end_time = DateTime.now
 
+    if params[:start_time].present?
+      start_time = Time.zone.parse(params[:start_time])
+      if start_time.nil?
+        return render json: {error: "Invalid start time."}, status: :bad_request
+      end
+    end
+
+    if params[:end_time].present?
+      end_time = Time.zone.parse(params[:end_time])
+      if end_time.nil?
+        return render json: {error: "Invalid end time."}, status: :bad_request
+      end
+    end
+
+    if start_time > end_time
+      return render json: {error: "Start time cannot be after end time."}, status: :bad_request
+    end
+
     allocations = Util.get_user_allocations(@user.name)
 
     squeue = Rails.cache.fetch("squeue", expires_in: 1.seconds) do
