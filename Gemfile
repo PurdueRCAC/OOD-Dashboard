@@ -68,5 +68,5 @@ gem "erubi", require: false
 gem "dalli", require: false
 
 
-gem "langchainrb", "~> 0.19.5"
-gem "ruby-openai", "~> 8.1.0"
+# gem "langchainrb", "~> 0.19.5"
+# gem "ruby-openai", "~> 8.1.0"
