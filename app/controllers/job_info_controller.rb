@@ -149,23 +149,23 @@ class JobInfoController < ApplicationController
     end
 
     # WIP Langchain integration with job info
-    # llm = Langchain::LLM::OpenAI.new(
-    #   api_key: ENV.fetch("OPENAI_API_KEY", ""),
-    #   default_options: { temperature: 0, chat_completion_model_name: "llama3.2:latest" },
-    #   llm_options: { uri_base: ENV.fetch("OPENAI_API_BASE_URL", ""), api_version: "" },
-    # )
+    llm = Langchain::LLM::OpenAI.new(
+      api_key: ENV.fetch("OPENAI_API_KEY", ""),
+      default_options: { temperature: 0, chat_model: "llama3.2:latest" },
+      llm_options: { uri_base: ENV.fetch("OPENAI_API_BASE_URL", ""), api_version: "" },
+    )
 
-    # assistant = Langchain::Assistant.new(
-    #   llm:          llm,
-    #   tools:        [],   # no tools
-    #   instructions: "You are a helpful assistant."
-    # )
+    assistant = Langchain::Assistant.new(
+      llm:          llm,
+      tools:        [],   # no tools
+      instructions: "You are a helpful assistant."
+    )
 
-    # assistant.add_message(role: "system", content: "You are a concise, helpful assistant. Respond only to the user prompt below.")
-    # messages = assistant.add_message_and_run!(content: "What is 3 + 4?")
-    # ai_msg = messages.reverse.find { |m| m.role == "assistant" }
+    assistant.add_message(role: "system", content: "You are a concise, helpful assistant. Respond only to the user prompt below.")
+    messages = assistant.add_message_and_run!(content: "What is 3 + 4?")
+    ai_msg = messages.reverse.find { |m| m.role == "assistant" }
 
-    # result_hash["llm"] = ai_msg&.content
+    result_hash["llm"] = ai_msg&.content
 
     if result_hash
       render json: result_hash.to_json, status: :ok
