@@ -21553,27 +21553,23 @@ body.modal-open {
   overflow: hidden;
 }
 
-th.sorting::before {
+#job_status_table_wrapper th.sorting::before {
   content: "" !important;
 }
-
-th.sorting::after {
+#job_status_table_wrapper th.sorting::after {
   content: "" !important;
 }
-
-table.dataTable th:hover {
+#job_status_table_wrapper table.dataTable th:hover {
   background-color: darkgrey;
 }
-
-table.dataTable th[aria-sort=descending] span::after {
+#job_status_table_wrapper table.dataTable th[aria-sort=descending] span::after {
   content: "▼";
   margin-left: 1.5rem !important;
   color: currentcolor;
   font-size: 100%;
   top: 0;
 }
-
-table.dataTable th[aria-sort=ascending] span::after {
+#job_status_table_wrapper table.dataTable th[aria-sort=ascending] span::after {
   content: "▲";
   margin-left: 1.5rem !important;
   color: currentcolor;
