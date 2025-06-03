@@ -64,18 +64,20 @@
                         <i role="button" class="efficiency-warning fa fa-warning text-warning" data-toggle="tooltip" title="You requested significantly more resources than you used. Click to learn more."></i>
                     `;
                 }
-                return `<span>${data + linkToSession + efficiencyWarning}</span>`
+                return `<span class="text-nowrap">${data + linkToSession + efficiencyWarning}</span>`
             }
         },
         {
             title: "User",
             field: "user",
-            render: (data, type, row) => `<span class="user-filter" style="${ data === "<%= @user %>" ? "text-decoration: underline;" : "" }">${data}</span>`
+            render: (data, type, row) => `<span class="user-filter" style="${ data === "<%= @user %>" ? "text-decoration: underline;" : "" }">${data}</span>`,
+            filterType: "multiselect",
         },
         {
             title: "Account",
             field: "account",
             render: (data, type, row) => `<span class="account-filter">${data}</span>`,
+            filterType: "multiselect",
         },
         {
             title: "Start Time",
@@ -158,11 +160,13 @@
             title: "Partition",
             field: "partition",
             render: (data, type, row) => `<span class="partition-filter">${data}</span>`,
+            filterType: "multiselect",
         },
         {
             title: "QOS",
             field: "qos",
             render: (data, type, row) => `<span class="qos-filter">${data}</span>`,
+            filterType: "multiselect",
         },
         {
             title: "State",
@@ -190,7 +194,8 @@
                             </span>
                         </span>`
                     : "");
-            }
+            },
+            filterType: "multiselect",
         },
         {
             title: "Reason",
@@ -271,6 +276,7 @@
             render: (data, type, row) => {
                 return data !== "N/A" ? data : "--"
             },
+            filterType: "multiselect",
         },
         {
             title: "Requested Resources",
@@ -725,6 +731,44 @@
                 },
                 columns: TABLE_COLUMNS,
                 data: extractTableData(data),
+                initComplete: function () {
+                    /* https://datatables.net/examples/api/multi_filter_select.html */
+                    this.api()
+                        .columns()
+                        .every(function () {
+                            let column = this;
+            
+                            // let select = document.createElement('select');
+                            // select.add(new Option(''));
+                            // column.header().replaceChildren(select);
+            
+                            // select.addEventListener('click', function (e) {
+                            //     e.stopPropagation();
+                            // });
+                            
+                            // select.addEventListener('mousedown', function (e) {
+                            //     e.stopPropagation();
+                            // });
+                            
+                            // select.addEventListener('focus', function (e) {
+                            //     e.stopPropagation();
+                            // });
+            
+                            // select.addEventListener('change', function () {
+                            //     column
+                            //         .search(select.value, {exact: true})
+                            //         .draw();
+                            // });
+            
+                            // column
+                            //     .data()
+                            //     .unique()
+                            //     .sort()
+                            //     .each(function (d, j) {
+                            //         select.add(new Option(d));
+                            //     });
+                        });
+                },
             });
 
             // Selected jobs text display
