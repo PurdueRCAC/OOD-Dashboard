@@ -91,7 +91,7 @@ class JobInfoController < ApplicationController
             j["memeff"] = "--"
           end
 
-          j["used_gpu_hours"], j["required_gpu_hours"] = Util.get_gpu_hours_usage(j["partition"], j["qos"], j["elapsed"], j["timelimit"], j["reqtres"])
+          j["used_gpu_hours"], j["required_gpu_hours"] = Util.get_gpu_hours_usage(j["jobid"], j["partition"], j["qos"], j["elapsed"], j["timelimit"], j["reqtres"])
 
           j["reqtres"] = j["reqtres"].split(",").map do |pair|
             key, value = pair.split("=")

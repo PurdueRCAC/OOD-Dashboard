@@ -199,6 +199,7 @@ module Api
         compute: ->(data) {
           if data["Partition"] && data["QOS"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
             used_gpu_hours, _ = Util.get_gpu_hours_usage(
+              data["JobID"],
               data["Partition"],
               data["QOS"],
               data["Elapsed"],
@@ -214,6 +215,7 @@ module Api
         compute: ->(data) {
           if data["Partition"] && data["QOS"] && data["Elapsed"] && data["Timelimit"] && data["ReqTRES"]
             _, total_su = Util.get_gpu_hours_usage(
+              data["JobID"],
               data["Partition"],
               data["QOS"],
               data["Elapsed"],
