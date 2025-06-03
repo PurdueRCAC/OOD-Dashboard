@@ -67,3 +67,6 @@ gem "sinatra-contrib", require: false
 gem "erubi", require: false
 gem "dalli", require: false
 
+
+# gem "langchainrb_rails"
+# gem "ruby-openai"
