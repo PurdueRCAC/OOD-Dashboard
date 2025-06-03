@@ -8,14 +8,14 @@ The [Gautschi Dashboard](https://www.rcac.purdue.edu/compute/gautschi), powered 
 Further documentation is located in the [Wiki](https://github.rcac.purdue.edu/RCAC-Staff/Gautschi-OOD-Dashboard/wiki).
 
 ## Enabling Developer Mode
-1. The develop sandbox is controlled by the folder `/var/www/ood/apps/dev/x-user` and the linkage inside: `ln -s /home/x-user/ondemand/dev /var/www/ood/apps/dev/x-user/gateway`. It is also been pauperized from github repo (e.g. `Gautschi-Configuration` for Gautschi) so it's recommended to use github workflow to enable the develop mode.
+1. The develop sandbox is controlled by the folder `/var/www/ood/apps/dev/user` and the linkage inside: `ln -s /home/user/ondemand/dev /var/www/ood/apps/dev/user/gateway`. It is also been pauperized from github repo (e.g. `Gautschi-Configuration` for Gautschi) so it's recommended to use github workflow to enable the develop mode.
 
-   Go to github repo [Gautschi-Configuration](https://github.rcac.purdue.edu/RCAC-Staff/Gautschi-Configuration) and add the folder for `x-user` with link inside:
+   Go to github repo [Gautschi-Configuration](https://github.rcac.purdue.edu/RCAC-Staff/Gautschi-Configuration) and add the folder for `user` with link inside:
    ```bash
        # Go inside of the git repo Gautschi-Configuration folder
        cd puppet/modules/ondemand/files/var/www/ood/apps/dev
-       # Create dev folder for "x-user" and configure the linkage
-       user="x-user"; mkdir $user; ln -s /home/$user/ondemand/dev ./$user/gateway
+       # Create dev folder for "user" and configure the linkage
+       user="user"; mkdir $user; ln -s /home/$user/ondemand/dev ./$user/gateway
        # Go through the general git commit process*
        # The change will be propagated to the system after next puppet run (you can manually do a `sudo run_puppet` on `adm.gautschi`).
    ```
@@ -31,7 +31,7 @@ Further documentation is located in the [Wiki](https://github.rcac.purdue.edu/RC
 ### 1. SSH into a login node
 
 ```bash
-ssh x-user@gautschi.rcac.purdue.edu
+ssh user@gautschi.rcac.purdue.edu
 ```
 
 ### 2. Install dashboard using installation script
