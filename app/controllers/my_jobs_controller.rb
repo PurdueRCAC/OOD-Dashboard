@@ -91,7 +91,7 @@ class MyJobsController < ApplicationController
 
     start_time = Date.today - 7.days
     end_time = DateTime.now
-
+    
     if params[:start_time].present?
       start_time = Time.zone.parse(params[:start_time])
       if start_time.nil?

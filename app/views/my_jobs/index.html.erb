@@ -581,10 +581,18 @@
                                         }
                                     </div>
                                 </div>
-                                <div id="last-updated-text" class="text-center font-weight-bold mt-2 pt-2 pb-1 bg-transparent">
+                                <span class="mt-2 mb-0 font-weight-bold">Select a date/time range:</span>
+                                <div id="datetime-range-selector" class="d-flex align-items-center" style="margin-top: 5px; background: transparent; cursor: pointer; padding: 5px 10px; border: 1px solid #ccc; width: 100%" aria-label="Select date and time range" aria-haspopup="dialog">
+                                    <i class="fa fa-calendar"></i>&nbsp;&nbsp;
+                                    <span id="datetime-range-selector-text"></span>
+                                    <span class="ml-auto">
+                                        <span class="sr-only">Toggle dropdown</span>
+                                        <i class="fa fa-caret-down" aria-hidden="true"></i>
+                                    </span>
+                                </div>
+                                <div id="last-updated-text" class="d-none text-center font-weight-bold mt-0 pt-2 pb-1">
                                     Last Updated: ${moment().format('YYYY-MM-DD HH:mm:ss')}
                                 </div>
-                                <div class="text-muted font-weight-bold text-center mb-3 bg-transparent">Date range of jobs: Last 7 days</div>
                             </div>
                         </div>
                         <div class="col-12 col-md-8 col-lg-9 position-relative" style="width: 100%; height: 150px;">
@@ -630,7 +638,7 @@
                 language: {
                     emptyTable: "No jobs available in table",
                     zeroRecords: "No matching jobs found",
-                    info: "<span class='text-wrap'>Showing _START_ to _END_ of _TOTAL_ jobs from last 7 days</span>",
+                    info: "<span class='text-wrap'>Showing _START_ to _END_ of _TOTAL_ jobs</span>",
                     infoFiltered: "<span class='text-wrap'>(filtered from _MAX_ total jobs)</span>",
                     infoEmpty: "Showing 0 to 0 of 0 jobs",
                 },
@@ -997,17 +1005,66 @@
                 getCurrentTable().fixedHeader.enable(true);
             });
 
+            const initialStartDate = moment().subtract(7, 'days');
+            const initialEndDate = moment();
+
+            const refreshDatetimeRangeSelector = (start, end) => {
+                const dateTimeFormat = "YYYY-MM-DD HH:mm z";
+                const localTimeZone = moment.tz.guess();
+                const startText = start.tz(localTimeZone).format(dateTimeFormat);
+                const endText = end.tz(localTimeZone).format(dateTimeFormat);
+                const newLabel = `<span class="text-nowrap">${startText}</span> to <span class="text-nowrap">${endText}</span>`;
+                $("#datetime-range-selector #datetime-range-selector-text").html(newLabel);
+            };
+
+            $('#datetime-range-selector').daterangepicker({
+                startDate: initialStartDate,
+                endDate: initialEndDate,
+                minDate: moment(0),
+                maxDate: moment(),
+                maxSpan: {"years": 1},
+                showDropdowns: true,
+                timePicker: true,
+                timePicker24Hour: true,
+                ranges: {
+                    'Today': [moment().startOf('day'), moment()],
+                    'Last 24 hours': [moment().subtract(24, 'hours'), moment()],
+                    'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+                    'Last 30 Days': [moment().subtract(30, 'days'), moment()],
+                    'This Month': [moment().startOf('month'), moment().endOf('month')],
+                    'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')],
+                },
+                alwaysShowCalendars: true,
+                autoApply: false,
+                linkedCalendars: true,
+            }, function(start, end, label) {
+                // console.log(`Changed start: ${start.toISOString()}`);
+                // console.log(`Changed end: ${end.toISOString()}`);
+                refreshDatetimeRangeSelector(start, end);
+                refreshJobs(true, start, end);
+            });
+
+            refreshDatetimeRangeSelector(initialStartDate, initialEndDate);
+
             // Make sure to enable tooltips after initializing table
             enableTooltips();
 
-            function refreshJobs(manual) {
+            function refreshJobs(manual, start = null, end = null) {
                 if (refreshJobMutex) {
                     return;
                 }
                 refreshJobMutex = true;
+                
+                if (start === null) {
+                    start = moment().subtract(7, 'days');
+                }
+                if (end === null) {
+                    end = moment();
+                }
+
                 $("#refresh-jobs-button").attr("disabled", true);
                 $("#refresh-jobs-button").html('<i class="fa fa-refresh fa-spin"></i> Refresh'); 
-                fetch(`<%= url_for controller: "my_jobs", action: "json" %>`, {redirect: "manual"}).then(res => {
+                fetch(`<%= url_for controller: "my_jobs", action: "json" %>?start_time=${start.toISOString()}&end_time=${end.toISOString()}`, {redirect: "manual"}).then(res => {
                     if (manual && res.status === 0 && res.type === "opaqueredirect") {
                         redirectToLogin();
                         return Promise.reject(res);
