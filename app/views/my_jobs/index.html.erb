@@ -71,7 +71,6 @@
             title: "User",
             field: "user",
             render: (data, type, row) => `<span class="user-filter" style="${ data === "<%= @user %>" ? "text-decoration: underline;" : "" }">${data}</span>`,
-            filterType: "multiselect",
         },
         {
             title: "Account",
@@ -731,44 +730,6 @@
                 },
                 columns: TABLE_COLUMNS,
                 data: extractTableData(data),
-                initComplete: function () {
-                    /* https://datatables.net/examples/api/multi_filter_select.html */
-                    this.api()
-                        .columns()
-                        .every(function () {
-                            let column = this;
-            
-                            // let select = document.createElement('select');
-                            // select.add(new Option(''));
-                            // column.header().replaceChildren(select);
-            
-                            // select.addEventListener('click', function (e) {
-                            //     e.stopPropagation();
-                            // });
-                            
-                            // select.addEventListener('mousedown', function (e) {
-                            //     e.stopPropagation();
-                            // });
-                            
-                            // select.addEventListener('focus', function (e) {
-                            //     e.stopPropagation();
-                            // });
-            
-                            // select.addEventListener('change', function () {
-                            //     column
-                            //         .search(select.value, {exact: true})
-                            //         .draw();
-                            // });
-            
-                            // column
-                            //     .data()
-                            //     .unique()
-                            //     .sort()
-                            //     .each(function (d, j) {
-                            //         select.add(new Option(d));
-                            //     });
-                        });
-                },
             });
 
             // Selected jobs text display
@@ -787,6 +748,53 @@
                 $('[data-toggle="tooltip"]').tooltip('dispose');
                 enableTooltips();
             });
+
+            function refreshColumnFilters() {
+                /* https://datatables.net/examples/api/multi_filter_select.html */
+                getCurrentTable().columns().every(function () {
+                    let column = this;
+
+                    if (TABLE_COLUMNS[getColIndex(column.title())]?.filterType === "multiselect") {
+                        let select = column.header().querySelector("select");
+                        if (!select) {
+                            select = document.createElement('select');
+
+                            select.addEventListener('click', function (e) {
+                                e.stopPropagation();
+                            });
+                            
+                            select.addEventListener('mousedown', function (e) {
+                                e.stopPropagation();
+                            });
+                            
+                            select.addEventListener('focus', function (e) {
+                                e.stopPropagation();
+                            });
+            
+                            select.addEventListener('change', function () {
+                                column.search(select.value, {exact: true}).draw();
+                            });
+                        }
+
+                        const oldValue = select.value || '';
+
+                        select.innerHTML = '';
+        
+                        select.add(new Option(''));
+                        column
+                            .data()
+                            .unique()
+                            .sort()
+                            .each(function (d, j) {
+                                select.add(new Option(d));
+                            });
+                        
+                        select.value = oldValue;
+                        column.search(oldValue, {exact: true}).draw();
+                        column.header().append(select);
+                    }
+                });
+            }
 
             // Autofocus search input when typing
             $(document).on("keypress", function(e) {
@@ -817,6 +825,8 @@
             });
 
             setupPerRowEventListeners();
+
+            refreshColumnFilters();
 
             // Custom table search
             $("#my-jobs-search, #regex-search-toggle").on("input", function() {
@@ -1152,6 +1162,7 @@
                     $("#last-updated-text").text(`Last Updated: ${moment().format('YYYY-MM-DD HH:mm:ss')}`);
                     enableTooltips();
                     setupPerRowEventListeners();
+                    refreshColumnFilters();
                 }).catch(error => {
                     // Do nothing if failed to refresh data
 
