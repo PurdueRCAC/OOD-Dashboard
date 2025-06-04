@@ -52,7 +52,7 @@ ssh user@gautschi.rcac.purdue.edu
 2. Click on My Sandbox Apps (Development)
 3. Click on Launch Ood Dashboard next to the app called Ood Dashboard \[main\]
 
-Note: You can also run the dashboard locally by running `bundle exec rails server -b 0.0.0.0 -p 8080` in VSCode Remote SSH. VSCode will automatically forward ports to your local machine so you can access the dashboard through [http://localhost:8080/](http://localhost:8080/).
+Note: You can also run the dashboard locally by running `bundle exec rails server -b 0.0.0.0 -p 8080` in VSCode Remote SSH. VSCode will automatically forward ports to your local machine so you can access the dashboard through [http://localhost:8080/](http://localhost:8080/). You can get a GenAI Studio API key from [https://genai.rcac.purdue.edu/api/v1/auths/api_key](https://genai.rcac.purdue.edu/api/v1/auths/api_key).
 
 <!--
 ### 2. Alternative installation method
