@@ -791,6 +791,11 @@
                         
                         select.value = oldValue;
                         column.search(oldValue, {exact: true}).draw();
+                        let brEl = column.header().querySelector("select");
+                        if (!brEl) {
+                            brEl = document.createElement("br");
+                            column.header().append(brEl);
+                        }
                         column.header().append(select);
                     }
                 });
