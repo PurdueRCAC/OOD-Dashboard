@@ -138,7 +138,8 @@ if command -v rbenv >/dev/null; then
 else
   info "Installing rbenv... (ETA: 3-5 minutes)"
   curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash >/dev/null 2>&1
-  exec "$SHELL" >/dev/null 2>&1
+  [[ "$SHELL" == "bash" ]] && source "$HOME/.bash_profile" >/dev/null 2>&1
+  [[ "$SHELL" == "zsh" ]] && source "$HOME/.zshrc" >/dev/null 2>&1
   if command -v rbenv >/dev/null; then
     success "rbenv installed successfully."
   else
@@ -197,7 +198,8 @@ if check_nvm; then
 else
   info "Installing nvm... (ETA: 5-10 seconds)"
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash >/dev/null 2>&1
-  exec "$SHELL" >/dev/null 2>&1
+  [[ "$SHELL" == "bash" ]] && source "$HOME/.bash_profile" >/dev/null 2>&1
+  [[ "$SHELL" == "zsh" ]] && source "$HOME/.zshrc" >/dev/null 2>&1
   if check_nvm; then
     success "nvm installed successfully."
   else
