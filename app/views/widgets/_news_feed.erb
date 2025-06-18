@@ -136,7 +136,10 @@
                 <hr class="my-3">` : '';
 
             const newsHtml = `${noActiveAnnouncementsHtml}${
-                filteredData.map((article) => {
+                filteredData.sort((a, b) => {
+                    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+                    return new Date(b.datetimecreated) - new Date(a.datetimecreated);
+                }).map((article) => {
                     const updatesHtml = article.updates?.length > 0 ? 
                         `<div class="updates-container mb-3">
                             ${article.updates
