@@ -327,6 +327,13 @@
     /* Hide focus ring for mouse users */
     .sidebar .nav-link:focus:not(:focus-visible) {
       outline: none;
+      background-color: transparent;
+    }
+
+    /* Add active state for sidebar links */
+    .sidebar .nav-link:active {
+      transform: scale(0.98);
+      background-color: #e8eaed;
     }
 
     /* Update the container content class */
@@ -746,9 +753,14 @@
     }
 
     /* Show these items in sidebar only on mobile */
-    @media (max-width: 992px) {
+    @media (max-width: 991.98px) {
       .navbar-nav-top {
         display: none;
+      }
+      
+      /* Hide user guide and dropdown on mobile - they're now in sidebar */
+      .ml-auto {
+        display: none !important;
       }
     }
 
@@ -894,6 +906,41 @@
       transform: none !important;
       z-index: 1045;
     }
+
+    @media (min-width: 992px) {
+      .nav-link-styled {
+        padding: 8px 10px !important;
+        border-radius: 6px !important;
+        color: #444 !important;
+        transition: all 0.2s ease !important;
+        text-decoration: none !important;
+      }
+
+      .nav-link-styled:hover {
+        background-color: #f8f9fa !important;
+        color: #000 !important;
+        text-decoration: none !important;
+      }
+
+      .nav-link-styled:focus-visible {
+        background-color: #f0f2f5 !important;
+        color: #000 !important;
+        text-decoration: none !important;
+        outline: 2px solid #4A90E2 !important;
+        outline-offset: 2px !important;
+      }
+
+      .nav-link-styled:active {
+        background-color: #e8eaed !important;
+        color: #000 !important;
+        text-decoration: none !important;
+        transform: scale(0.98);
+      }
+
+      .nav-link-styled i {
+        margin-right: 0.5rem;
+      }
+    }
   </style>
 
   <%= csrf_meta_tags %>
@@ -931,9 +978,9 @@
         </ul>
       </div>
 
-      <div class="ml-auto d-flex align-items-center navbar-nav-top">
+      <div class="ml-auto d-flex align-items-center">
         <div class="nav-item">
-          <%= link_to docs_url, class: "nav-link", target: "_blank" do %>
+          <%= link_to docs_url, class: "nav-link nav-link-styled", target: "_blank" do %>
             <i class="fas fa-book"></i> Gautschi User Guide
           <% end %>
         </div>
@@ -965,6 +1012,18 @@
           <li class="nav-item">
             <a href="<%= root_path %>" class="nav-link <%= current_page?(root_path) ? 'active' : '' %>">
               <i class="fas fa-home"></i> Home
+            </a>
+          </li>
+          
+          <!-- Mobile user guide and user menu - show only on mobile -->
+          <li class="nav-item d-lg-none">
+            <%= link_to docs_url, class: "nav-link", target: "_blank" do %>
+              <i class="fas fa-book"></i> Gautschi User Guide
+            <% end %>
+          </li>
+          <li class="nav-item d-lg-none">
+            <a class="nav-link" href="/logout">
+              <i class="fas fa-sign-out-alt"></i> Logout (<%= @user.name %>)
             </a>
           </li>
           
@@ -1241,4 +1300,5 @@
     });
   </script>
 </body>
+</html>
 </html>
