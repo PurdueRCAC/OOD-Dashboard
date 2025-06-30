@@ -55,7 +55,7 @@
                 let linkToSession = "";
                 if (row[getColIndex("Session ID")] !== "N/A") {
                     linkToSession = `
-                        (<a href="<%= files_path("").chomp!("/") %>${row[getColIndex("Working Directory")]}">${row[getColIndex("Session ID")]}</a>)
+                        (<a href="<%= files_path('fs', '') %>${row[getColIndex("Working Directory")]}">${row[getColIndex("Session ID")]}</a>)
                     `;
                 }
                 let efficiencyWarning = "";

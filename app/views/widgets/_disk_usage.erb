@@ -49,7 +49,7 @@
                         showWarning("home-directory-full-warning", `
                         <h4 class="alert-heading">Home Directory Full</h4>
                         <p class="mb-0">You have hit the disk usage limit in your home directory. Interactive jobs will not start while your home directory is full.</p>
-                        <a href="<%= files_path("").chomp!("/") %>${directoryPath}" class="alert-link mb-0">Click here to delete files from your home directory to reduce your disk usage.</a>
+                        <a href="<%= files_path('fs', '') %>${directoryPath}" class="alert-link mb-0">Click here to delete files from your home directory to reduce your disk usage.</a>
                         `, true);
                     }
                 } else if (row.type === "scratch") {
@@ -107,7 +107,7 @@
                                     title="You have reached over 95% of your disk${row.type !== "home" ? " and/or file" : ""} usage limit."></i>` : ""}
                             </div>
                             ${directoryPath === "" ? "" : 
-                                `<a href="<%= files_path("").chomp("/") %>${directoryPath}" 
+                                `<a href="<%= files_path('fs', '') %>${directoryPath}" 
                                 class="btn btn-sm btn-outline-info rounded-pill shadow-sm">
                                     <i class="fas fa-folder-open"></i> <span class="d-none d-sm-inline">Browse Files</span>
                                 </a>`}
