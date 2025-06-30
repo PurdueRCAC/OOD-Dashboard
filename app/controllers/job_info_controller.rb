@@ -161,7 +161,7 @@ class JobInfoController < ApplicationController
     #   instructions: "You are a helpful assistant."
     # )
 
-    # assistant.add_message(role: "system", content: "You are a concise, helpful assistant that manages jobs on a high-performance computing cluster called Anvil. Respond only to the user prompt below in a helpful, concise manner.")
+    # assistant.add_message(role: "system", content: "You are a concise, helpful assistant that manages jobs on a high-performance computing cluster called Gautschi. Respond only to the user prompt below in a helpful, concise manner.")
     # messages = assistant.add_message_and_run!(content: "Here is info about my job: #{result_hash.to_s}. Give me a short summary about my job in full sentences.")
     # ai_msg = messages.reverse.find { |m| m.role == "assistant" }
 

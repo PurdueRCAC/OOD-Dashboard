@@ -4,7 +4,7 @@ module Api
 
     def get
       partition_statuses = Rails.cache.fetch("partition_status", expires_in: 60.seconds, race_condition_ttl: 3.seconds) do
-        # This script is the updated version of the showpartitions script found on Anvil
+        # This script is the updated version of the showpartitions script found on Gautschi
         # The source is at https://github.com/OleHolmNielsen/Slurm_tools/blob/master/partitions/showpartitions
         partitions_output, partitions_status = Open3.capture2("sinfo -h -o '%R|%a|%F|%C'")
         gpus_output, gpus_status = Open3.capture2("scontrol show node --oneliner")
