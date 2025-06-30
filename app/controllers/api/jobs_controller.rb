@@ -272,8 +272,8 @@ module Api
       "SessionConnection" => {
         type: :string,
         compute: ->(data) {
-          if data["JobID"]
-            session = Rails.cache.fetch("session_lookup/#{data["JobID"]}", expires_in: 1.second) do
+        if data["JobID"]
+          session = Rails.cache.fetch("session_lookup/#{data["JobID"]}", expires_in: 1.second) do
               BatchConnect::Session.find_by_job_id(data["JobID"])
             end
             if session
@@ -350,7 +350,7 @@ module Api
             session = Rails.cache.fetch("session_lookup/#{data["JobID"]}", expires_in: 1.second) do
               BatchConnect::Session.find_by_job_id(data["JobID"])
             end
-            if session.app.session_info_view
+            if session&.app&.session_info_view
               session.render_info_view
             end
           end
