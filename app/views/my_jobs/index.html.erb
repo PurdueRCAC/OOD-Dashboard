@@ -772,7 +772,39 @@
                             });
             
                             select.addEventListener('change', function () {
-                                column.search(select.value, {exact: true}).draw();
+                                // For State column, use custom filtering logic
+                                if (column.title() === "State") {
+                                    // First, always clear any existing state filters
+                                    $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function(fn) {
+                                        return fn.toString().indexOf('stateFilterForMyJobs') === -1;
+                                    });
+                                    
+                                    if (select.value) {
+                                        const selectedState = select.value;
+                                        
+                                        // Use a custom search function that looks at raw data
+                                        function stateFilterForMyJobs(settings, data, dataIndex) {
+                                            // Only apply this filter to our table
+                                            if (settings.nTable.id !== 'my-jobs-table') {
+                                                return true;
+                                            }
+                                            
+                                            // Get the raw state data for this row
+                                            const rowData = getCurrentTable().row(dataIndex).data();
+                                            const stateValue = rowData[getColIndex("State")];
+                                            const firstWord = stateValue.split(" ")[0];
+                                            
+                                            return firstWord === selectedState;
+                                        }
+                                        
+                                        $.fn.dataTable.ext.search.push(stateFilterForMyJobs);
+                                        getCurrentTable().draw();
+                                    } else {
+                                        getCurrentTable().draw();
+                                    }
+                                } else {
+                                    column.search(select.value, {exact: true}).draw();
+                                }
                             });
                         }
 
@@ -781,16 +813,58 @@
                         select.innerHTML = '';
         
                         select.add(new Option(''));
-                        column
-                            .data()
-                            .unique()
-                            .sort()
-                            .each(function (d, j) {
-                                select.add(new Option(d));
+                        
+                        // For State column, extract first word only for filter options
+                        if (column.title() === "State") {
+                            let stateWords = new Set();
+                            column.data().each(function (d, j) {
+                                const firstWord = d.split(" ")[0];
+                                stateWords.add(firstWord);
                             });
+                            const sortedStates = Array.from(stateWords).sort();
+                            sortedStates.forEach(function(state) {
+                                select.add(new Option(state));
+                            });
+                        } else {
+                            column
+                                .data()
+                                .unique()
+                                .sort()
+                                .each(function (d, j) {
+                                    select.add(new Option(d));
+                                });
+                        }
                         
                         select.value = oldValue;
-                        column.search(oldValue, {exact: true}).draw();
+                        // For State column, use custom filtering logic
+                        if (column.title() === "State" && oldValue) {
+                            // Clear any existing state filters first
+                            $.fn.dataTable.ext.search = $.fn.dataTable.ext.search.filter(function(fn) {
+                                return fn.toString().indexOf('stateFilterForMyJobs') === -1;
+                            });
+                            
+                            const restoredState = oldValue;
+                            
+                            // Use the same custom search function
+                            function stateFilterForMyJobs(settings, data, dataIndex) {
+                                // Only apply this filter to our table
+                                if (settings.nTable.id !== 'my-jobs-table') {
+                                    return true;
+                                }
+                                
+                                // Get the raw state data for this row
+                                const rowData = getCurrentTable().row(dataIndex).data();
+                                const stateValue = rowData[getColIndex("State")];
+                                const firstWord = stateValue.split(" ")[0];
+                                
+                                return firstWord === restoredState;
+                            }
+                            
+                            $.fn.dataTable.ext.search.push(stateFilterForMyJobs);
+                            getCurrentTable().draw();
+                        } else {
+                            column.search(oldValue, {exact: true}).draw();
+                        }
                         let brEl = column.header().querySelector("select");
                         if (!brEl) {
                             brEl = document.createElement("br");
