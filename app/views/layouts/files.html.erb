@@ -4,4 +4,6 @@ content_for :head do
 end
 %>
 
+<%= render partial: 'layouts/config' %>
+
 <%= render template: "layouts/application", locals: { layout_container_class: 'container-fluid', datatables_version: 'old' } %>
