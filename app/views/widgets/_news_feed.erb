@@ -5,82 +5,176 @@
         <i class="fas fa-bullhorn" style="color: #20c997"></i> Announcements
       </h3>
       <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
-         class="btn btn-sm btn-outline-info mt-1 rounded-pill shadow-sm text-nowrap d-none d-md-inline-block"
+         class="btn btn-sm action-btn text-nowrap d-none d-md-inline-block"
+         style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.75rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+         onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+         onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
          target="_blank">
-        <i class="far fa-newspaper mr-1"></i> View All <i class="fas fa-chevron-right"></i>
+        <i class="far fa-newspaper mr-1"></i> View All <i class="fas fa-chevron-right ml-1" style="font-size: 0.75rem;"></i>
       </a>
     </div>
     <div class="d-flex align-items-center">
       <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
-         class="btn btn-sm btn-outline-info rounded-pill shadow-sm text-nowrap d-inline-block d-md-none mr-2"
+         class="btn btn-sm action-btn text-nowrap d-inline-block d-md-none mr-2"
+         style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+         onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+         onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
          title="View All Announcements"
          target="_blank">
         <i class="fas fa-external-link-alt"></i>
       </a>
-      <button onclick="load_news_feed(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+      <button onclick="load_news_feed(true)" 
+              class="btn btn-sm action-btn"
+              style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+              onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+              onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'">
         <i class="fas fa-sync-alt"></i>
       </button>
     </div>
   </div>
-  <div id="news_feed_card_content" class="flex-grow-1 news-feed-scroll-container" style="height: 200px; overflow-y: auto;"></div>
-  <div class="news-feed-gradient-fade"></div>
+  <div id="news_feed_card_content" class="flex-grow-1" style="max-height: 250px; overflow-y: auto;"></div>
 </div>
 
 <style>
-  .news-feed-scroll-container {
-    position: relative;
+  .news-accordion .btn-link .fas.fa-chevron-down {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .news-feed-gradient-fade {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: linear-gradient(to bottom, 
-      rgba(248, 249, 250, 0) 0%,
-      rgba(248, 249, 250, 0.8) 50%,
-      var(--main-bg-color) 100%
-    );
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease;
+  .news-accordion .btn-link:not(.collapsed) .fas.fa-chevron-down {
+    transform: rotate(180deg);
   }
 
-  .update-badge {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
+  .news-accordion .btn-link:focus {
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .news-accordion .header-btn:focus {
+    box-shadow: none !important;
+    outline: none !important;
+    background: transparent !important;
+  }
+
+  .news-accordion .header-btn:active {
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .news-accordion .text-muted {
+    color: hsl(215.4 16.3% 46.9%) !important;
+  }
+
+  .news-accordion .card {
+    border: 1px solid hsl(214.3 31.8% 91.4%);
+    border-radius: 8px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    margin-bottom: 0.5rem;
+    background: hsl(0 0% 100%);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+
+  .news-accordion .card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-color: hsl(214.3 31.8% 85%);
+  }
+
+  .news-accordion .card-header {
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+
+  .news-accordion .card-header .btn-link {
+    padding: 0.75rem 1rem !important;
+    margin: 0 !important;
+  }
+
+  .news-accordion .card-body {
+    padding: 0 1rem 0.75rem;
+    background: hsl(210 40% 98%);
+    border-top: 1px solid hsl(214.3 31.8% 91.4%);
+  }
+
+  .news-accordion .btn-link {
+    color: hsl(222.2 84% 4.9%);
+    text-decoration: none;
+    padding: 0;
+    font-weight: 500;
+    border: none;
+    background: none;
+    transition: color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .news-accordion .btn-link:hover {
+    color: hsl(221.2 83.2% 53.3%);
+    text-decoration: none;
+  }
+
+  .news-accordion .btn-link:not(.collapsed) {
     font-weight: 600;
-    line-height: 1;
-    text-align: center;
-    white-space: nowrap;
-    vertical-align: baseline;
-    border-radius: 0.25rem;
-    background-color: #17a2b8;
-    color: white;
+    color: hsl(221.2 83.2% 53.3%);
   }
 
-  .update-badge-past {
-    background-color: #6c757d;
+  .news-accordion .card-past {
+    opacity: 0.7;
+    background: hsl(210 40% 99%);
   }
 
-  .update-item {
-    background-color: rgba(0, 0, 0, 0.02);
-    border-radius: 0.25rem;
-    padding: 0.75rem;
+  .news-accordion .card-past .card-header {
+    background: hsl(210 40% 98%);
   }
 
-  .border-left-active {
-    border-left: 3px solid #17a2b8 !important;
+  .news-accordion .card-past:hover {
+    opacity: 0.85;
   }
 
-  .border-left-past {
-    border-left: 3px solid #6c757d !important;
+  .active-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsl(142.1 76.2% 36.3%);
+    box-shadow: 0 0 0 2px hsl(0 0% 100%), 0 0 0 4px hsl(142.1 70.6% 45.3% / 0.2);
   }
 
-  .updates-container {
-    margin-left: 1rem;
+  .past-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsl(215.4 16.3% 46.9%);
+  }
+
+
+
+  .btn:focus,
+  .btn:active:focus,
+  .btn.active:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .action-btn:active {
+    transform: translateY(1px);
+    background: hsl(210 40% 95%) !important;
+    border-color: hsl(214.3 31.8% 80%) !important;
+  }
+
+  .news-accordion .header-btn .action-btn:active {
+    transform: translateY(1px);
+    background: hsl(210 40% 95%) !important;
+    border-color: hsl(214.3 31.8% 80%) !important;
+  }
+
+  .news-accordion .collapse {
+    transition: height 0.15s ease !important;
+  }
+
+  .news-accordion .collapsing {
+    transition: height 0.15s ease !important;
   }
 </style>
 
@@ -104,16 +198,14 @@
             cacheDuration: 60 * 60 * 1000  // Cache for 1 hour
         }).then(data => {
             const now = moment();
-            const PREVIEW_DAYS = 14; // Show announcements 14 days before they start
             
             const filteredData = data.filter((article) => true)
                 .map((article) => {
                     const startDate = moment(article.datetimenews);
                     const endDate = moment(article.datetimenewsend);
-                    const previewDate = moment(startDate).subtract(
-                        [1, 7].includes(article.type?.id) ? PREVIEW_DAYS : 0, 
-                        'days'
-                    );
+                    const previewDate = [1, 7].includes(article.type?.id) 
+                        ? moment('1970-01-01') // Show type 1 and 7 from any time before start date
+                        : startDate; // Other types start from their start date
                     
                     return {
                         ...article,
@@ -122,72 +214,105 @@
                 })
                 .slice(0, 8);
 
-            const activeArticles = filteredData.filter(article => article.isActive);
-            const hasActiveAnnouncements = activeArticles.length > 0;
+            const sortedData = filteredData.sort((a, b) => {
+                if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+                
+                // Get latest update date or fall back to start date
+                const getLatestDate = (article) => {
+                    if (article.updates && article.updates.length > 0) {
+                        const latestUpdate = article.updates.reduce((latest, update) => {
+                            return new Date(update.datetimecreated) > new Date(latest.datetimecreated) ? update : latest;
+                        });
+                        return new Date(latestUpdate.datetimecreated);
+                    }
+                    return new Date(article.datetimenews);
+                };
+                
+                return getLatestDate(b) - getLatestDate(a);
+            });
 
-            const noActiveAnnouncementsHtml = !hasActiveAnnouncements ? 
-                `<div class="d-flex flex-column align-items-center justify-content-center py-3 mb-3 bg-light rounded" style="min-height: 200px">
-                    <div class="mb-3">
-                        <i class="fas fa-bullhorn text-muted" style="font-size: 3rem;"></i>
-                    </div>
-                    <h5 class="mb-2">No Current Announcements</h5>
-                    <p class="text-muted mb-0">Check back later for updates. Scroll down to view past announcements.</p>
-                </div>
-                <hr class="my-3">` : '';
+            // Make the first three articles artificially active
+            sortedData.forEach((article, index) => {
+                if (index < 3) {
+                    article.isActive = true;
+                }
+            });
 
-            const newsHtml = `${noActiveAnnouncementsHtml}${
-                filteredData.sort((a, b) => {
-                    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-                    return new Date(b.datetimecreated) - new Date(a.datetimecreated);
-                }).map((article) => {
-                    const updatesHtml = article.updates?.length > 0 ? 
-                        `<div class="updates-container mb-3">
-                            ${article.updates
-                                .sort((a, b) => new Date(b.datetimecreated) - new Date(a.datetimecreated))
-                                .map(update => `
-                                    <div class="update-item mb-2">
-                                        <div class="d-flex align-items-center mb-2">
-                                            <div class="update-badge ${!article.isActive ? 'update-badge-past' : ''} mr-2">
-                                                <i class="fas fa-info-circle"></i> Update
+            const accordionHtml = `
+                <div class="news-accordion" id="newsAccordion">
+                    ${sortedData.map((article, index) => {
+                        const updatesHtml = article.updates?.length > 0 ? 
+                            `<div class="mb-1" style="margin-top: 0.5rem;">
+                                ${article.updates
+                                    .sort((a, b) => new Date(b.datetimecreated) - new Date(a.datetimecreated))
+                                    .map(update => `
+                                        <div class="mb-3">
+                                            <div style="color: hsl(142.1 76.2% 36.3%); font-weight: 600; font-size: 0.75rem; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+                                                UPDATE
                                             </div>
-                                            <small class="${!article.isActive ? 'text-black-50' : 'text-muted'}">
+                                            <div style="color: hsl(215.4 16.3% 46.9%); font-size: 0.875rem; margin-bottom: 0.25rem;">
                                                 ${update.formattedcreateddate}
-                                            </small>
+                                            </div>
+                                            <div style="font-size: 0.95rem; line-height: 1.6; color: #1f2937;">
+                                                ${update.formattedbody}
+                                            </div>
                                         </div>
-                                        <div class="update-content pl-3 ${!article.isActive ? 'border-left-past' : 'border-left-active'} ${!article.isActive ? 'text-black-50' : ''}">
-                                            ${update.formattedbody}
+                                    `).join('<hr style="border: none; border-top: 1px solid hsl(214.3 31.8% 91.4%); margin: 1rem 0;">')}
+                            </div>` : '';
+
+                        return `
+                        <div class="card ${!article.isActive ? 'card-past' : ''}">
+                            <div class="card-header" id="heading${index}">
+                                <button class="btn btn-link header-btn btn-block text-left collapsed d-flex align-items-center w-100" 
+                                        type="button" 
+                                        data-toggle="collapse" 
+                                        data-target="#collapse${index}" 
+                                        aria-expanded="false" 
+                                        aria-controls="collapse${index}">
+                                    <div class="flex-grow-1 d-flex align-items-center" style="min-width: 0;">
+                                        ${article.isActive ? 
+                                            `<div class="active-indicator mr-3"></div>` 
+                                            : `<div class="past-indicator mr-3"></div>`}
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div class="font-weight-medium" style="font-size: 1rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 0.75rem;">
+                                                ${article.headline}
+                                            </div>
+                                            <div style="color: #4b5563; font-size: 0.85rem;">
+                                                ${article.formatteddate}
+                                            </div>
                                         </div>
                                     </div>
-                                `).join('')}
-                        </div>` : '';
-
-                    const articleHtml = `
-                    <div class="mb-2 ${!article.isActive ? 'bg-light rounded p-2' : ''}">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-grow-1">
-                                <h5 class="mb-1 d-flex align-items-center">
-                                    ${article.isActive ? 
-                                        `<i class="fas fa-circle text-success mr-2" style="font-size: 0.5em; vertical-align: middle;"></i>` 
-                                        : '<span class="badge badge-secondary mr-2 align-middle">Past</span>'}
-                                    <a href="${article.uri}" class="${!article.isActive ? 'text-muted' : ''}" style="${!article.isActive ? '' : 'font-weight: 600; font-size: 22px;'} text-decoration: underline !important;">${article.headline}</a>
-                                </h5>
-                                ${updatesHtml}
-                                <div class="initial-announcement">
-                                    <p class="mb-1 small ${!article.isActive ? 'text-black-50' : 'text-muted'}">
-                                        <i class="far fa-clock"></i> ${article.formatteddate}
-                                    </p>
-                                    <div class="mt-1 ${!article.isActive ? 'text-black-50' : ''}" 
-                                            style="overflow: hidden; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical;">
+                                    <a href="${article.uri}" target="_blank" 
+                                       class="action-btn mr-2" 
+                                       style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(215.4 16.3% 46.9%); border-radius: 6px; padding: 0.375rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;"
+                                       onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'; this.style.color='hsl(222.2 84% 4.9%)'"
+                                       onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'; this.style.color='hsl(215.4 16.3% 46.9%)'"
+                                       onclick="event.stopPropagation()">
+                                        <i class="fas fa-external-link-alt" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                    <i class="fas fa-chevron-down" style="font-size: 0.85rem; color: #4b5563;"></i>
+                                </button>
+                            </div>
+                            <div id="collapse${index}" 
+                                 class="collapse" 
+                                 aria-labelledby="heading${index}" 
+                                 data-parent="#newsAccordion">
+                                <div class="card-body">
+                                    ${updatesHtml}
+                                    ${article.updates?.length > 0 ? '<hr style="border: none; border-top: 1px solid hsl(214.3 31.8% 91.4%); margin: 1rem 0;">' : ''}
+                                    ${article.updates?.length > 0 ? '<div style="color: hsl(215.4 16.3% 46.9%); font-weight: 600; font-size: 0.75rem; letter-spacing: 0.05em; margin-bottom: 0.5rem;">ORIGINAL</div>' : ''}
+                                    <div style="font-size: 0.95rem; line-height: 1.6; color: #1f2937; margin-top: ${article.updates?.length > 0 ? '0' : '0.5rem'};">
                                         ${article.formattedbody || ''}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    `;
-                    return articleHtml;
-                }).join('<hr class="my-2">')}`;
-            $("#news_feed_card_content").html(newsHtml);
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            $("#news_feed_card_content").html(accordionHtml);
         }).catch(res => {
             const errorHtml = `
             <div class="d-flex flex-column align-items-center justify-content-center h-100 py-3">
@@ -196,8 +321,12 @@
                 </div>
                 <h5 class="mb-2">Unable to Load Announcements</h5>
                 <p class="text-muted small mb-3">There was a problem retrieving the announcements feed</p>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_news_feed(true)">
-                    <i class="fas fa-sync-alt me-1"></i> Retry
+                <button class="btn btn-sm action-btn" 
+                        style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.5rem 1rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+                        onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+                        onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
+                        onclick="load_news_feed(true)">
+                    <i class="fas fa-sync-alt mr-1"></i> Retry
                 </button>
             </div>
             `;
@@ -205,32 +334,4 @@
             $("#news_feed_card_content").html(errorHtml);
         });
     }
-
-    // Update scroll handler
-    $(document).ready(function() {
-        const container = document.getElementById('news_feed_card_content');
-        const fadeElement = container.nextElementSibling;
-
-        function updateGradient() {
-            // Calculate if we're at the bottom
-            const isAtBottom = Math.abs((container.scrollHeight - container.scrollTop) - container.clientHeight) < 1;
-            
-            // Show gradient only if we can scroll and aren't at the bottom
-            if (container.scrollHeight > container.clientHeight && !isAtBottom) {
-                fadeElement.style.opacity = '1';
-            } else {
-                fadeElement.style.opacity = '0';
-            }
-        }
-
-        // Update on scroll
-        container.addEventListener('scroll', updateGradient);
-
-        // Update when content changes
-        const observer = new MutationObserver(updateGradient);
-        observer.observe(container, { childList: true, subtree: true });
-
-        // Initial check
-        updateGradient();
-    });
 </script>
