@@ -231,13 +231,6 @@
                 return getLatestDate(b) - getLatestDate(a);
             });
 
-            // Make the first three articles artificially active
-            sortedData.forEach((article, index) => {
-                if (index < 3) {
-                    article.isActive = true;
-                }
-            });
-
             const accordionHtml = `
                 <div class="news-accordion" id="newsAccordion">
                     ${sortedData.map((article, index) => {
