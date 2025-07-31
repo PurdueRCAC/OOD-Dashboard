@@ -7,9 +7,11 @@ module BatchConnect::SessionsHelper
     content_tag(:div, id: "id_#{session.id}", class: "card session-panel mb-4", data: { id: session.id, hash: session.to_hash }) do
       concat(
         content_tag(:div, class: "card-heading") do
-          content_tag(:h5, class: "card-header overflow-auto alert-#{status_context(session)}") do
+          content_tag(:h5, class: "card-header alert-#{status_context(session)}") do
             concat link_to(content_tag(:span, session.title, class: "card-text alert-#{status_context(session)}"), new_batch_connect_session_context_path(token: session.token))
-            concat tag.span(" (#{session.job_id})", class: 'card-text')
+            concat tag.span(" (", class: 'card-text')
+            concat link_to(session.job_id, job_path(session.job_id), class: 'card-text')
+            concat tag.span(")", class: 'card-text')
             concat(
               content_tag(:div, class: "float-right") do
                 num_nodes = session.info.allocated_nodes.size
