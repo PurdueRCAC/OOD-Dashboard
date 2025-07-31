@@ -143,6 +143,22 @@
     box-shadow: 0 0 0 2px hsl(0 0% 100%), 0 0 0 4px hsl(142.1 70.6% 45.3% / 0.2);
   }
 
+  .active-indicator-yellow {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsl(45 93% 47%);
+    box-shadow: 0 0 0 2px hsl(0 0% 100%), 0 0 0 4px hsl(45 93% 47% / 0.2);
+  }
+
+  .active-indicator-red {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: hsl(0 84% 60%);
+    box-shadow: 0 0 0 2px hsl(0 0% 100%), 0 0 0 4px hsl(0 84% 60% / 0.2);
+  }
+
   .past-indicator {
     width: 8px;
     height: 8px;
@@ -274,7 +290,16 @@
                                 aria-controls="collapse${index}">
                             <div class="flex-grow-1 d-flex align-items-center" style="min-width: 0;">
                                 ${article.isActive ? 
-                                    `<div class="active-indicator mr-3"></div>` 
+                                    (() => {
+                                        const typeId = article.type?.id;
+                                        if (typeId === 1 || typeId === 7) {
+                                            return `<div class="active-indicator-yellow mr-3"></div>`;
+                                        } else if (typeId === 6) {
+                                            return `<div class="active-indicator-red mr-3"></div>`;
+                                        } else {
+                                            return `<div class="active-indicator mr-3"></div>`;
+                                        }
+                                    })()
                                     : `<div class="past-indicator mr-3"></div>`}
                                 <div style="flex: 1; min-width: 0;">
                                     <div class="font-weight-medium" style="font-size: 1rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 0.75rem;">
