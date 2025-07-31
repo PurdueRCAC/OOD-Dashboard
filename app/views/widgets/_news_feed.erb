@@ -233,6 +233,15 @@
                 .slice(0, 8);
 
             const sortedData = filteredData.sort((a, b) => {
+                // First priority: Active type 6
+                const aIsActiveType6 = a.isActive && a.type?.id === 6;
+                const bIsActiveType6 = b.isActive && b.type?.id === 6;
+                
+                if (aIsActiveType6 !== bIsActiveType6) {
+                    return aIsActiveType6 ? -1 : 1;
+                }
+                
+                // Second priority: Other active articles
                 if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
                 
                 // Get latest update date or fall back to start date
