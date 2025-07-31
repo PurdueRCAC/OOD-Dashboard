@@ -201,8 +201,8 @@
                 .map((article) => {
                     const startDate = moment(article.datetimenews);
                     const endDate = moment(article.datetimenewsend);
-                    const previewDate = [1, 7].includes(article.type?.id) 
-                        ? moment('1970-01-01') // Show type 1 and 7 from any time before start date
+                    const previewDate = [1, 6, 7].includes(article.type?.id) 
+                        ? moment('1970-01-01') // Show type 1, 6, and 7 from any time before start date
                         : startDate; // Other types start from their start date
                     
                     return {
