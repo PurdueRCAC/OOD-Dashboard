@@ -142,28 +142,33 @@
                                             : ''}
                                         </div>
                                     </div>
-                                `: gpuPartitions.includes(row.partition) ? `
+                                `: gpuPartitions.includes(row.partition) ? (() => {
+                                    const gpusPerNode = Math.floor(row.total_gpus / row.total_nodes);
+                                    const availableGpus = row.total_gpus - gpusPerNode * row.other_nodes;
+                                    const utilizationRatio = row.allocated_gpus / availableGpus;
+                                    return `
                                     <div class="mb-2">
                                         <div class="d-flex flex-column flex-sm-row justify-content-between mb-2">
                                             <div style="font-size: 1rem;">
                                                 <span class="font-weight-bold">${row.allocated_gpus}</span> / 
-                                                <span class="font-weight-bold">${row.total_gpus - 4 * row.other_nodes}</span> GPUs in use
-                                                <span class="text-muted">(${row.total_gpus - row.allocated_gpus - 4 * row.other_nodes} available)</span>
+                                                <span class="font-weight-bold">${availableGpus}</span> GPUs in use
+                                                <span class="text-muted">(${availableGpus - row.allocated_gpus} available)</span>
                                             </div>
                                             <div class="text-muted mt-1 mt-sm-0" style="font-size: 1rem;">
                                                 ${row.allocated_nodes} / ${row.total_nodes - row.other_nodes} nodes in use
                                             </div>
                                         </div>
                                         <div class="progress" style="height: 8px; border-radius: 4px;">
-                                            <div class="progress-bar ${getProgressBarColor(row.allocated_gpus/(row.total_gpus - 4 * row.other_nodes))}"
+                                            <div class="progress-bar ${getProgressBarColor(utilizationRatio)}"
                                                  style="width: 0; transition: width 0.6s ease-in-out;"
-                                                 aria-valuenow="${(row.allocated_gpus/(row.total_gpus - 4 * row.other_nodes))*100}">
+                                                 aria-valuenow="${utilizationRatio * 100}">
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 12pt;">
                                             <div>
-                                                <span class="font-weight-bold">${Math.floor((row.allocated_gpus/(row.total_gpus - 4 * row.other_nodes))*100)}</span>% utilization
-                                            </div>
+                                                <span class="font-weight-bold">${Math.floor(utilizationRatio * 100)}</span>% utilization
+                                            </div>`;
+                                })() + `
                                             ${row.other_nodes > 0 ? 
                                             `<div>
                                                 <span class="font-weight-bold">${row.other_nodes}</span> ${parseInt(row.other_nodes) === 1 ? 'node' : 'nodes'} offline
