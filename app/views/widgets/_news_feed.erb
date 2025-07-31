@@ -230,11 +230,11 @@
             });
 
             // Force the first 2 articles to be active
-            sortedData.forEach((article, index) => {
-                if (index < 2) {
-                    article.isActive = true;
-                }
-            });
+            // sortedData.forEach((article, index) => {
+            //     if (index < 2) {
+            //         article.isActive = true;
+            //     }
+            // });
 
             const articlesHtml = sortedData.map((article, index) => {
                 const updatesHtml = article.updates?.length > 0 ? 
