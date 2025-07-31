@@ -4,18 +4,28 @@
       <h3 class="font-weight-bold mb-0 mr-3 text-nowrap">
         <i class="fas fa-tasks text-success"></i> Recent Jobs
       </h3>
-      <a class="btn btn-sm btn-outline-info mt-1 rounded-pill shadow-sm text-nowrap d-none d-md-inline-block" 
+      <a class="btn btn-sm action-btn text-nowrap d-none d-md-inline-block" 
+         style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.75rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+         onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+         onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
          href="<%= url_for my_jobs_path %>">
-        <i class="fas fa-table mr-1"></i> View All <i class="fas fa-chevron-right"></i>
+        <i class="fas fa-table mr-1"></i> View All <i class="fas fa-chevron-right ml-1" style="font-size: 0.75rem;"></i>
       </a>
     </div>
     <div class="d-flex align-items-center">
-      <a class="btn btn-sm btn-outline-info rounded-pill shadow-sm text-nowrap d-inline-block d-md-none mr-2" 
+      <a class="btn btn-sm action-btn text-nowrap d-inline-block d-md-none mr-2" 
+         style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+         onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+         onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
          href="<%= url_for my_jobs_path %>"
          title="View All Jobs">
         <i class="fas fa-external-link-alt"></i>
       </a>
-      <button onclick="load_job_queue(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
+      <button onclick="load_job_queue(true)" 
+              class="btn btn-sm action-btn"
+              style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+              onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+              onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'">
         <i class="fas fa-sync-alt"></i>
       </button>
     </div>
@@ -24,6 +34,19 @@
 </div>
 
 <style>
+.btn:focus,
+.btn:active:focus,
+.btn.active:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.action-btn:active {
+  transform: translateY(1px);
+  background: hsl(210 40% 95%) !important;
+  border-color: hsl(214.3 31.8% 80%) !important;
+}
+
 .job-queue-card {
     transition: all 0.2s ease-in-out;
     border: 1px solid #dee2e6;
@@ -150,8 +173,12 @@
                 </div>
                 <h5 class="mb-2">Unable to Load Recent Jobs</h5>
                 <p class="text-muted small mb-3">There was a problem retrieving your job information</p>
-                <button class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm" onclick="load_job_queue(true)">
-                    <i class="fas fa-sync-alt me-1"></i> Retry
+                <button class="btn btn-sm action-btn" 
+                        style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.5rem 1rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
+                        onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
+                        onmouseout="this.style.background='hsl(0 0% 100%)'; this.style.borderColor='hsl(214.3 31.8% 91.4%)'"
+                        onclick="load_job_queue(true)">
+                    <i class="fas fa-sync-alt mr-1"></i> Retry
                 </button>
             </div>
             `;
