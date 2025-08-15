@@ -225,9 +225,19 @@
                         ? moment('1970-01-01') // Show type 1, 6, and 7 from any time before start date
                         : startDate; // Other types start from their start date
                     
+                    // Check if announcement should be active
+                    let isActive;
+                    if (!article.datetimenewsend || !endDate.isValid()) {
+                        // No end date - for types 1, 6, 7, show as active if past preview date
+                        isActive = [1, 6, 7].includes(article.type?.id) && now.isAfter(previewDate);
+                    } else {
+                        // Has end date - show as active if between preview date and end date
+                        isActive = now.isAfter(previewDate) && now.isBefore(endDate);
+                    }
+                    
                     return {
                         ...article,
-                        isActive: now.isAfter(previewDate) && now.isBefore(endDate)
+                        isActive: isActive
                     };
                 });
 
