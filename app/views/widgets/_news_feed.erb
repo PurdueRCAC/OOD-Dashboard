@@ -229,8 +229,7 @@
                         ...article,
                         isActive: now.isAfter(previewDate) && now.isBefore(endDate)
                     };
-                })
-                .slice(0, 8);
+                });
 
             const sortedData = filteredData.sort((a, b) => {
                 // First priority: Active type 6
@@ -256,7 +255,7 @@
                 };
                 
                 return getLatestDate(b) - getLatestDate(a);
-            });
+            }).slice(0, 8);
 
             // Force the first 2 articles to be active
             // sortedData.forEach((article, index) => {
