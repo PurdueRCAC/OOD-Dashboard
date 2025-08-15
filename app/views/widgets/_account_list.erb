@@ -164,7 +164,7 @@
                         <div class="d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="text-nowrap" style="font-size: 1rem;">
-                                    ${row.limit === "No limit" ? 
+                                    ${row.cpu_total === "No limit" ? 
                                         `<b>${formatLargeNumber(+row.cpu_running)}</b> CPUs in use <span class="text-muted">(No CPU limit)</span>` :
                                         `<b>${formatLargeNumber(+row.cpu_running)}</b> / 
                                         <b>${formatLargeNumber(+row.cpu_total)}</b> CPUs in use
@@ -193,7 +193,7 @@
                             <div class="d-flex flex-column mt-1">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="text-nowrap" style="font-size: 1rem;">
-                                        ${row.limit === "No limit" ? 
+                                        ${row.gpu_total === "No limit" ? 
                                             `<b>${formatLargeNumber(+row.gpu_used)}</b> <span class="text-muted">(No GPU hour limit)</span>` :
                                             `<b>${formatLargeNumber(+row.gpu_used)}</b> / 
                                             <b>${formatLargeNumber(+row.gpu_total)}</b> GPU hours used
