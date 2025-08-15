@@ -294,8 +294,8 @@
                             `).join('<hr style="border: none; border-top: 1px solid hsl(214.3 31.8% 91.4%); margin: 1rem 0;">')}
                     </div>` : '';
 
-                // Determine if this should be expanded (first item and active)
-                const shouldExpand = index === 0 && article.isActive;
+                // Don't auto-expand any announcements
+                const shouldExpand = false;
                 
                 return `
                 <div class="card ${!article.isActive ? 'card-past' : ''}">
