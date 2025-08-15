@@ -6,7 +6,7 @@ module Api
   class NewsFeedController < ApplicationController
     # 1: Outages and Maintenance
     # 2: Announcements
-    # 3L Science Highlights
+    # 3: Science Highlights
     # 6: Outages
     # 7: Maintenance
     NEWS_TYPE_IDS = [1, 2, 3, 6, 7]
