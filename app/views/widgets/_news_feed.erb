@@ -273,7 +273,7 @@
             //         article.isActive = true;
             //     }
             // });
-
+            
             const articlesHtml = sortedData.map((article, index) => {
                 const updatesHtml = article.updates?.length > 0 ? 
                     `<div class="mb-1" style="margin-top: 0.5rem;">
@@ -356,7 +356,22 @@
                 `;
             }).join('');
 
+            // Check if there are any active articles
+            const hasActiveArticles = sortedData.some(article => article.isActive);
+
+            const noActiveAnnouncementsHtml = hasActiveArticles ? '' : `
+                <div class="d-flex flex-column align-items-center justify-content-center py-3 mb-3 bg-light rounded" style="min-height: 250px">
+                    <div class="mb-3">
+                        <i class="fas fa-bullhorn text-muted" style="font-size: 3rem;"></i>
+                    </div>
+                    <h5 class="mb-2">No Current Announcements</h5>
+                    <p class="text-muted mb-0">Check back later for updates. Scroll down to view past announcements.</p>
+                </div>
+                <hr class="my-3">
+            `;
+
             const accordionHtml = `
+                ${noActiveAnnouncementsHtml}
                 <div class="news-accordion" id="newsAccordion">
                     ${articlesHtml}
                 </div>
