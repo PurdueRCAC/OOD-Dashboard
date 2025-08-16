@@ -129,7 +129,7 @@
             const tableHtml = data.length === 0 ? '<div class="h5 mb-2">No allocations available</div>' : data.map((row) => {
                 const percentCPU = (row.cpu_running / row.cpu_total) * 100 || 0;
                 const percentGPU = (row.gpu_used / row.gpu_total) * 100 || 0;
-                // if (row.cpu_total == 0) return '';
+
                 const barHtml = `
                 <div class="mb-3">
                     <div class="pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
@@ -161,6 +161,7 @@
                                 </div>
                             </div>
                         </div>
+                        ${row.cpu_total != 0 ? `
                         <div class="d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-center">
                                 <div class="text-nowrap" style="font-size: 1rem;">
@@ -189,6 +190,7 @@
                                 </div>
                             </div>
                         </div>
+                        ` : ''}
                         ${row.gpu_total != 0 ? `
                             <div class="d-flex flex-column mt-1">
                                 <div class="d-flex justify-content-between align-items-center">
