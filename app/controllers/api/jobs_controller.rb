@@ -226,6 +226,14 @@ module Api
           end
         }
       },
+      "gpu_utilization" => {
+        type: :float,
+        compute: ->(data) { Util.gpu_utilization(data) }
+      },
+      "gpu_memory_efficiency" => {
+        type: :float,
+        compute: ->(data) { Util.gpu_memory_efficiency(data) }
+      },
       "SessionId" => {
         type: :string,
         compute: ->(data) {

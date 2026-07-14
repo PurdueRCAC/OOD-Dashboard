@@ -151,7 +151,7 @@ function formatEfficiency(value) {
   if (efficiency >= 75) {
     color = '#28a745';  // Green for good efficiency
   } else if (efficiency >= 50) {
-    color = '#ffc107';  // Yellow for moderate efficiency
+    color = '#997404';  // Dark amber for moderate efficiency (readable on white)
   } else {
     color = '#dc3545';  // Red for poor efficiency
   }
@@ -754,13 +754,23 @@ function renderJobData(data) {
                   <span class="info-value">${formatEfficiency(data.cpu_efficiency)}</span>
                 </div>
                 <div class="info-item">
-                  <span class="info-label">Memory</span>
+                  <span class="info-label">CPU Memory</span>
                   <span class="info-value">${formatEfficiency(data.memory_efficiency)}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Time</span>
                   <span class="info-value">${formatEfficiency(data.time_efficiency)}</span>
                 </div>
+                ${data.AllocTRES && data.AllocTRES.includes('gres/gpu=') ? `
+                <div class="info-item">
+                  <span class="info-label">GPU</span>
+                  <span class="info-value">${data.gpu_utilization !== null && data.gpu_utilization !== undefined ? formatEfficiency(data.gpu_utilization) : '<span style="color: #64748b;">N/A</span>'}</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label">GPU Memory</span>
+                  <span class="info-value">${data.gpu_memory_efficiency !== null && data.gpu_memory_efficiency !== undefined ? formatEfficiency(data.gpu_memory_efficiency) : '<span style="color: #64748b;">N/A</span>'}</span>
+                </div>
+                ` : ''}
               </div>
             </div>
           </div>

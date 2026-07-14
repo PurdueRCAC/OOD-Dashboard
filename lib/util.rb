@@ -130,6 +130,88 @@ module Util
     return [total_used_gpu_hours, total_gpu_hours]
   end
 
+  # jobstats' own shebang is `#!/usr/bin/env python3`, which on the OOD PUN
+  # host resolves to an interpreter without the `requests` module the tool
+  # needs. Invoke it instead with the self-contained interpreter bundled on
+  # the shared /apps mount, passing the jobstats script path directly so its
+  # local imports still resolve.
+  JOBSTATS_PYTHON = "/apps/rcac/tools/libexec/bin/python3.13".freeze
+  JOBSTATS_SCRIPT = "/apps/rcac/tools/py/apps/jobstats/jobstats".freeze
+  JOBSTATS_TIMEOUT_SECONDS = 8
+
+  # Run jobstats for a raw job id and return the parsed JSON hash, cached 45s,
+  # or nil if jobstats/Prometheus is unavailable. No GPU/started guards here,
+  # so this is the entry point used by the My Jobs batch endpoint (which has
+  # already narrowed to GPU jobs client-side).
+  def self.run_jobstats(job_id)
+    return nil if job_id.nil? || job_id.to_s.empty?
+    return nil unless /\A\d+(_\d+)?\z/.match?(job_id.to_s)
+
+    Rails.cache.fetch("jobstats/#{job_id}", expires_in: 45.seconds) do
+      base_job_id = job_id.to_s.split("_").first
+      # Clear PYTHONHOME/PYTHONPATH the PUN/Passenger process may set, so the
+      # bundled interpreter finds its own stdlib. PATH stays inherited so
+      # jobstats can still locate sacct/scontrol.
+      stdout, stderr, status = Open3.capture3(
+        { "PYTHONHOME" => nil, "PYTHONPATH" => nil },
+        "timeout", "#{JOBSTATS_TIMEOUT_SECONDS}s",
+        JOBSTATS_PYTHON, JOBSTATS_SCRIPT, "-j", base_job_id
+      )
+
+      unless status.success?
+        Rails.logger.info("jobstats unavailable for job #{base_job_id}: #{stderr.strip}")
+        next nil
+      end
+
+      JSON.parse(stdout)
+    end
+  rescue StandardError => e
+    Rails.logger.info("Failed to fetch jobstats for job #{job_id}: #{e.message}")
+    nil
+  end
+
+  # Single-job-page path: skip the shell-out entirely for non-GPU or
+  # not-yet-started jobs, then delegate to run_jobstats.
+  def self.fetch_jobstats(data)
+    return nil unless data["AllocTRES"]&.include?("gres/gpu=")
+    return nil unless data["Start"]
+    return nil unless data["JobID"]
+
+    run_jobstats(data["JobID"])
+  end
+
+  # Average GPU duty-cycle utilization as a 0-1 fraction. nil if unavailable.
+  # Matches jobstats' overall utilization: mean of every per-GPU value.
+  def self.gpu_utilization_from(parsed)
+    return nil unless parsed
+    utilizations = parsed["nodes"].to_h.values.flat_map { |node| node["gpu_utilization"].to_h.values }
+    return nil if utilizations.empty?
+    (utilizations.sum / utilizations.size.to_f) / 100.0
+  rescue StandardError
+    nil
+  end
+
+  # GPU memory usage as a 0-1 fraction. nil if unavailable. Total peak used /
+  # total capacity, summed across all GPUs and nodes.
+  def self.gpu_memory_efficiency_from(parsed)
+    return nil unless parsed
+    nodes = parsed["nodes"].to_h.values
+    used  = nodes.flat_map { |node| node["gpu_used_memory"].to_h.values }.sum
+    total = nodes.flat_map { |node| node["gpu_total_memory"].to_h.values }.sum
+    return nil if total.zero?
+    used.to_f / total
+  rescue StandardError
+    nil
+  end
+
+  def self.gpu_utilization(data)
+    gpu_utilization_from(fetch_jobstats(data))
+  end
+
+  def self.gpu_memory_efficiency(data)
+    gpu_memory_efficiency_from(fetch_jobstats(data))
+  end
+
   def self.scontrol_to_hash(output)
     return output.split("\n").map { |line| 
       line.scan(/(?:(?<=\A|\s))([^\s=]+)=((?:(?!\s(?:\S+)=).)*)/).to_h.transform_values(&:strip)

@@ -137,21 +137,35 @@
         {
             title: "Time Efficiency",
             field: "timeeff",
-            render: DataTable.render.number(null, null, 2, "", "%"),
+            render: (data, type) => type === "display" ? renderEffPercent(data) : effSortValue(data),
             visible: false,
             searchable: false,
         },
         {
             title: "CPU Efficiency",
             field: "cpueff",
-            render: DataTable.render.number(null, null, 2, "", "%"),
+            render: (data, type) => type === "display" ? renderEffPercent(data) : effSortValue(data),
             visible: false,
             searchable: false,
         },
         {
             title: "Memory Efficiency",
             field: "memeff",
-            render: DataTable.render.number(null, null, 2, "", "%"),
+            render: (data, type) => type === "display" ? renderEffPercent(data) : effSortValue(data),
+            visible: false,
+            searchable: false,
+        },
+        {
+            title: "GPU Efficiency",
+            field: "gpueff",
+            render: (data, type, row) => type === "display" ? renderGpuEff(data, row) : gpuEffSortValue(data),
+            visible: false,
+            searchable: false,
+        },
+        {
+            title: "GPU Memory Efficiency",
+            field: "gpumemeff",
+            render: (data, type, row) => type === "display" ? renderGpuEff(data, row) : gpuEffSortValue(data),
             visible: false,
             searchable: false,
         },
@@ -330,6 +344,93 @@
     // Get index of colName inside COLUMNS or -1 if not found
     function getColIndex(colName) {
         return TABLE_COLUMNS.findIndex(column => column?.title === colName);
+    }
+
+    // --- GPU efficiency (lazy-loaded) helpers ---
+    function debounce(fn, wait) {
+        let t;
+        return function (...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), wait);
+        };
+    }
+    // A row is a GPU job if its requested resources include gres/gpu > 0.
+    function isGpuJob(row) {
+        const reqtres = row[getColIndex("Requested Resources")];
+        return reqtres && typeof reqtres === "object" && Number(reqtres["gres/gpu"]) > 0;
+    }
+    function hasStarted(row) {
+        const st = row[getColIndex("Start Time")];
+        return st !== "N/A" && st !== "--" && st !== "" && st !== null && st !== undefined;
+    }
+    // Cell value states: "" = not loaded yet, null = no telemetry, number = 0-1 fraction.
+    function renderGpuEff(data, row) {
+        if (!isGpuJob(row) || !hasStarted(row)) return '<span class="text-muted">&mdash;</span>';
+        if (data === "" || data === undefined) return '<span class="text-muted"><i class="fas fa-spinner fa-spin fa-xs"></i></span>';
+        if (data === null) return '<span class="text-muted">N/A</span>';
+        const pct = parseFloat(data) * 100;
+        if (isNaN(pct)) return '<span class="text-muted">N/A</span>';
+        const color = pct >= 75 ? "#28a745" : (pct >= 50 ? "#997404" : "#dc3545");
+        return `<span style="color: ${color}; font-weight: 500;">${pct.toFixed(2)}%</span>`;
+    }
+    function gpuEffSortValue(data) {
+        return (data === "" || data === null || data === undefined) ? -1 : parseFloat(data);
+    }
+
+    // Color-code an already-percentage efficiency value (0-100 scale).
+    function renderEffPercent(data) {
+        const pct = parseFloat(data);
+        if (data === "" || data === null || data === undefined || !isFinite(pct)) return "";
+        const color = pct >= 75 ? "#28a745" : (pct >= 50 ? "#997404" : "#dc3545");
+        return `<span style="color: ${color}; font-weight: 500;">${pct.toFixed(2)}%</span>`;
+    }
+    function effSortValue(data) {
+        const pct = parseFloat(data);
+        return (data === "" || data === null || data === undefined || !isFinite(pct)) ? -1 : pct;
+    }
+
+    // Lazily fetch GPU data for the GPU jobs on the current page, only while the
+    // GPU columns are visible. Server-cached 45s. Bounds load to one page of GPU
+    // jobs instead of all jobs.
+    const gpuEffLoading = new Set();
+    function loadVisibleGpuEff() {
+        const table = getCurrentTable();
+        if (!table) return;
+        const utilIdx = getColIndex("GPU Efficiency");
+        const memIdx = getColIndex("GPU Memory Efficiency");
+        if (utilIdx < 0 || !table.column(utilIdx).visible()) return;
+
+        const idsToFetch = [];
+        table.rows({ page: "current" }).every(function () {
+            const d = this.data();
+            if (!isGpuJob(d) || !hasStarted(d)) return;   // non-GPU / pending: nothing to load
+            if (d[utilIdx] !== "") return;                // already loaded (number or null)
+            const jobId = String(d[getColIndex("Job ID")]);
+            if (gpuEffLoading.has(jobId)) return;
+            idsToFetch.push(jobId);
+        });
+        if (idsToFetch.length === 0) return;
+
+        const CHUNK = 15; // matches the server-side cap
+        for (let i = 0; i < idsToFetch.length; i += CHUNK) {
+            const chunk = idsToFetch.slice(i, i + CHUNK);
+            chunk.forEach(id => gpuEffLoading.add(id));
+            fetch(`<%= url_for controller: "my_jobs", action: "gpu_efficiency" %>?job_ids=${chunk.join(",")}`, { redirect: "manual" })
+                .then(res => res.ok ? res.json() : Promise.reject(res))
+                .then(map => {
+                    Object.entries(map).forEach(([jobId, vals]) => {
+                        const row = table.row(`#${(window.CSS && CSS.escape) ? CSS.escape(jobId) : jobId}`);
+                        if (!row || row.index() === undefined) return;
+                        const d = row.data();
+                        d[utilIdx] = vals.gpu_utilization;       // null or 0-1 number
+                        d[memIdx] = vals.gpu_memory_efficiency;
+                        row.invalidate("data");
+                    });
+                    table.columns.adjust().draw(false);
+                })
+                .catch(() => {})
+                .finally(() => { chunk.forEach(id => gpuEffLoading.delete(id)); });
+        }
     }
 
     function secondsToTimestr(seconds) {
@@ -1138,6 +1239,11 @@
                 getCurrentTable().fixedHeader.enable(true);
             });
 
+            // Lazily load GPU efficiency for whatever GPU jobs become visible (paging,
+            // sorting, filtering, searching). Debounced and a no-op while the GPU columns
+            // are hidden, so it costs nothing until the user turns on efficiency data.
+            getCurrentTable().on("draw", debounce(loadVisibleGpuEff, 300));
+
             const initialStartDate = moment().subtract(7, 'days');
             const initialEndDate = moment();
 
@@ -1305,10 +1411,12 @@
             });
 
             $("#toggle-efficiency-columns-button").on("click", () => {
-                ["Time Efficiency", "CPU Efficiency", "Memory Efficiency"].forEach((colName) => {
+                ["Time Efficiency", "CPU Efficiency", "Memory Efficiency", "GPU Efficiency", "GPU Memory Efficiency"].forEach((colName) => {
                     let col = getCurrentTable().column(getColIndex(colName));
                     col.visible(!col.visible());
                 });
+                // Lazily load GPU data for the visible page when the columns are turned on.
+                loadVisibleGpuEff();
             });
 
             /*setInterval(() => {

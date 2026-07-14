@@ -47,8 +47,32 @@ class MyJobsController < ApplicationController
   DURATION_FIELDS = FIELDS.select { |_, value| value["format"] == "duration" }.keys
   SACCT_FIELDS = FIELDS.select { |_, value| value["prefer"] != "created" }.keys
 
+  # Cap on how many jobs one GPU-efficiency request will process. The frontend
+  # only asks for the GPU jobs on the currently visible page, but this bounds
+  # worst-case jobstats shell-outs per request regardless of page size.
+  MAX_GPU_EFFICIENCY_BATCH = 15
+
   def index
     render "my_jobs/index"
+  end
+
+  # Lazily fetch GPU utilization + GPU memory efficiency for a small set of job
+  # ids (the GPU jobs visible on the current My Jobs page). Each job's jobstats
+  # result is cached 45s in Util, so repeated draws/paging are cheap. Returns
+  # { "<jobid>" => { "gpu_utilization" => <0-1|null>, "gpu_memory_efficiency" => <0-1|null> } }.
+  def gpu_efficiency
+    job_ids = params[:job_ids].to_s.split(",").map(&:strip).reject(&:empty?).uniq
+    job_ids = job_ids.select { |jid| /\A\d+(_\d+)?\z/.match?(jid) }.first(MAX_GPU_EFFICIENCY_BATCH)
+
+    result = job_ids.each_with_object({}) do |jid, h|
+      parsed = Util.run_jobstats(jid)
+      h[jid] = {
+        "gpu_utilization" => Util.gpu_utilization_from(parsed),
+        "gpu_memory_efficiency" => Util.gpu_memory_efficiency_from(parsed),
+      }
+    end
+
+    render json: result.to_json, status: :ok
   end
 
   def cancel_jobs

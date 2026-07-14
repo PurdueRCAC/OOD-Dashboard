@@ -115,6 +115,7 @@ Rails.application.routes.draw do
 
   get "/myjobs" => "my_jobs#index", as: "my_jobs"
   get "/myjobs/json" => "my_jobs#json"
+  get "/myjobs/gpu_efficiency" => "my_jobs#gpu_efficiency"
   delete "/myjobs" => "my_jobs#cancel_jobs", as: "cancel_jobs"
 
   get "/job/:jobid/json" => "job_info#json"
