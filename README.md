@@ -28,10 +28,14 @@ system dashboard does.
 Everything below is in addition to the stock OOD dashboard's functionality.
 
 - **Balance and account widgets** — per-allocation service-unit balances and
-  usage, with CSV/XLSX export. Reads OOD's standard balance JSON format.
+  usage, with CSV/XLSX export. Reads Slurm accounting directly via `sacctmgr`
+  and `scontrol show assoc`, **not** OOD's balance JSON. See
+  [Known Limitations](#known-limitations) — it assumes Purdue's account-naming
+  convention.
 - **Storage widget** — quota and file-count usage per filesystem, with warnings
-  as users approach limits and deep links into the Files app. Reads OOD's
-  standard quota JSON format.
+  as users approach limits and deep links into the Files app. Requires a
+  site-local `myquota` command, **not** OOD's quota JSON. See
+  [Known Limitations](#known-limitations).
 - **System Status widget** — live Slurm partition state: node and core
   allocation, plus GPU allocation derived from `AllocTRES`/`CfgTRES`.
 - **Cluster Status page** — every compute node with its state, load, and
@@ -184,12 +188,16 @@ place the feed format is assumed.
 
 #### Storage and allocations
 
+Note these keys drive the **stock OOD warning banners**, which are separate from
+the Storage and Accounts widgets described above. Those widgets shell out to
+`myquota` and `sacctmgr` instead — see [Known Limitations](#known-limitations).
+
 | Key | Description | Default |
 |-----|-------------|---------|
-| `OOD_QUOTA_PATH` | Colon-separated quota JSON files/URLs (standard OOD) | none |
+| `OOD_QUOTA_PATH` | Colon-separated quota JSON files/URLs, for the stock quota warning | none |
 | `OOD_QUOTA_THRESHOLD` | Warn above this usage fraction | `0.95` |
-| `OOD_SCRATCH_DIR_TEMPLATE` | Scratch path for `scratch`-type quota rows; `$USER` is expanded | `/<type>/<location>` |
-| `OOD_BALANCE_PATH` | Colon-separated balance JSON files/URLs (standard OOD) | none |
+| `OOD_SCRATCH_DIR_TEMPLATE` | Scratch path for `scratch`-type rows in the Storage widget; `$USER` is expanded | `/<type>/<location>` |
+| `OOD_BALANCE_PATH` | Colon-separated balance JSON files/URLs, for the stock balance warning | none |
 | `OOD_BALANCE_THRESHOLD` | Warn below this balance | `0` |
 
 #### Partitions
@@ -338,8 +346,19 @@ welcome contribution.
   upstream dashboard releases.
 - **The news feed format is site-specific.** Only Purdue RCAC's news API shape
   is implemented; other news systems require adapting one controller.
-- **Quota and balance data must be provided by your site.** The dashboard reads
-  OOD's JSON formats but does not generate them.
+- **Three widgets are still coupled to Purdue conventions** and are *not* yet
+  configurable. These are the known gaps for adopting sites:
+  - **Storage widget** runs a site-local `myquota <user>` command and parses its
+    fixed column layout (`app/controllers/api/disk_usage_controller.rb`). Centers
+    without a `myquota` producing that exact format will see the widget fail.
+  - **Balance and Accounts widgets** derive allocations from `sacctmgr show user
+    ... withassoc` and `scontrol show assoc`, which works on any Slurm site, but
+    they identify GPU allocations by an account name **ending in `-gpu`**
+    (`api/balance_usage_controller.rb`, `api/balance_summary_controller.rb`).
+    Sites with a different naming convention will have GPU allocations
+    misreported as CPU ones — silently, with plausible-looking numbers.
+  - Both should move behind configuration before this is promoted as broadly
+    reusable.
 - **Only tested on RHEL 9 with Slurm.** Other combinations are untested.
 - **The LLM job-summary integration is disabled**, in both the controller and
   the Gemfile. It is kept as a starting point, not a supported feature.
