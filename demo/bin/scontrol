@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for scontrol. Handles the three subcommands the dashboard uses:
+#
+#   scontrol show node [-a] --oneliner [-d] [<name>]   nodes / cluster status
+#   scontrol show job <id> [-d] -o                     job detail
+#   scontrol show assoc users=<u> accounts=<a> -o      balance / accounts
+#
+# Output is the "oneliner" key=value form that Util.scontrol_to_hash parses.
+
+require_relative '../lib/demo_cluster'
+
+args = ARGV.reject { |a| a.start_with?('-') }
+what = args[1] # args[0] is "show"
+target = args[2]
+
+def node_line(n)
+  gres = n[:gres] ? n[:gres] : '(null)'
+  alloc_tres = if n[:cpu_alloc].zero?
+                 ''
+               else
+                 tres = "cpu=#{n[:cpu_alloc]},mem=#{n[:mem_alloc]}M"
+                 tres += ",gres/gpu=#{n[:gpu_alloc]}" if n[:gpu_alloc].positive?
+                 tres
+               end
+  cfg_tres = "cpu=#{n[:cpu_tot]},mem=#{n[:mem_tot]}M,billing=#{n[:cpu_tot]}"
+  cfg_tres += ",gres/gpu=#{n[:gpu_tot]}" if n[:gpu_tot].positive?
+
+  [
+    "NodeName=#{n[:name]}", 'Arch=x86_64', "CoresPerSocket=#{n[:cpu_tot] / 2}",
+    "CPUAlloc=#{n[:cpu_alloc]}", "CPUTot=#{n[:cpu_tot]}", "CPULoad=#{n[:cpu_load]}",
+    "AvailableFeatures=#{n[:partitions].split(',').first}", "ActiveFeatures=#{n[:partitions].split(',').first}",
+    "Gres=#{gres}", "NodeAddr=#{n[:name]}", "NodeHostName=#{n[:name]}", 'Version=23.02.7',
+    'OS=Linux', "RealMemory=#{n[:mem_tot]}", "AllocMem=#{n[:mem_alloc]}", "FreeMem=#{n[:mem_free]}",
+    'Sockets=2', 'Boards=1', "State=#{n[:state]}", 'ThreadsPerCore=1',
+    "Partitions=#{n[:partitions]}", "CfgTRES=#{cfg_tres}", "AllocTRES=#{alloc_tres}"
+  ].join(' ')
+end
+
+def job_line(j)
+  tres = "cpu=#{j[:cpus]},mem=#{j[:mem_gb]}G,node=1,billing=#{j[:cpus]}"
+  tres += ",gres/gpu=#{j[:gpus]}" if j[:gpus].positive?
+  [
+    "JobId=#{j[:id]}", "JobName=#{j[:name]}", "UserId=#{j[:user]}(1001)", "GroupId=#{j[:user]}(1001)",
+    "Account=#{j[:account]}", "QOS=#{j[:qos]}", "JobState=#{j[:state]}", "Reason=#{j[:reason]}",
+    'Priority=4294901759', "Partition=#{j[:partition]}",
+    "TimeLimit=#{DemoCluster.hhmmss(j[:timelimit])}", "RunTime=#{DemoCluster.hhmmss(j[:elapsed])}",
+    "SubmitTime=#{DemoCluster.slurm_time(j[:submit])}", "StartTime=#{DemoCluster.slurm_time(j[:start])}",
+    "EndTime=#{j[:end] ? DemoCluster.slurm_time(j[:end]) : 'Unknown'}",
+    "NodeList=#{j[:nodelist]}", "NumNodes=1", "NumCPUs=#{j[:cpus]}",
+    "WorkDir=#{j[:workdir]}", "StdOut=#{j[:workdir]}/slurm-#{j[:id]}.out",
+    "StdErr=#{j[:workdir]}/slurm-#{j[:id]}.out",
+    "ExitCode=#{j[:exit_code]}", "TRES=#{tres}", "Restarts=0"
+  ].join(' ')
+end
+
+# Account associations. Real `scontrol show assoc` prints two lines of preamble
+# before the rows, and the dashboard pipes the output through `tail -n +3` to
+# skip them -- so the stub must emit them too or the first account is lost.
+def assoc_lines(users, accounts)
+  out = ['Association Records', '']
+  wanted = accounts ? accounts.split(',') : DemoCluster::ACCOUNTS.map { |a| a[:name] }
+
+  DemoCluster::ACCOUNTS.each do |acct|
+    next unless wanted.include?(acct[:name])
+
+    key = acct[:gpu] ? 'gres/gpu' : 'cpu'
+    limit = acct[:limit_minutes] ? acct[:limit_minutes].to_s : 'N'
+
+    # GrpTRES carries the *live* core counts the Accounts widget shows. It reads
+    # "gres/hp_cpu" for the account's core allocation and "billing" out of
+    # GrpTRESMins for service units -- both site-defined TRES names, so the stub
+    # has to speak them for that widget to render.
+    grp_tres = "cpu=#{acct[:cores]}(#{acct[:cores_running]})," \
+               "gres/hp_cpu=#{acct[:cores]}(#{acct[:cores_running]})," \
+               "mem=#{acct[:cores] * 4}G(#{acct[:cores_running] * 4}G)"
+    grp_tres_mins = "#{key}=#{limit}(#{acct[:used_minutes]})," \
+                    "billing=#{limit}(#{acct[:used_minutes]})"
+
+    # Account-level row: UserName is empty, which is how the dashboard tells
+    # account rows apart from user rows.
+    out << "ClusterName=demo Account=#{acct[:name]} UserName= Partition= Priority=0 " \
+           "GrpTRES=#{grp_tres} GrpTRESMins=#{grp_tres_mins} GrpTRESRunMins= GrpJobs= QOS=normal,preemptible"
+    next unless users
+
+    users.split(',').each do |u|
+      share = (acct[:used_minutes] * 0.34).round
+      user_mins = "#{key}=#{limit}(#{share}),billing=#{limit}(#{share})"
+      out << "ClusterName=demo Account=#{acct[:name]} UserName=#{u}(1001) Partition= Priority=0 " \
+             "GrpTRES=#{grp_tres} GrpTRESMins=#{user_mins} GrpTRESRunMins= GrpJobs= QOS=normal,preemptible"
+    end
+  end
+  out
+end
+
+case what
+when 'node'
+  list = target ? [DemoCluster.node(target)].compact : DemoCluster.nodes
+  if list.empty?
+    warn "Node #{target} not found"
+    exit 1
+  end
+  list.each { |n| puts node_line(n) }
+when 'job'
+  job = DemoCluster.job(target)
+  if job.nil?
+    warn "slurm_load_jobs error: Invalid job id specified"
+    exit 1
+  end
+  puts job_line(job)
+when 'assoc', 'assoc_mgr', 'associations'
+  users = ARGV.find { |a| a.start_with?('users=') }&.split('=', 2)&.last
+  accounts = ARGV.find { |a| a.start_with?('accounts=') }&.split('=', 2)&.last
+  assoc_lines(users, accounts).each { |l| puts l }
+else
+  exit 0
+end

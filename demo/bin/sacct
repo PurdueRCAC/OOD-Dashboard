@@ -1,0 +1,105 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for sacct. Serves the four call shapes the dashboard uses:
+#
+#   sacct -S <t> -E <t> -P -n -a -o <fields> -A <accts>   (My Jobs)
+#   sacct -j <id> -P -n -o <fields>                        (job detail)
+#   sacct -j <id> -P -n --array --expand-patterns --format=<fields>
+#   sacct -u <user> -S ... -X -o JobID,Submit,Start,End,   (perf metrics,
+#                                                           table format)
+#
+# -P gives pipe-separated output and -n suppresses the header; without them we
+# emit the classic aligned table with a header and dashes row, because the
+# performance metrics endpoint parses that shape.
+
+require_relative '../lib/demo_cluster'
+
+argv = ARGV.dup
+parsed = { fields: nil, job: nil, user: nil, noheader: false, pipe: false, alloc_only: false }
+
+until argv.empty?
+  arg = argv.shift
+  case arg
+  when '-o', '--format' then parsed[:fields] = argv.shift
+  when /\A--format=(.*)\z/ then parsed[:fields] = Regexp.last_match(1)
+  when /\A-o(.+)\z/ then parsed[:fields] = Regexp.last_match(1)
+  when '-j', '--jobs' then parsed[:job] = argv.shift
+  when '-u', '--user' then parsed[:user] = argv.shift
+  when '-n', '--noheader' then parsed[:noheader] = true
+  when '-P', '--parsable2' then parsed[:pipe] = true
+  when '-X', '--allocations' then parsed[:alloc_only] = true
+  when '-S', '-E', '-A', '-r', '-s' then argv.shift # consume value, unused
+  end
+end
+
+fields = (parsed[:fields] || 'JobID,JobName,User,Account,State').split(',').map(&:strip).reject(&:empty?)
+
+jobs = DemoCluster.jobs
+jobs = jobs.select { |j| j[:user] == parsed[:user] } if parsed[:user]
+if parsed[:job]
+  wanted = parsed[:job].to_s.split(',').map { |i| i.split('.').first.split('_').first }
+  jobs = jobs.select { |j| wanted.include?(j[:id].to_s) }
+end
+
+# Value for one field of one job. `step` is nil for the allocation row and
+# ".batch" for the step row, mirroring how real sacct reports each job twice --
+# the dashboard merges them, so the demo should exercise that path.
+def value_for(field, job, step)
+  gpu_tres = job[:gpus].positive? ? ",gres/gpu=#{job[:gpus]}" : ''
+  case field.downcase
+  when 'jobid'        then step ? "#{job[:id]}#{step}" : job[:id].to_s
+  when 'jobidraw'     then job[:id].to_s
+  when 'jobname'      then step ? 'batch' : job[:name]
+  when 'user'         then step ? '' : job[:user]
+  when 'account'      then job[:account]
+  when 'partition'    then step ? '' : job[:partition]
+  when 'qos'          then step ? '' : job[:qos]
+  when 'state'        then job[:state]
+  when 'reason'       then step ? '' : job[:reason]
+  when 'submit'       then DemoCluster.slurm_time(job[:submit])
+  when 'start'        then DemoCluster.slurm_time(job[:start])
+  when 'end'          then job[:end] ? DemoCluster.slurm_time(job[:end]) : 'Unknown'
+  when 'elapsed'      then DemoCluster.hhmmss(job[:elapsed])
+  when 'elapsedraw'   then job[:elapsed].to_s
+  when 'planned'      then DemoCluster.hhmmss(job[:start] ? (job[:start] - job[:submit]).to_i : 0)
+  when 'timelimit'    then DemoCluster.hhmmss(job[:timelimit])
+  when 'reqmem'       then "#{job[:mem_gb]}G"
+  when 'alloccpus'    then job[:cpus].to_s
+  when 'totalcpu'     then DemoCluster.hhmmss((job[:elapsed] * job[:cpus] * 0.72).round)
+  when 'workdir'      then step ? '' : job[:workdir]
+  when 'maxrss'       then step ? "#{job[:maxrss_kb]}K" : ''
+  when 'maxdiskwrite' then step ? "#{job[:diskwrite_mb]}M" : ''
+  when 'maxdiskread'  then step ? "#{job[:diskread_mb]}M" : ''
+  when 'nodelist'     then job[:nodelist]
+  when 'reqtres'      then "billing=#{job[:cpus]},cpu=#{job[:cpus]},mem=#{job[:mem_gb]}G,node=1#{gpu_tres}"
+  when 'alloctres'    then job[:state] == 'PENDING' ? '' : "billing=#{job[:cpus]},cpu=#{job[:cpus]},mem=#{job[:mem_gb]}G,node=1#{gpu_tres}"
+  when 'exitcode'     then job[:exit_code]
+  when 'ncpus'        then job[:cpus].to_s
+  when 'cluster'      then 'demo'
+  else ''
+  end
+end
+
+rows = []
+jobs.each do |job|
+  rows << fields.map { |f| value_for(f, job, nil) }
+  # Step rows only exist once a job has started, and -X asks for allocations only.
+  next if parsed[:alloc_only] || job[:state] == 'PENDING'
+
+  rows << fields.map { |f| value_for(f, job, '.batch') }
+end
+
+if parsed[:pipe]
+  puts fields.join('|') unless parsed[:noheader]
+  rows.each { |r| puts r.join('|') }
+else
+  widths = fields.each_with_index.map do |f, i|
+    ([f.length] + rows.map { |r| r[i].to_s.length }).max
+  end
+  unless parsed[:noheader]
+    puts fields.each_with_index.map { |f, i| f.ljust(widths[i]) }.join(' ')
+    puts widths.map { |w| '-' * w }.join(' ')
+  end
+  rows.each { |r| puts r.each_with_index.map { |v, i| v.to_s.ljust(widths[i]) }.join(' ') }
+end

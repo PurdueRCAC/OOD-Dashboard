@@ -1,0 +1,43 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for jobstats. Emits the JSON shape Util.gpu_utilization_from
+# and gpu_memory_efficiency_from expect: a "nodes" map whose entries carry
+# per-GPU utilization percentages and used/total memory in bytes.
+require 'json'
+require_relative '../lib/demo_cluster'
+
+idx = ARGV.index('-j')
+job_id = idx ? ARGV[idx + 1] : nil
+job = DemoCluster.job(job_id)
+
+if job.nil? || job[:gpus].to_i.zero?
+  warn 'jobstats: no GPU data for job'
+  exit 1
+end
+
+# Deterministic per-job utilization so repeated views agree.
+r = Random.new(job[:id])
+total_mem = 81_920_000_000 # 80GB-class accelerator
+util = {}
+used = {}
+cap  = {}
+job[:gpus].times do |g|
+  util[g.to_s] = (r.rand(18.0..97.0)).round(1)
+  used[g.to_s] = (total_mem * r.rand(0.12..0.93)).round
+  cap[g.to_s]  = total_mem
+end
+
+puts JSON.generate(
+  'gpus' => job[:gpus],
+  'nodes' => {
+    job[:nodelist] => {
+      'gpu_utilization' => util,
+      'gpu_used_memory' => used,
+      'gpu_total_memory' => cap,
+      'total_memory' => job[:mem_gb] * 1024 * 1024 * 1024,
+      'used_memory' => job[:maxrss_kb] * 1024,
+      'cpus' => job[:cpus]
+    }
+  }
+)

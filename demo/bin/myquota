@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Demo-mode stub for the site-local `myquota` wrapper that the Storage widget
+# depends on. The dashboard drops the first three lines and then reads columns:
+#   type location disk_used disk_limit disk_pct files files_limit files_pct
+set -euo pipefail
+user="${1:-${USER:-demo}}"
+cat <<TABLE
+Filesystem quota report for user $user
+Generated $(date)
+Type       Location            Size    Limit   Use%   Files   Limit   Use%
+home       /home/$user         38.2GB  100GB   38%    412031  1000000 41%
+scratch    /scratch/demo/$user 1.4TB   5TB     28%    883122  2000000 44%
+depot      /depot/phys-lab     22.7TB  30TB    76%    4102993 10000000 41%
+depot      /depot/vision-gpu   9.1TB   10TB    91%    288140  5000000 6%
+TABLE

@@ -951,6 +951,12 @@
   <meta name="turbolinks-root" content="<%= ENV["RAILS_RELATIVE_URL_ROOT"] || "/" %>">
 </head>
 <body>
+  <% if Configuration.demo_mode? %>
+    <div role="status" style="background:#7c2d12; color:#fff; text-align:center; padding:0.35rem 0.75rem; font-size:0.875rem; font-weight:500;">
+      <i class="fas fa-flask" aria-hidden="true"></i>
+      Demo mode &mdash; every number on this page is invented. No cluster is attached.
+    </div>
+  <% end %>
   <nav class="navbar navbar-expand-md py-2" id="header-navbar" aria-label="Main navigation">
     <div class="container-fluid px-0">
       <div class="d-flex align-items-center">

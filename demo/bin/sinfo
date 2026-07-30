@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for sinfo. The dashboard calls it as:
+#   sinfo -h -o '%R|%a|%F|%C'
+# where %F is alloc/idle/other/total nodes and %C the same for cores.
+require_relative '../lib/demo_cluster'
+
+fmt = nil
+argv = ARGV.dup
+until argv.empty?
+  arg = argv.shift
+  case arg
+  when '-o', '--format' then fmt = argv.shift
+  when /\A-o(.+)\z/ then fmt = Regexp.last_match(1)
+  end
+end
+fmt ||= '%R|%a|%F|%C'
+
+DemoCluster.partition_summary.each do |p|
+  line = fmt.gsub(/%(\.?\d+)?([a-zA-Z])/) do
+    case Regexp.last_match(2)
+    when 'R' then p[:name]
+    when 'a' then p[:avail]
+    when 'F' then "#{p[:nodes_alloc]}/#{p[:nodes_idle]}/#{p[:nodes_other]}/#{p[:nodes_total]}"
+    when 'C' then "#{p[:cpus_alloc]}/#{p[:cpus_idle]}/#{p[:cpus_other]}/#{p[:cpus_total]}"
+    when 'D' then p[:nodes_total].to_s
+    else ''
+    end
+  end
+  puts line
+end

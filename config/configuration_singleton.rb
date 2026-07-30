@@ -53,6 +53,9 @@ class ConfigurationSingleton
       :motd_render_html             => false,
       :upload_enabled               => true,
       :download_enabled             => true,
+      # Serve invented cluster data instead of talking to a scheduler.
+      # See config/initializers/demo_mode.rb.
+      :demo_mode                    => false,
     }.freeze
   end
 

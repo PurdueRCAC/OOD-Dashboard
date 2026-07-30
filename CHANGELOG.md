@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Added
+- Demo mode (`OOD_DEMO_MODE=true`) for evaluating the dashboard with no cluster
+  attached. Stub scheduler tools in `demo/bin` serve one seeded, self-consistent
+  fake cluster (7 partitions, 82 nodes, 250 jobs, 4 allocations, 4 filesystems,
+  6 announcements) so every page and widget is populated. The substitution
+  happens on `PATH`, so no application code knows demo mode exists and the
+  production code paths are the ones exercised. Includes `demo/Dockerfile`,
+  a banner on every page, and `demo/README.md`.
+- The news feed source may now be a local JSON file as well as an HTTP(S)
+  endpoint, matching how OOD's quota and balance paths accept either.
 - `appverse.yml` declaring catalog metadata for the
   [OOD Appverse](https://openondemand.connectci.org/appverse).
 - A site configuration layer (`site_string_configs` in

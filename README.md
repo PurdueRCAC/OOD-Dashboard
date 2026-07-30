@@ -19,6 +19,25 @@ system dashboard does.
 - Upstream project: [Open OnDemand](https://openondemand.org/)
 - Forked from: [OSC/ondemand](https://github.com/OSC/ondemand) dashboard (`apps/dashboard`)
 
+## Try it without a cluster
+
+Before deploying anything, you can click through the whole dashboard with an
+invented cluster behind it:
+
+```bash
+git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git
+cd ood-hpc-dashboard && bundle install && yarn install
+OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
+# open http://localhost:3000
+```
+
+No Slurm, no Open OnDemand, no root. Stub scheduler tools serve a consistent
+fake cluster — 7 partitions, 82 nodes, 250 jobs, 4 allocations, announcements —
+so every page and widget is populated. A banner marks the data as invented.
+
+There is a container too (`demo/Dockerfile`, untested — see
+[demo/README.md](demo/README.md)). Demo mode is opt-in and inert when off.
+
 ## Screenshots
 
 ![Launching the dashboard from the Develop menu](docs/dashboard-setup.png)
@@ -93,6 +112,12 @@ This app runs on the OOD web node, inside the per-user NGINX (PUN):
 An evaluation path for a Slurm site, start to finish in about an hour. It
 touches nothing your users see. The full detail for each step is in
 [App Installation](#app-installation) below.
+
+### 0. Look at it first, without a cluster
+
+`OOD_DEMO_MODE=true bundle exec rails server` gives you every page populated
+with invented data — see [Try it without a cluster](#try-it-without-a-cluster).
+Worth doing before you spend time on the steps below.
 
 ### 1. Check prerequisites on the OOD web node
 

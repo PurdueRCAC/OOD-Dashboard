@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for sacctmgr. The dashboard uses exactly one call:
+#   sacctmgr show user <u> withassoc format=account -P -n -r
+# whose output it pipes through `xargs | tr ' ' ','` to build an account list.
+require_relative '../lib/demo_cluster'
+
+DemoCluster::ACCOUNTS.each { |a| puts a[:name] }

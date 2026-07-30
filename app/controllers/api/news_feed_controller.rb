@@ -15,11 +15,10 @@ module Api
       return head :not_found unless ::Configuration.news_feed_enabled?
 
       result = Rails.cache.fetch(cache_key, expires_in: 30.minutes, race_condition_ttl: 3.seconds) do
-        uri = URI(::Configuration.news_feed_url)
-        res = Net::HTTP.get_response(uri)
+        body = fetch_feed(::Configuration.news_feed_url)
 
-        if res.is_a?(Net::HTTPSuccess)
-          json_data = JSON.parse(res.body)
+        if body
+          json_data = JSON.parse(body)
           articles = json_data["data"]
           filtered = articles
             .select { |article| NEWS_TYPE_IDS.include?(article["newstypeid"].to_i) }
@@ -59,6 +58,18 @@ module Api
     end
 
     private
+
+    # The feed source may be an HTTP(S) endpoint or a local JSON file, the same
+    # way OOD's quota and balance paths accept either. Returns the raw body, or
+    # nil if it could not be read.
+    def fetch_feed(source)
+      if source.to_s.start_with?('http://', 'https://')
+        res = Net::HTTP.get_response(URI(source))
+        res.is_a?(Net::HTTPSuccess) ? res.body : nil
+      elsif File.readable?(source.to_s)
+        File.read(source.to_s)
+      end
+    end
 
     # The feed URL and filter are site configuration, so include them in the
     # cache key -- otherwise a config change keeps serving the old site's feed

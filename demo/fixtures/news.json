@@ -1,0 +1,116 @@
+{
+  "data": [
+    {
+      "id": 101,
+      "newstypeid": 6,
+      "headline": "Scratch filesystem degraded performance",
+      "uri": "https://openondemand.org/demo-news/101",
+      "formatteddate": "July 30, 2026",
+      "formattedbody": "<p>We are investigating elevated latency on the <code>/scratch</code> filesystem. Jobs performing heavy I/O may run slower than usual. No data loss is expected.</p>",
+      "datetimenews": "2026-07-30T05:59:38",
+      "datetimenewsend": "2026-07-30T17:59:38",
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+        {
+          "formattedbody": "<p>A failed metadata server has been taken out of rotation. Performance is recovering.</p>",
+          "datetimecreated": "2026-07-30T08:59:38",
+          "formattedcreateddate": "July 30, 2026"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "newstypeid": 7,
+      "headline": "Scheduled maintenance: cluster unavailable",
+      "uri": "https://openondemand.org/demo-news/102",
+      "formatteddate": "August 8, 2026",
+      "formattedbody": "<p>The cluster will be offline for quarterly maintenance. Running jobs will be terminated; queued jobs remain queued and start after the outage.</p>",
+      "datetimenews": "2026-08-08T10:59:38",
+      "datetimenewsend": "2026-08-09T10:59:38",
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+
+      ]
+    },
+    {
+      "id": 103,
+      "newstypeid": 2,
+      "headline": "New H100 nodes available in the ai partition",
+      "uri": "https://openondemand.org/demo-news/103",
+      "formatteddate": "July 27, 2026",
+      "formattedbody": "<p>Six additional nodes with 8x NVIDIA H100 accelerators have joined the <code>ai</code> partition. Request them with <code>--gres=gpu:h100:1</code>.</p>",
+      "datetimenews": "2026-07-27T10:59:38",
+      "datetimenewsend": null,
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+
+      ]
+    },
+    {
+      "id": 104,
+      "newstypeid": 2,
+      "headline": "Open OnDemand upgraded to 3.1",
+      "uri": "https://openondemand.org/demo-news/104",
+      "formatteddate": "July 18, 2026",
+      "formattedbody": "<p>The portal has been upgraded. Interactive sessions started before the upgrade are unaffected.</p>",
+      "datetimenews": "2026-07-18T10:59:38",
+      "datetimenewsend": null,
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+
+      ]
+    },
+    {
+      "id": 105,
+      "newstypeid": 3,
+      "headline": "Researchers model protein folding at scale",
+      "uri": "https://openondemand.org/demo-news/105",
+      "formatteddate": "July 9, 2026",
+      "formattedbody": "<p>A campus group used 1.2 million core-hours on the cluster to model folding pathways, with results published this month.</p>",
+      "datetimenews": "2026-07-09T10:59:38",
+      "datetimenewsend": null,
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+
+      ]
+    },
+    {
+      "id": 106,
+      "newstypeid": 1,
+      "headline": "Login node reboot completed",
+      "uri": "https://openondemand.org/demo-news/106",
+      "formatteddate": "June 30, 2026",
+      "formattedbody": "<p>Rolling reboots to apply kernel security updates have finished. All login nodes are back in service.</p>",
+      "datetimenews": "2026-06-30T10:59:38",
+      "datetimenewsend": "2026-07-01T10:59:38",
+      "resources": [
+        {
+          "name": "Demo Cluster"
+        }
+      ],
+      "updates": [
+
+      ]
+    }
+  ]
+}

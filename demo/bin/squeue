@@ -1,0 +1,80 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Demo-mode stub for squeue. The dashboard asks for several different -o
+# formats, so rather than special-casing each one we implement the format
+# specifiers it uses and render whatever was requested.
+#
+# Only active jobs (RUNNING/PENDING) are listed unless -t all is given, matching
+# real squeue behaviour.
+
+require_relative '../lib/demo_cluster'
+
+argv = ARGV.dup
+fmt = nil
+states = nil
+node = nil
+accounts = nil
+
+until argv.empty?
+  arg = argv.shift
+  case arg
+  when '-o', '--format' then fmt = argv.shift
+  when /\A-o(.+)\z/ then fmt = Regexp.last_match(1)
+  when '-t', '--states' then states = argv.shift
+  when '-w', '--nodelist' then node = argv.shift
+  when '-A', '--account' then accounts = argv.shift
+  end
+end
+
+fmt ||= '%i|%P|%j|%u|%T'
+
+jobs = DemoCluster.jobs
+jobs = if states.nil? || states.downcase == 'all'
+         states.nil? ? jobs.select { |j| %w[RUNNING PENDING].include?(j[:state]) } : jobs
+       else
+         wanted = states.upcase.split(',').map { |s| s == 'REQUEUED' ? 'PENDING' : s }
+         jobs.select { |j| wanted.include?(j[:state]) }
+       end
+jobs = jobs.select { |j| j[:nodelist] == node } if node
+jobs = jobs.select { |j| accounts.split(',').include?(j[:account]) } if accounts
+
+# squeue format specifiers used by the dashboard. %.60a style width/alignment
+# prefixes are handled by the substitution regex below.
+def spec_value(letter, job)
+  case letter
+  when 'i' then job[:id].to_s
+  when 'P' then job[:partition]
+  when 'j' then job[:name]
+  when 'u' then job[:user]
+  when 'T' then job[:state]
+  when 'r' then job[:reason]
+  when 'V' then DemoCluster.slurm_time(job[:submit])
+  when 'S' then DemoCluster.slurm_time(job[:start])
+  when 'e' then job[:end] ? DemoCluster.slurm_time(job[:end]) : 'N/A'
+  when 'M' then DemoCluster.hhmmss(job[:elapsed])
+  when 'l' then DemoCluster.hhmmss(job[:timelimit])
+  when 'b' then job[:gpus].positive? ? "gres:gpu:#{job[:gpus]}" : 'N/A'
+  when 'C' then job[:cpus].to_s
+  when 'a' then job[:account]
+  when 'D' then '1'
+  else ''
+  end
+end
+
+jobs.each do |job|
+  # Replace %[.width]<letter>, applying the width as right-justification when
+  # given, exactly as squeue's "%.60a" does.
+  line = fmt.gsub(/%(\.?\d+)?([a-zA-Z])/) do
+    width = Regexp.last_match(1)
+    value = spec_value(Regexp.last_match(2), job)
+    if width.nil?
+      value
+    elsif width.start_with?('.')
+      value.rjust(width[1..].to_i)
+    else
+      value.ljust(width.to_i)
+    end
+  end
+  puts line
+end

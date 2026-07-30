@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Demo-mode stub for scancel. The demo cluster is read-only, so acknowledge the
+# request the way scancel does (silently, exit 0) without changing any state.
+# The job will still be listed afterwards -- expected in a demo.
+exit 0
