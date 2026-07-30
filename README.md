@@ -83,8 +83,107 @@ This app runs on the OOD web node, inside the per-user NGINX (PUN):
   Python interpreter with jobstats' dependencies (notably `requests`) reachable
   from the PUN host.
 - A JSON news/announcements API, for the Announcements widget.
-- A JSON quota endpoint or file, for the Storage widget.
-- A JSON balance endpoint or file, for the Balance and Accounts widgets.
+- A `myquota` command on the PUN host, for the Storage widget — see
+  [Known Limitations](#known-limitations) for the format it must produce.
+- Quota and balance JSON in OOD's standard formats, for the stock warning
+  banners (separate from the widgets above).
+
+## Quick Start
+
+An evaluation path for a Slurm site, start to finish in about an hour. It
+touches nothing your users see. The full detail for each step is in
+[App Installation](#app-installation) below.
+
+### 1. Check prerequisites on the OOD web node
+
+Run these **as the web user**, since what matters is whether they work inside
+the PUN rather than on a login node:
+
+```bash
+sinfo -h -o '%R|%a|%F|%C'          # System Status widget
+scontrol show node --oneliner      # Cluster Status page
+sacct -X -u "$USER" -S now-1week -P -n   # My Jobs, Performance Metrics
+sacctmgr show user "$USER" withassoc format=account -P -n   # Accounts widget
+```
+
+**Slurm accounting (slurmdbd) is required.** Without a working `sacct`, the job
+history, job detail, and performance pages are all empty.
+
+### 2. Enable sandbox mode for one administrator
+
+```bash
+# As root on the OOD web node
+user="alice"
+mkdir -p "/var/www/ood/apps/dev/$user"
+ln -s "/home/$user/ondemand/dev" "/var/www/ood/apps/dev/$user/gateway"
+```
+
+This is the only step needing root, and it changes nothing for regular users. If
+the host is configuration-managed, make the change there or it will be reverted
+on the next run. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+
+### 3. Clone and build
+
+```bash
+git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git \
+  "$HOME/ondemand/dev/dashboard"
+cd "$HOME/ondemand/dev/dashboard"
+./install.sh
+```
+
+### 4. Set the two values worth setting
+
+```bash
+cp .env.local.example .env.local
+# then edit .env.local down to just:
+#   OOD_SITE_NAME="Your Cluster"
+#   OOD_DASHBOARD_DOCS_URL="https://docs.example.edu/"
+```
+
+Everything else is optional. Any feature whose configuration is missing hides
+itself or reports `N/A` rather than erroring, so this is genuinely enough to
+boot.
+
+### 5. Launch and check the baseline
+
+*Develop → My Sandbox Apps (Development) → Launch HPC Dashboard*. If you see
+*App has not been initialized or does not exist*, click **Initialize App**.
+
+On any Slurm site with accounting, these work with no further configuration:
+
+| Works out of the box | Needs |
+|---|---|
+| System Status widget | `sinfo`, `scontrol` |
+| Cluster Status page and node detail | `scontrol` |
+| My Jobs, job detail, Cancel Job | `sacct`, `scontrol`, `scancel` |
+| Performance Metrics page | `sacct` |
+| Accounts and Balance widgets | `sacctmgr`, `scontrol show assoc` |
+| App launcher, sessions, Files, Projects | stock OOD behaviour |
+
+### 6. Expect exactly one thing to break
+
+The **Storage widget** runs a site-local `myquota` command that will not exist
+at your site. Either provide a wrapper emitting the same columns or adapt
+`app/controllers/api/disk_usage_controller.rb`.
+
+Also **audit your Slurm account naming before trusting the Accounts widget.** It
+classifies an allocation as GPU when the account name ends in `-gpu`; under a
+different convention, GPU allocations are reported as CPU ones silently, with
+numbers that look plausible. Both issues are detailed in
+[Known Limitations](#known-limitations).
+
+### 7. Layer on the optional integrations
+
+One at a time, verifying each: announcements (`OOD_NEWS_FEED_URL`), GPU-hour
+accounting (`OOD_GPU_HOURS_PARTITIONS`), per-job efficiency metrics
+(`OOD_JOBSTATS_PYTHON`/`OOD_JOBSTATS_SCRIPT`), support tickets. See
+[Configure for your site](#3-configure-for-your-site).
+
+### 8. Only then consider replacing the system dashboard
+
+Back up `/var/www/ood/apps/sys/dashboard` first, and go in knowing you are
+adopting a fork: upstream OOD dashboard updates must be merged in, not applied
+by upgrading OOD. See [Known Limitations](#known-limitations).
 
 ## App Installation
 
