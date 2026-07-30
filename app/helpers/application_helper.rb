@@ -74,6 +74,16 @@ module ApplicationHelper
     Configuration.news_page_url
   end
 
+  # URL prefix for links into the Files app, or nil when it is unavailable.
+  #
+  # The `files` routes are only defined when the sibling Files app is present
+  # (see Configuration#can_access_files?), so calling `files_path` where it is
+  # not is an undefined-method error that takes the whole page down. Views that
+  # link into Files should ask for this and omit the link when it is nil.
+  def files_base_path
+    Configuration.can_access_files? ? files_path('fs', '') : nil
+  end
+
   def configure_2fa_url
     ENV['OOD_DASHBOARD_2FA_URL']
   end

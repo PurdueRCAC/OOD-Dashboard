@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   fake cluster (7 partitions, 82 nodes, 250 jobs, 4 allocations, 4 filesystems,
   6 announcements) so every page and widget is populated. The substitution
   happens on `PATH`, so no application code knows demo mode exists and the
-  production code paths are the ones exercised. Includes `demo/Dockerfile`,
-  a banner on every page, and `demo/README.md`.
+  production code paths are the ones exercised. Includes `demo/apptainer.def`
+  (built and verified end to end unprivileged on a Slurm login node),
+  `demo/Dockerfile`, a banner on every page, and `demo/README.md`.
 - The news feed source may now be a local JSON file as well as an HTTP(S)
   endpoint, matching how OOD's quota and balance paths accept either.
 - `appverse.yml` declaring catalog metadata for the
@@ -27,6 +28,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `docs/DEVELOPMENT.md` with sandbox setup, local-run, and contribution notes.
 - `app/views/shared/_docs_info_link.html.erb`, replacing five copies of the
   per-widget documentation info icon.
+
+### Fixed
+- The dashboard home page and My Jobs no longer raise `undefined method
+  \'files_path\'` on portals where the Files app is absent. The `files` routes
+  are conditional on the sibling app being present, but three views called the
+  route helper unconditionally, taking down the whole page.
 
 ### Changed
 - Site-specific values are no longer hardcoded in views, controllers, or

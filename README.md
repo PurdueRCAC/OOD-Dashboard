@@ -35,8 +35,18 @@ No Slurm, no Open OnDemand, no root. Stub scheduler tools serve a consistent
 fake cluster — 7 partitions, 82 nodes, 250 jobs, 4 allocations, announcements —
 so every page and widget is populated. A banner marks the data as invented.
 
-There is a container too (`demo/Dockerfile`, untested — see
-[demo/README.md](demo/README.md)). Demo mode is opt-in and inert when off.
+Or run it as a container. On HPC, Apptainer is the path of least resistance and
+needs no root:
+
+```bash
+apptainer build --ignore-fakeroot-command dashboard-demo.sif demo/apptainer.def
+apptainer run --cleanenv dashboard-demo.sif
+```
+
+`--cleanenv` matters: without it the host's `LD_PRELOAD` (XALT) leaks in and the
+container will not start. A `demo/Dockerfile` is provided too, though unlike the
+Apptainer recipe it has not been executed. See [demo/README.md](demo/README.md).
+Demo mode is opt-in and inert when off.
 
 ## Screenshots
 

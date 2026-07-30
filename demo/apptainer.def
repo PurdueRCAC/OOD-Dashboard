@@ -1,0 +1,179 @@
+# Apptainer/Singularity recipe for the demo: the dashboard with an invented
+# cluster behind it. See demo/README.md.
+#
+#   apptainer build --ignore-fakeroot-command dashboard-demo.sif demo/apptainer.def
+#   apptainer run --cleanenv dashboard-demo.sif
+#   open http://localhost:3000
+#
+# --cleanenv is not optional on many HPC systems. Apptainer passes the host
+# environment through, and login nodes commonly export LD_PRELOAD (XALT job
+# tracking) pointing at host libraries built against a different glibc. That
+# kills every binary in the container before any of the code below can run, so
+# the image cannot defend against it from the inside.
+#
+# Build it from the repository root -- %files paths are relative to the build
+# context, which is the current directory.
+#
+# On a shared HPC system you usually cannot become root, so this recipe is
+# written to build unprivileged:
+#
+#   * If you are listed in /etc/subuid, `apptainer build --fakeroot` works as-is.
+#   * If not, add --ignore-fakeroot-command. Apptainer maps you to root in a user
+#     namespace, which is enough for everything below.
+#
+# To keep that working, nothing here uses apt: the base image already has Ruby
+# and a toolchain, and Node arrives as an official prebuilt tarball. Package
+# installs are the step most likely to fail without real fakeroot.
+
+Bootstrap: docker
+From: ruby:3.1-bullseye
+
+%files
+    Gemfile /app/dashboard/Gemfile
+    Gemfile.lock /app/dashboard/Gemfile.lock
+    package.json /app/dashboard/package.json
+    yarn.lock /app/dashboard/yarn.lock
+    esbuild.config.js /app/dashboard/esbuild.config.js
+    Rakefile /app/dashboard/Rakefile
+    config.ru /app/dashboard/config.ru
+    app /app/dashboard/app
+    bin /app/dashboard/bin
+    config /app/dashboard/config
+    db /app/dashboard/db
+    lib /app/dashboard/lib
+    public /app/dashboard/public
+    vendor /app/dashboard/vendor
+    demo /app/dashboard/demo
+    manifest.yml /app/dashboard/manifest.yml
+
+    # The dashboard enables Files, Active Jobs and Projects only when those apps
+    # exist alongside it, exactly as they do under /var/www/ood/apps/sys. Ship
+    # the manifests the repo already carries so the demo mirrors that layout.
+    other-apps /app/other-apps
+
+%post
+    set -eux
+
+    NODE_VERSION=18.20.4
+    # --no-same-owner matters: in an unprivileged root-mapped namespace the
+    # build cannot chown to the tarball's uid/gid, and tar fails without it.
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        | tar -xJ --no-same-owner --no-same-permissions -C /opt
+    mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node
+    # Put the whole Node bin directory on PATH rather than symlinking tools one
+    # by one -- `npm install -g` drops yarn in there too.
+    export PATH="/opt/node/bin:${PATH}"
+    npm install -g yarn@1
+
+    cd /app/dashboard
+
+    # Install every group. Excluding the `doc` group here would need the same
+    # exclusion to be in force at runtime, and a mismatch makes bundler refuse
+    # to boot; the few extra gems are cheaper than that failure mode.
+    bundle install --jobs 4 --retry 2
+
+    yarn install --frozen-lockfile
+
+    # Assets are served from the root here, not from a PUN sub-path.
+    export RAILS_ENV=development
+    export RAILS_RELATIVE_URL_ROOT=/
+    export SECRET_KEY_BASE=demo-only-not-a-secret
+    yarn build
+    yarn build:css
+    bundle exec rails assets:precompile
+
+    # A SIF is mounted read-only, but Rails insists on writing to tmp/ and log/.
+    # Point both at /tmp, which Apptainer always provides writable, so the image
+    # runs with no extra bind mounts or --writable-tmpfs.
+    rm -rf /app/dashboard/tmp /app/dashboard/log
+    ln -s /tmp/ood-dashboard/tmp /app/dashboard/tmp
+    ln -s /tmp/ood-dashboard/log /app/dashboard/log
+
+    # Sibling core apps, so Configuration#can_access_files? and friends are true
+    # and the Files / Active Jobs / Projects routes get defined.
+    for a in files activejobs projects file-editor; do
+        mkdir -p "/app/$a"
+        cp "/app/other-apps/$a/manifest.yml" "/app/$a/manifest.yml"
+    done
+
+    chmod -R a+rX /app
+
+%environment
+    # Drop host toolchain leakage (Lmod/Spack module paths). Note GEM_HOME and
+    # friends are deliberately NOT unset here -- the Ruby base image sets them,
+    # and clearing them leaves bundler unable to find any gem.
+    unset LD_PRELOAD LD_LIBRARY_PATH PYTHONPATH PYTHONHOME RUBYLIB
+
+    # Restate the gem paths so the image works with --cleanenv, which discards
+    # what the base image exported. Deliberately GEM_HOME and BUNDLE_APP_CONFIG
+    # only, matching the ruby image's own convention: setting BUNDLE_PATH as
+    # well would send bundler looking under $BUNDLE_PATH/ruby/3.1.0/gems, where
+    # nothing is installed, and every gem would appear missing.
+    export GEM_HOME=/usr/local/bundle
+    export BUNDLE_APP_CONFIG=/usr/local/bundle
+    export BUNDLE_SILENCE_ROOT_WARNING=1
+    export PATH="/opt/node/bin:/usr/local/bundle/bin:/usr/local/bin:/usr/bin:/bin"
+    export RAILS_ENV=development
+    export RAILS_RELATIVE_URL_ROOT=/
+    export SECRET_KEY_BASE=demo-only-not-a-secret
+    export OOD_DEMO_MODE=true
+    # Keep the demo's scratch data out of the user's home directory.
+    export OOD_DATAROOT=/tmp/ood-dashboard/data
+
+    # Outside a real portal there is no /etc/ood to describe the sibling OOD
+    # apps, and OodAppkit then hands the views nil URLs -- which surfaces as
+    # "bad URI(is not URI?): nil" on any page linking to Files. Point them at
+    # this app's own routes so the links resolve.
+    export OOD_DASHBOARD_TITLE="HPC Dashboard (demo)"
+    export OOD_DASHBOARD_URL=/
+    export OOD_FILES_URL=/files
+    export OOD_EDITOR_URL=/files/edit
+    export OOD_PUBLIC_URL=/public
+    export OOD_SHELL_URL=/shell
+
+%runscript
+    set -eu
+
+    # Belt and braces against host toolchain leakage. This cannot rescue a
+    # broken LD_PRELOAD -- that kills the shell before this line is reached,
+    # which is why --cleanenv is the documented way to run this image -- but it
+    # does clear module paths on sites where the shell still starts.
+    unset LD_LIBRARY_PATH PYTHONPATH PYTHONHOME RUBYLIB
+
+    PORT="${PORT:-3000}"
+    # Recreate the writable tree on every run; /tmp may be fresh each time.
+    mkdir -p /tmp/ood-dashboard/tmp/cache \
+             /tmp/ood-dashboard/tmp/pids \
+             /tmp/ood-dashboard/tmp/sockets \
+             /tmp/ood-dashboard/log \
+             /tmp/ood-dashboard/data
+    # /tmp persists between runs on most hosts, so a pid file left behind by a
+    # previous container makes Rails refuse to start with "A server is already
+    # running". Nothing else owns this path, so clearing it is safe.
+    rm -f /tmp/ood-dashboard/tmp/pids/server.pid
+    cd /app/dashboard
+    echo "HPC Dashboard demo -- invented data, no cluster attached."
+    echo "Listening on http://localhost:${PORT}"
+    exec bundle exec rails server -b 0.0.0.0 -p "${PORT}"
+
+%labels
+    Description HPC Dashboard demo with an invented cluster
+    Upstream https://github.com/purdue-rcac/ood-hpc-dashboard
+
+%help
+    Runs the HPC Dashboard against a fake cluster so you can click through every
+    page without Slurm, Open OnDemand, or root.
+
+    Run:
+        apptainer run --cleanenv dashboard-demo.sif
+        APPTAINERENV_PORT=8080 apptainer run --cleanenv dashboard-demo.sif
+
+    Then open http://localhost:3000 (or your chosen PORT).
+
+    Use --cleanenv. Without it the host's LD_PRELOAD (XALT) and module paths
+    leak in and stop the container starting. Because --cleanenv also drops your
+    own variables, pass PORT as APPTAINERENV_PORT.
+
+    Every number shown is invented and a banner on each page says so. There is
+    no authentication, so bind to a host only you can reach. Launching real
+    interactive apps needs a real portal and scheduler and does not work here.

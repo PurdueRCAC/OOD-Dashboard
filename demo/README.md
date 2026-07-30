@@ -53,7 +53,44 @@ The initializer also fills in site configuration defaults (site name, doc links,
 GPU-hour rules, jobstats paths) so no widget is empty. Anything you set yourself
 still wins.
 
-## Container
+## Containers
+
+### Apptainer (recommended on HPC)
+
+```bash
+apptainer build --ignore-fakeroot-command dashboard-demo.sif demo/apptainer.def
+apptainer run --cleanenv dashboard-demo.sif
+# open http://localhost:3000
+```
+
+Built and run end to end on a Slurm login node: unprivileged build, all pages
+and API endpoints serving, Files app included.
+
+Two things about running it that are easy to trip over:
+
+**Use `--cleanenv`.** Apptainer passes the host environment into the container,
+and HPC login nodes commonly export `LD_PRELOAD` for XALT job tracking, pointing
+at host libraries built against a different glibc. That kills every binary in
+the container before any of its own code runs, so the image cannot defend
+against it from the inside — you get only
+`libc.so.6: version 'GLIBC_2.34' not found` and no server. `--cleanenv` fixes it.
+
+**Pass `PORT` as `APPTAINERENV_PORT`,** since `--cleanenv` also drops your own
+variables:
+
+```bash
+APPTAINERENV_PORT=8080 apptainer run --cleanenv dashboard-demo.sif
+```
+
+Build notes: `--fakeroot` works if you are listed in `/etc/subuid`; if not,
+`--ignore-fakeroot-command` lets Apptainer map you to root in a user namespace,
+which is enough. The recipe deliberately avoids `apt` — the base image already
+carries Ruby and a toolchain, and Node arrives as an official tarball — because
+package installs are the step most likely to fail without real fakeroot.
+
+The image is ~580 MB and takes roughly ten minutes to build.
+
+### Docker
 
 ```bash
 docker build -f demo/Dockerfile -t ood-hpc-dashboard:demo .
@@ -61,8 +98,8 @@ docker run --rm -p 3000:3000 ood-hpc-dashboard:demo
 ```
 
 > The `Dockerfile` was written without a container runtime available and has
-> **not been executed**. Demo mode itself is tested; if the image build needs a
-> fix, the `rails server` command above gives the identical demo.
+> **not been executed** — unlike the Apptainer recipe, which was. If the image
+> build needs a fix, the `rails server` command above gives the identical demo.
 
 ## Refreshing the announcements
 
@@ -76,6 +113,9 @@ Re-anchors the outage and maintenance windows to the current date.
 
 - **Launching interactive apps does not work.** That needs a real OOD portal and
   a real scheduler; the demo only fakes the monitoring data sources.
+- **The containers browse the container's filesystem, not the cluster's.** The
+  Files app is enabled and works, but it sees whatever the container sees --
+  your home directory is bind-mounted by Apptainer, nothing else is.
 - **Cancel Job succeeds but changes nothing** — the dataset is read-only, so the
   job is still listed afterwards.
 - **No authentication.** Demo mode does not add or bypass any; run it locally,

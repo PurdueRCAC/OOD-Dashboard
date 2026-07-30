@@ -13,8 +13,19 @@ module DemoCluster
 
   # The demo runs as whoever started it; jobs are attributed to that account so
   # the "my jobs" and job queue filters actually match something.
+  #
+  # Resolved from the process uid rather than $USER, because that is how the
+  # dashboard identifies the user (OodSupport::User) -- and because $USER is not
+  # set in every environment the demo runs in, `apptainer run --cleanenv` being
+  # the obvious one. Disagreeing with the app here would silently empty every
+  # user-filtered page.
   def self.me
-    ENV['USER'] || ENV['LOGNAME'] || 'demo'
+    @me ||= begin
+      require 'etc'
+      Etc.getpwuid(Process.uid).name
+    rescue StandardError
+      ENV['USER'] || ENV['LOGNAME'] || 'demo'
+    end
   end
 
   OTHER_USERS = %w[bmartin cwong dpatel efischer].freeze

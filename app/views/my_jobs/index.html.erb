@@ -54,9 +54,13 @@
             render: (data, type, row) => {
                 let linkToSession = "";
                 if (row[getColIndex("Session ID")] !== "N/A") {
-                    linkToSession = `
-                        (<a href="<%= files_path('fs', '') %>${row[getColIndex("Working Directory")]}">${row[getColIndex("Session ID")]}</a>)
-                    `;
+                    // Link into the Files app only when it is available; the
+                    // route does not exist on portals without it.
+                    linkToSession = FILES_BASE
+                        ? `
+                        (<a href="${FILES_BASE}${row[getColIndex("Working Directory")]}">${row[getColIndex("Session ID")]}</a>)
+                    `
+                        : ` (${row[getColIndex("Session ID")]})`;
                 }
                 let efficiencyWarning = "";
                 if (isLowTimeEff(row) || isLowCPUMemEff(row)) {
