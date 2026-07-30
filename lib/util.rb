@@ -110,15 +110,25 @@ module Util
   end
 
   # Based on jobsu script
+  #
+  # GPU-hour accounting rules are site policy, so which partitions are charged,
+  # which job ids predate the policy, and which QoS gets a discount all come
+  # from configuration. A site that charges nothing leaves
+  # `gpu_hours_partitions` unset and every job reports "N/A".
   def self.get_gpu_hours_usage(jobid, partition, qos, used_seconds, timelimit, reqtres)
-    # Gautschi-specific conditions for GPU hour calculation:
-    # Only jobs in the 'ai' partition are considered for GPU hours
-    # Also, job ids before 531648 are exempt from GPU hour calculations
-    if partition != 'ai' || jobid.partition(/\D/).first.to_i <= 531648
-      return ["N/A", "N/A"]
-    end
-    
-    charge_factor = qos == "preemptible" ? 0.25 : 1
+    charged_partitions = Configuration.gpu_hours_partitions
+    return ["N/A", "N/A"] unless charged_partitions.include?(partition)
+
+    # Jobs submitted before the policy took effect are exempt.
+    min_job_id = Configuration.gpu_hours_min_job_id.to_i
+    return ["N/A", "N/A"] if jobid.partition(/\D/).first.to_i <= min_job_id
+
+    discounted_qos = Configuration.gpu_hours_discounted_qos
+    charge_factor = if discounted_qos.present? && qos == discounted_qos
+                      Configuration.gpu_hours_discounted_charge_factor.to_f
+                    else
+                      1
+                    end
     used_hours = used_seconds / 3600.to_f
     reserved_hours = timelimit / 3600.to_f
     req_tres_hash = reqtres.split(",").map { |pair| pair.split("=") }.to_h
@@ -131,12 +141,12 @@ module Util
   end
 
   # jobstats' own shebang is `#!/usr/bin/env python3`, which on the OOD PUN
-  # host resolves to an interpreter without the `requests` module the tool
-  # needs. Invoke it instead with the self-contained interpreter bundled on
-  # the shared /apps mount, passing the jobstats script path directly so its
-  # local imports still resolve.
-  JOBSTATS_PYTHON = "/apps/rcac/tools/libexec/bin/python3.13".freeze
-  JOBSTATS_SCRIPT = "/apps/rcac/tools/py/apps/jobstats/jobstats".freeze
+  # host often resolves to an interpreter without the `requests` module the
+  # tool needs. So rather than executing the script directly, sites configure
+  # both an interpreter that has jobstats' dependencies
+  # (`OOD_JOBSTATS_PYTHON`) and the script path (`OOD_JOBSTATS_SCRIPT`), and we
+  # invoke the script as an argument to that interpreter so its local imports
+  # still resolve. Unset either one and job metrics are simply not collected.
   JOBSTATS_TIMEOUT_SECONDS = 8
 
   # Run jobstats for a raw job id and return the parsed JSON hash, cached 45s,
@@ -144,6 +154,7 @@ module Util
   # so this is the entry point used by the My Jobs batch endpoint (which has
   # already narrowed to GPU jobs client-side).
   def self.run_jobstats(job_id)
+    return nil unless Configuration.jobstats_enabled?
     return nil if job_id.nil? || job_id.to_s.empty?
     return nil unless /\A\d+(_\d+)?\z/.match?(job_id.to_s)
 
@@ -155,7 +166,7 @@ module Util
       stdout, stderr, status = Open3.capture3(
         { "PYTHONHOME" => nil, "PYTHONPATH" => nil },
         "timeout", "#{JOBSTATS_TIMEOUT_SECONDS}s",
-        JOBSTATS_PYTHON, JOBSTATS_SCRIPT, "-j", base_job_id
+        Configuration.jobstats_python, Configuration.jobstats_script, "-j", base_job_id
       )
 
       unless status.success?

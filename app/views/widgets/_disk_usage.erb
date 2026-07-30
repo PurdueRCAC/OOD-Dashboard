@@ -2,15 +2,7 @@
     <div class="d-flex align-items-center">
         <i class="fas fa-hdd text-info"></i>
         <span class="mx-2">Storage</span>
-        <a href="https://www.rcac.purdue.edu/knowledge/gautschi/storage/quota" 
-           class="ms-1" 
-           style="color: #6c757d; font-size: 1.1rem;"
-           data-toggle="tooltip" 
-           title="Click to learn more about storage on Gautschi"
-           aria-label="Documentation about storage on Gautschi"
-           target="_blank">
-            <i class="fas fa-info-circle" aria-hidden="true"></i>
-        </a>
+        <%= render "shared/docs_info_link", url: docs_storage_url, topic: "storage" %>
     </div>
     <button onclick="load_disk_usage(true)" 
             class="btn btn-sm action-btn"
@@ -72,9 +64,13 @@
                         `, true);
                     }
                 } else if (row.type === "scratch") {
-                    directoryPath = "/scratch/gautschi/<%= @user.name %>";
-                } else if (row.type === "depot") {
-                    directoryPath = `/depot/${row.location}`;
+                    // Scratch layout varies by site, so it comes from
+                    // OOD_SCRATCH_DIR_TEMPLATE; fall back to the generic
+                    // /<type>/<location> shape below when it is unset.
+                    directoryPath = <%= raw Configuration.scratch_dir_for(@user.name).to_s.to_json %> || `/${row.type}/${row.location}`;
+                } else {
+                    // Any other filesystem reported by the quota source.
+                    directoryPath = `/${row.type}/${row.location}`;
                 }
 
                 function formatNumber(num) {

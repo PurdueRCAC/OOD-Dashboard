@@ -4,7 +4,8 @@
       <h3 class="font-weight-bold mb-0 mr-3 text-nowrap">
         <i class="fas fa-bullhorn" style="color: #20c997"></i> Announcements
       </h3>
-      <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
+      <% if news_page_url.present? %>
+      <a href="<%= news_page_url %>"
          class="btn btn-sm action-btn text-nowrap d-none d-md-inline-block"
          style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.75rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
          onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
@@ -12,9 +13,11 @@
          target="_blank">
         <i class="far fa-newspaper mr-1"></i> View All <i class="fas fa-chevron-right ml-1" style="font-size: 0.75rem;"></i>
       </a>
+      <% end %>
     </div>
     <div class="d-flex align-items-center">
-      <a href="https://www.rcac.purdue.edu/news/gautschi?state=all&order_dir=desc" 
+      <% if news_page_url.present? %>
+      <a href="<%= news_page_url %>"
          class="btn btn-sm action-btn text-nowrap d-inline-block d-md-none mr-2"
          style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
          onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
@@ -23,7 +26,8 @@
          target="_blank">
         <i class="fas fa-external-link-alt"></i>
       </a>
-      <button onclick="load_news_feed(true)" 
+      <% end %>
+      <button onclick="load_news_feed(true)"
               class="btn btn-sm action-btn"
               style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.5rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
               onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"

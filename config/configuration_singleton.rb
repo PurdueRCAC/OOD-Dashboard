@@ -72,7 +72,112 @@ class ConfigurationSingleton
       :rclone_extra_config      => nil,
       :default_profile          => nil,
       :project_size_timeout     => '15'
-    }.freeze
+    }.merge(site_string_configs).freeze
+  end
+
+  # Site-specific string configurations.
+  #
+  # Every value below is a deployment detail that differs between sites (cluster
+  # naming, documentation deep links, news feed endpoints, local filesystem
+  # layout, local accounting rules). They are read exactly like the other
+  # string configs -- from `OOD_<KEY>` in the environment, or from the key in
+  # `/etc/ood/config/apps/dashboard/*.yml` -- so a site can configure the whole
+  # dashboard without patching views.
+  #
+  # `nil` is the "not configured" value throughout: features that need a value
+  # they do not have degrade gracefully (a doc link falls back to the general
+  # docs URL, the news feed widget hides itself, GPU accounting reports "N/A").
+  #
+  # Three further site configs are read the same way but are not listed here,
+  # because they need post-processing and so are defined as real methods below:
+  # `site_name` (falls back to the dashboard title), `excluded_partitions` and
+  # `gpu_hours_partitions` (both comma-separated lists).
+  #
+  # @return [Hash] key/value pairs of defaults
+  def site_string_configs
+    {
+      # Optional logo shown next to the site name in the sidebar brand.
+      :site_logo_url                      => nil,
+
+      # Documentation deep links. Each falls back to OOD_DASHBOARD_DOCS_URL.
+      :docs_accounts_url                  => nil,
+      :docs_partitions_url                => nil,
+      :docs_storage_url                   => nil,
+      :docs_nodes_url                     => nil,
+
+      # News feed widget. Expects a JSON endpoint shaped like the RCAC news
+      # API (see app/controllers/api/news_feed_controller.rb). Leave unset to
+      # hide the widget entirely.
+      :news_feed_url                      => nil,
+      # Optional resource name used to filter the feed to this cluster.
+      :news_feed_resource_filter          => nil,
+      # Human-facing news archive page linked from the widget header.
+      :news_page_url                      => nil,
+
+      # Scratch directory offered as a shortcut in the disk usage widget.
+      # `$USER` is expanded to the current user's name.
+      :scratch_dir_template               => nil,
+
+      # GPU-hour accounting. Sites that do not charge for GPU hours can leave
+      # these unset, in which case GPU hours are reported as "N/A".
+      # Jobs numbered at or below this id predate GPU accounting and are exempt.
+      :gpu_hours_min_job_id               => nil,
+      # QoS that is charged at a reduced rate, and that rate.
+      :gpu_hours_discounted_qos           => nil,
+      :gpu_hours_discounted_charge_factor => '0.25',
+
+      # jobstats integration. Both must be set for per-job utilization metrics
+      # to appear; see README for why an explicit interpreter is needed.
+      :jobstats_python                    => nil,
+      :jobstats_script                    => nil
+    }
+  end
+
+  # Read a site config that needs post-processing, rather than being surfaced
+  # verbatim by `add_string_configs`. Same precedence as the generated
+  # accessors: environment variable first, then the external config file.
+  #
+  # @return [String, nil] raw configured value
+  def site_config(key)
+    value = ENV["OOD_#{key.to_s.upcase}"]
+    value.nil? ? config[key] : value
+  end
+
+  # Comma-separated site config parsed into a list of trimmed, non-empty values.
+  #
+  # @return [Array<String>]
+  def site_config_list(key)
+    site_config(key).to_s.split(',').map(&:strip).reject(&:empty?)
+  end
+
+  # @return [String] site display name, falling back to the dashboard title
+  def site_name
+    site_config(:site_name).presence || OodAppkit.dashboard.title
+  end
+
+  # @return [Array<String>] partitions to hide from the partition status widget
+  def excluded_partitions
+    site_config_list(:excluded_partitions)
+  end
+
+  # @return [Array<String>] partitions charged for GPU hours; empty means none
+  def gpu_hours_partitions
+    site_config_list(:gpu_hours_partitions)
+  end
+
+  # @return [Boolean] whether per-job jobstats metrics can be collected
+  def jobstats_enabled?
+    jobstats_python.present? && jobstats_script.present?
+  end
+
+  # @return [Boolean] whether the news feed widget has an endpoint to call
+  def news_feed_enabled?
+    news_feed_url.present?
+  end
+
+  # @return [String, nil] scratch directory for the given user, if configured
+  def scratch_dir_for(user)
+    scratch_dir_template&.gsub('$USER', user.to_s).presence
   end
 
   # @return [String] memoized version string

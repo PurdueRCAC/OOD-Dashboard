@@ -39,6 +39,41 @@ module ApplicationHelper
     ENV['OOD_DASHBOARD_DOCS_URL']
   end
 
+  # Short display name of this cluster or service, used anywhere the UI names
+  # the site ("<site> User Guide", "... on <site>").
+  def site_name
+    Configuration.site_name
+  end
+
+  # Optional site logo shown beside the site name in the sidebar brand.
+  def site_logo_url
+    Configuration.site_logo_url
+  end
+
+  # Documentation deep links. Each one narrows the general docs URL to the page
+  # about a particular topic; when a site has not configured the specific page
+  # we link to its general documentation rather than dropping the link.
+  def docs_accounts_url
+    Configuration.docs_accounts_url.presence || docs_url
+  end
+
+  def docs_partitions_url
+    Configuration.docs_partitions_url.presence || docs_url
+  end
+
+  def docs_storage_url
+    Configuration.docs_storage_url.presence || docs_url
+  end
+
+  def docs_nodes_url
+    Configuration.docs_nodes_url.presence || docs_url
+  end
+
+  # Human-facing news archive, linked from the news feed widget header.
+  def news_page_url
+    Configuration.news_page_url
+  end
+
   def configure_2fa_url
     ENV['OOD_DASHBOARD_2FA_URL']
   end

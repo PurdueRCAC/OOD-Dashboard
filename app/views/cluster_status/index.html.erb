@@ -10,14 +10,7 @@
             <div class="d-flex align-items-center">
               <i class="fas fa-server text-primary"></i>
               <span class="mx-2">Cluster Status</span>
-              <a href="https://www.rcac.purdue.edu/compute/gautschi#gautschi_specifications"
-                 style="color: #6c757d; font-size: 1.1rem;"
-                 data-toggle="tooltip" 
-                 title="Click to learn more about compute node specifications on Gautschi"
-                 aria-label="Documentation about compute nodes on Gautschi"
-                 target="_blank">
-                  <i class="fas fa-info-circle" aria-hidden="true"></i>
-              </a>
+              <%= render "shared/docs_info_link", url: docs_nodes_url, topic: "compute node specifications" %>
             </div>
             <div class="d-flex align-items-center">
               <small id="last-updated" class="d-none d-md-block font-weight-semibold mr-3" style="font-size: 13pt;">

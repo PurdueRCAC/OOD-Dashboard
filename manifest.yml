@@ -1,3 +1,12 @@
 ---
-name: Ood Dashboard
-description: stuff
+name: HPC Dashboard
+category: Dashboard
+subcategory: Portal
+role: dashboard
+description: |-
+  A drop-in replacement for the Open OnDemand dashboard that adds cluster-aware
+  monitoring to the standard portal: allocation and service-unit balances,
+  storage quotas, partition and node status, a searchable job history with
+  per-job efficiency metrics, and a site news/announcements feed.
+icon: fa://tachometer-alt
+new_window: false

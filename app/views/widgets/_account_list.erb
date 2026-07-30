@@ -2,15 +2,7 @@
     <div class="d-flex align-items-center">
         <i class="fas fa-layer-group text-warning"></i>
         <span class="mx-2">Accounts</span>
-        <a href="https://docs.rcac.purdue.edu/userguides/negishi/run_jobs/queues/" 
-           class="ms-1" 
-           style="color: #6c757d; font-size: 1.1rem;"
-           data-toggle="tooltip" 
-           title="Click to learn more about accounts and queues on Gautschi"
-           aria-label="Documentation about accounts and queues on Gautschi"
-           target="_blank">
-            <i class="fas fa-info-circle" aria-hidden="true"></i>
-        </a>
+        <%= render "shared/docs_info_link", url: docs_accounts_url, topic: "accounts and queues" %>
     </div>
     <button onclick="load_account_list(true)" 
             class="btn btn-sm action-btn"
@@ -78,7 +70,7 @@
                 const worksheet = XLSX.utils.aoa_to_sheet(exportData);
                 var workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1');
-                XLSX.writeFile(workbook, `gautschi_service_units_${allocation}_${Date.now()}.${EXPORT_TYPES[type]}`, { compression: true });
+                XLSX.writeFile(workbook, `<%= site_name.parameterize(separator: '_') %>_service_units_${allocation}_${Date.now()}.${EXPORT_TYPES[type]}`, { compression: true });
             } else {
                 toastr.error("Invalid export file type");
             }

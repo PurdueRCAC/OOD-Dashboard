@@ -6,6 +6,31 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- `appverse.yml` declaring catalog metadata for the
+  [OOD Appverse](https://openondemand.connectci.org/appverse).
+- A site configuration layer (`site_string_configs` in
+  `config/configuration_singleton.rb`) covering site name and logo, per-topic
+  documentation links, the news feed endpoint and filter, scratch directory
+  layout, excluded partitions, GPU-hour accounting rules, and jobstats paths.
+  Every key is readable from `OOD_<KEY>` in the environment or from
+  `/etc/ood/config/apps/dashboard/*.yml`.
+- `docs/DEVELOPMENT.md` with sandbox setup, local-run, and contribution notes.
+- `app/views/shared/_docs_info_link.html.erb`, replacing five copies of the
+  per-widget documentation info icon.
+
+### Changed
+- Site-specific values are no longer hardcoded in views, controllers, or
+  `lib/util.rb`; the dashboard can be deployed at another site by configuration
+  alone. Features with no configuration hide themselves or report `N/A` instead
+  of failing.
+- `README.md` rewritten for administrators deploying the app, with a full
+  configuration reference.
+- `.env.local.example` expanded into an annotated list of every site config key.
+- `install.sh` takes the repository from `REPO_SLUG`/`REPO_HOST` and builds the
+  access URL from the host's FQDN, instead of hardcoding Purdue URLs.
+- `manifest.yml` given a real name, category, role, and description.
+- `LICENSE.txt` renamed to `LICENSE` and Purdue's copyright added alongside OSC's.
 
 ## [1.36.0] - 2019-09-19
 ### Added

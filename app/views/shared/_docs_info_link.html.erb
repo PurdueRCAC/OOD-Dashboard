@@ -1,0 +1,20 @@
+<%#
+  Small info icon linking to this site's documentation about one topic.
+
+  Locals:
+    url   - documentation URL; the link is omitted entirely when blank, so a
+            site that has configured no documentation gets no dead links.
+    topic - what the page documents, e.g. "partitions". Used in the tooltip
+            and accessible label alongside the site name.
+%>
+<% if url.present? %>
+  <a href="<%= url %>"
+     class="ms-1"
+     style="color: #6c757d; font-size: 1.1rem;"
+     data-toggle="tooltip"
+     title="Click to learn more about <%= topic %> on <%= site_name %>"
+     aria-label="Documentation about <%= topic %> on <%= site_name %>"
+     target="_blank">
+      <i class="fas fa-info-circle" aria-hidden="true"></i>
+  </a>
+<% end %>

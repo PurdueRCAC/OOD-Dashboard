@@ -2,15 +2,7 @@
     <div class="d-flex align-items-center">
         <i class="fas fa-server text-primary"></i>
         <span class="mx-2">System Status</span>
-        <a href="https://www.rcac.purdue.edu/knowledge/gautschi/run/slurm/submit" 
-           class="ms-1" 
-           style="color: #6c757d; font-size: 1.1rem;"
-           data-toggle="tooltip" 
-           title="Click to learn more about partitions on Gautschi"
-           aria-label="Documentation about partitions on Gautschi"
-           target="_blank">
-            <i class="fas fa-info-circle" aria-hidden="true"></i>
-        </a>
+        <%= render "shared/docs_info_link", url: docs_partitions_url, topic: "partitions" %>
     </div>
     <button onclick="load_partition_status(true)" 
             class="btn btn-sm action-btn"

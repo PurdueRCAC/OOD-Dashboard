@@ -1,17 +1,9 @@
-<!-- This code is from the Anvil service unit widget -->
+<!-- Derived from the Anvil service unit widget -->
 <h3 class="font-weight-bold mb-3 d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center">
         <i class="fas fa-coins text-warning"></i>
         <span class="mx-2">Balance Usage</span>
-        <a href="https://docs.rcac.purdue.edu/userguides/negishi/run_jobs/queues/" 
-           class="ms-1" 
-           style="color: #6c757d; font-size: 1.1rem;"
-           data-toggle="tooltip" 
-           title="Click to learn more about queues on Gautschi"
-           aria-label="Documentation about queues on Gautschi"
-           target="_blank">
-            <i class="fas fa-info-circle" aria-hidden="true"></i>
-        </a>
+        <%= render "shared/docs_info_link", url: docs_accounts_url, topic: "queues" %>
     </div>
     <button onclick="load_balance_usage(true)" class="btn btn-sm btn-outline-secondary rounded-pill shadow-sm">
         <i class="fas fa-sync-alt"></i>

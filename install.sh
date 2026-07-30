@@ -27,21 +27,31 @@ function check_nvm {
   fi
 }
 
-# Check if the script is running from the Gautschi-OOD-Dashboard repository
-REPO_URL="https://github.rcac.purdue.edu/RCAC-Staff/Gautschi-OOD-Dashboard"
+# Upstream repository. Override REPO_SLUG to install from a fork.
+REPO_SLUG="${REPO_SLUG:-purdue-rcac/ood-hpc-dashboard}"
+REPO_HOST="${REPO_HOST:-github.com}"
+REPO_URL="https://${REPO_HOST}/${REPO_SLUG}"
+REPO_SSH_URL="git@${REPO_HOST}:${REPO_SLUG}.git"
+
+# Hostname used to build the "you can reach it here" URL at the end. Falls back
+# to this host's FQDN, which is correct when running on the OOD web node.
+OOD_HOST="${OOD_HOST:-$(hostname -f 2>/dev/null || hostname)}"
+
+# Check whether we are already inside a checkout of this repository, in which
+# case we install in place rather than cloning again.
 USE_CURRENT_DIR=false
 
 if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   REMOTE_URL=$(git config --get remote.origin.url)
-  if [[ "$REMOTE_URL" == "$REPO_URL" || "$REMOTE_URL" == "git@github.rcac.purdue.edu:RCAC-Staff/Gautschi-OOD-Dashboard.git" ]]; then
-    USE_CURRENT_DIR=true
-  fi
+  case "$REMOTE_URL" in
+    *"${REPO_SLUG}"*) USE_CURRENT_DIR=true ;;
+  esac
 fi
 
 if $USE_CURRENT_DIR; then
   DASHBOARD_DIR=$(pwd)
   FOLDER_NAME=$(basename "$DASHBOARD_DIR")
-  info "Detected script is running from the Gautschi-OOD-Dashboard repository. Using current directory: $DASHBOARD_DIR"
+  info "Detected script is running from a $REPO_SLUG checkout. Using current directory: $DASHBOARD_DIR"
 else
   # Define the base directory
   BASE_DIR="$HOME/ondemand/dev"
@@ -76,9 +86,9 @@ else
   read -p "Do you want to clone using SSH? (yes/no): " use_ssh
 
   if [ "$use_ssh" == "yes" ]; then
-    git clone git@github.rcac.purdue.edu:RCAC-Staff/Gautschi-OOD-Dashboard.git "$DASHBOARD_DIR" >/dev/null 2>&1
+    git clone "$REPO_SSH_URL" "$DASHBOARD_DIR" >/dev/null 2>&1
   else
-    git clone https://github.rcac.purdue.edu/RCAC-Staff/Gautschi-OOD-Dashboard "$DASHBOARD_DIR" >/dev/null 2>&1
+    git clone "$REPO_URL" "$DASHBOARD_DIR" >/dev/null 2>&1
   fi
 
   if [ $? -eq 0 ]; then
@@ -262,5 +272,5 @@ fi
 
 # Success message with the access URL
 success "Dashboard setup completed successfully!"
-info "You can access the development dashboard at https://gateway.gautschi.rcac.purdue.edu/pun/dev/$FOLDER_NAME/"
+info "You can access the development dashboard at https://${OOD_HOST}/pun/dev/$FOLDER_NAME/"
 info "If you receive a message saying 'App has not been initialized or does not exist,' please click the 'Initialize App' button."

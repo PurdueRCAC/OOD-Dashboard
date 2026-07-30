@@ -1,0 +1,27 @@
+---
+title: "HPC Dashboard"
+
+description: |
+  A drop-in replacement for the Open OnDemand dashboard that adds cluster-aware
+  monitoring to the standard portal. Alongside the usual app launcher and
+  interactive session management it surfaces allocation and service-unit
+  balances, storage quotas, live partition and node status, a searchable job
+  history with per-job CPU/GPU efficiency metrics, and a site
+  news/announcements feed. All site-specific values (cluster name, filesystem
+  layout, documentation links, news endpoint, GPU accounting rules) are
+  configuration, so it can be deployed without patching views.
+
+software: "Open OnDemand"
+
+app_type: "dashboard"
+
+implementation_tags:
+  - "passenger"
+  - "api"
+
+maintainer:
+  name: "Purdue RCAC"
+  support_url: "https://github.com/purdue-rcac/ood-hpc-dashboard/issues"
+
+website: "https://github.com/purdue-rcac/ood-hpc-dashboard"
+docs: "https://github.com/purdue-rcac/ood-hpc-dashboard#readme"

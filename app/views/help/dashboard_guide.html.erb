@@ -1,7 +1,7 @@
 <div class="container mt-4">
   <div class="row">
     <div class="col-12">
-      <h1 class="mb-4">Gautschi Dashboard Guide</h1>
+      <h1 class="mb-4"><%= site_name %> Dashboard Guide</h1>
       
       <div class="card mb-4">
         <div class="card-body">
@@ -9,7 +9,7 @@
             <i class="fas fa-chart-bar text-primary"></i> 
             Balance & Usage
           </h2>
-          <p>Monitor your allocation usage and remaining balance on Gautschi.</p>
+          <p>Monitor your allocation usage and remaining balance on <%= site_name %>.</p>
           
           <h4 class="mt-3">How to Use:</h4>
           <ul class="list-unstyled ml-4">
@@ -30,7 +30,7 @@
             <i class="fas fa-hdd text-warning"></i> 
             Disk Usage
           </h2>
-          <p>Monitor your storage utilization across Gautschi's file systems.</p>
+          <p>Monitor your storage utilization across <%= site_name %>'s file systems.</p>
           
           <h4 class="mt-3">Storage Information:</h4>
           <ul class="list-unstyled ml-4">
@@ -51,7 +51,7 @@
             <i class="fas fa-tasks text-success"></i> 
             Job Queue
           </h2>
-          <p>View and manage your running and queued jobs on Gautschi.</p>
+          <p>View and manage your running and queued jobs on <%= site_name %>.</p>
           
           <h4 class="mt-3">Features:</h4>
           <ul class="list-unstyled ml-4">
@@ -76,7 +76,7 @@
             <i class="fas fa-newspaper text-info"></i>
             News Feed
           </h2>
-          <p>Stay updated with the latest Gautschi news and announcements.</p>
+          <p>Stay updated with the latest <%= site_name %> news and announcements.</p>
           
           <h4 class="mt-3">Information Available:</h4>
           <ul class="list-unstyled ml-4">
@@ -97,7 +97,7 @@
             <i class="fas fa-server text-primary"></i> 
             Partition Status
           </h2>
-          <p>Monitor the current state of Gautschi's compute partitions.</p>
+          <p>Monitor the current state of <%= site_name %>'s compute partitions.</p>
           
           <h4 class="mt-3">Status Information:</h4>
           <ul class="list-unstyled ml-4">
@@ -122,7 +122,7 @@
             <i class="fas fa-server text-primary"></i> 
             Cluster Status
           </h2>
-          <p>Get a comprehensive view of Gautschi's compute nodes and their current status.</p>
+          <p>Get a comprehensive view of <%= site_name %>'s compute nodes and their current status.</p>
           
           <h4 class="mt-3">Features:</h4>
           <ul class="list-unstyled ml-4">
@@ -286,9 +286,11 @@
 
       <div class="text-center mb-4">
         <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-3">
-          <a href="https://www.rcac.purdue.edu/help" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0">
-            <i class="fas fa-question-circle"></i> Need Help?
-          </a>
+          <% if support_url.present? %>
+            <a href="<%= support_url %>" class="btn btn-primary w-100 w-md-auto mb-2 mb-md-0">
+              <i class="fas fa-question-circle"></i> Need Help?
+            </a>
+          <% end %>
           <a href="<%= root_path %>" class="btn btn-secondary w-100 w-md-auto">
             <i class="fas fa-arrow-left"></i> Back to Dashboard
           </a>
