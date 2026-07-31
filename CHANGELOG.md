@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   `ruby-openai` gems, and the `OPENAI_*` keys. It was never enabled, and
   shipping a disabled integration with API-key placeholders in a catalog
   submission invites questions it does not answer.
+- `demo/Dockerfile` installs Node from the official tarball rather than apt.
+  Debian bullseye ships Node 12.22 and `sass` requires >= 14, so `yarn install`
+  failed outright on the distro package.
 - `demo/Dockerfile` brought in line with the Apptainer recipe: sibling core-app
   layout, all gem groups installed, and the OOD app URLs set, all of which the
   Apptainer build proved were needed outside a real portal.

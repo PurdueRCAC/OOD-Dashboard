@@ -20,13 +20,18 @@
 
 FROM ruby:3.1-bullseye
 
-# Node and Yarn build the CSS/JS bundles. (The Apptainer recipe fetches Node as
-# a tarball instead, because apt needs a privilege it does not have there; here
-# the build genuinely runs as root, so apt is fine.)
-RUN apt-get update \
- && apt-get install -y --no-install-recommends nodejs npm tzdata \
- && npm install -g yarn@1 \
- && rm -rf /var/lib/apt/lists/*
+# Node and Yarn build the CSS/JS bundles.
+#
+# Fetched as an official tarball rather than installed with apt, matching the
+# Apptainer recipe. Not a stylistic choice: bullseye's `nodejs` package is
+# 12.22, and sass 1.70 requires >= 14, so `yarn install` fails outright on the
+# distro version. Bump NODE_VERSION here and in demo/apptainer.def together.
+ENV NODE_VERSION=18.20.4
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      | tar -xJ --no-same-owner -C /opt \
+ && mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node \
+ && /opt/node/bin/npm install -g yarn@1
+ENV PATH=/opt/node/bin:$PATH
 
 # The dashboard identifies the user from the process uid (OodSupport::User, and
 # the demo dataset), so run as a real user that exists in /etc/passwd.
@@ -51,14 +56,18 @@ COPY . .
 
 # Assets are served from the root here, not from a PUN sub-path.
 ENV RAILS_ENV=development \
-    RAILS_RELATIVE_URL_ROOT=/ \
-    SECRET_KEY_BASE=demo-only-not-a-secret
+    RAILS_RELATIVE_URL_ROOT=/
 # .dockerignore keeps the committed build output out of the context, so create
 # the directory the bundlers write into before invoking them.
+#
+# SECRET_KEY_BASE is scoped to this one command rather than set as an ENV: it is
+# only needed while precompiling, and a persistent ENV both bakes it into the
+# image and trips Docker's SecretsUsedInArgOrEnv check. In development Rails
+# generates its own key at boot, so nothing needs it at runtime.
 RUN mkdir -p app/assets/builds \
  && yarn build \
  && yarn build:css \
- && bundle exec rails assets:precompile
+ && SECRET_KEY_BASE=build-time-only bundle exec rails assets:precompile
 
 # Sibling core apps, so Configuration#can_access_files? and friends are true.
 RUN for a in files activejobs projects file-editor; do \

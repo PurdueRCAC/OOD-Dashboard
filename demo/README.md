@@ -104,16 +104,12 @@ docker run --rm -p 3000:3000 ood-hpc-dashboard:demo
 ```
 
 It mirrors the Apptainer recipe: same sibling-app layout, same gem install,
-same runtime environment. The one deliberate difference is that it installs
-Node with `apt`, which is fine because a Docker build genuinely runs as root.
+same Node tarball, same runtime environment.
 
-> **The image has never been built** — no container runtime was available where
-> it was written, whereas the Apptainer recipe was built and run. What *is*
-> verified on every change: that each `COPY` source and every file the build
-> references exists, and that the exact runtime environment it sets boots the
-> app with all pages and endpoints serving. The untested part is the build
-> itself. If it needs a fix, the `rails server` command above gives the
-> identical demo.
+Both fetch Node as an official tarball rather than using the distro package.
+That is required, not preference — Debian bullseye ships Node 12.22 and
+`sass` needs >= 14, so `yarn install` fails on the apt version. If you bump
+`NODE_VERSION`, bump it in both files.
 
 A `.dockerignore` keeps the git history, `node_modules`, stale compiled assets
 and any local `.env` out of the build context — the last of those would
