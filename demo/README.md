@@ -10,6 +10,23 @@ OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 
 A dark banner across the top marks every page as demo data.
 
+## Checking it works
+
+```bash
+demo/smoke.sh                        # defaults to http://localhost:3000
+demo/smoke.sh http://localhost:8080
+```
+
+Requests every page and JSON endpoint, follows a real job id and node name out
+of the running instance to test the detail pages, and reports whether the demo
+banner is present. Exits non-zero if anything fails, so it works in CI too.
+
+JSON endpoints are also checked for a non-trivial body: several return `200`
+with an empty list when their data source is missing, which is exactly the
+failure worth catching. It is equally useful against a real deployment — there
+an empty Storage or Accounts result means the site configuration is not wired
+up.
+
 ## What you can click through
 
 | Page | What the demo shows |

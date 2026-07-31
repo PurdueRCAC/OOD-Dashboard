@@ -41,6 +41,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   rather than raising.
 
 ### Added
+- `demo/smoke.sh`, which requests every page and endpoint against a running
+  instance and exits non-zero on failure. Useful for verifying a container or a
+  real deployment.
 - `.dockerignore`, keeping the git history, `node_modules`, stale build output
   and any local `.env` out of the Docker build context.
 - A demo message-of-the-day fixture, so `MotdFile` stops logging a warning on
