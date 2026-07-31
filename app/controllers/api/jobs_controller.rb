@@ -338,13 +338,6 @@ module Api
                 connection_html += ApplicationController.renderer.render(partial: "batch_connect/sessions/connections/starting")
               elsif session.queued?
                 connection_html += ApplicationController.renderer.render(partial: "batch_connect/sessions/connections/queued")
-                # elsif session.completed?
-                #   connection_html += ApplicationController.renderer.render(
-                #     partial: "batch_connect/sessions/connections/completed",
-                #     locals: { session: session }
-                #   )
-                # else
-                #   connection_html += ApplicationController.renderer.render(partial: "batch_connect/sessions/connections/bad")
               end
             end
           end

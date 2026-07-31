@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   `ruby-openai` gems, and the `OPENAI_*` keys. It was never enabled, and
   shipping a disabled integration with API-key placeholders in a catalog
   submission invites questions it does not answer.
+- Commented-out dead code in `api/account_list_controller.rb` (an alternative
+  `sacct` shell-out and a GPU-hour summation superseded by the live
+  calculation) and `api/jobs_controller.rb` (two disabled branches of a session
+  connection `elsif` chain).
 
 ### Fixed
 - The dashboard home page and My Jobs no longer raise `undefined method

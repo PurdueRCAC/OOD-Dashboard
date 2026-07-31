@@ -7,22 +7,11 @@ module Api
       myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds) do
         scontrol_output, scontrol_status = Open3.capture2("scontrol show assoc users=#{user} accounts=#{allocations} flags=assoc -o | tail -n +3")
         squeue_output, squeue_status = Open3.capture2("squeue -h --array -A #{allocations} -t PENDING,REQUEUED -a -r -o '%.60a|%C' | awk '{$1=$1}1'")
-        # sacct_output, sacct_status = Open3.capture2("sacct -X --array -S now-9999weeks -E now -o account,qos,reqtres,elapsedraw -r ai -u #{user} -A #{allocations} -P -n")
 
-        # if scontrol_status.success? && squeue_status.success? && sacct_status.success?
         if scontrol_status.success? && squeue_status.success?
           cpu_queued_sums = squeue_output.scan(/(.+?)\|(\d+)/).each_with_object(Hash.new(0)) do |(account, cpus), h|
             h[account] += cpus.to_i
           end
-
-          # sacct-calculated gpu hours are more precise but likely not necessary
-          # user_gpu_hour_sums = sacct_output.lines.each_with_object(Hash.new(0)) do |line, h|
-          #   account, qos, reqtres, elapsed_raw = line.strip.split('|')
-          #   reqtres_hash = reqtres.split(",").map { |pair| pair.split("=") }.to_h
-          #   gpus = reqtres_hash["gres/gpu"].to_i
-          #   hours = elapsed_raw.to_f / 3600
-          #   h[account] += (qos == 'preemptible' ? 0.25 : 1) * gpus * hours
-          # end
 
           parsed_data = Util.scontrol_to_hash(scontrol_output)
           parsed_data.select { |line_h| line_h["UserName"].blank? }.map { |line_h|
