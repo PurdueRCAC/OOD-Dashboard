@@ -38,6 +38,12 @@ if ActiveModel::Type::Boolean.new.cast(ENV['OOD_DEMO_MODE']).present?
 
       'OOD_SCRATCH_DIR_TEMPLATE'     => '/scratch/demo/$USER',
 
+      # Give the message-of-the-day widget something to show. Without a path
+      # MotdFile logs a warning on every request, which reads like a fault in a
+      # demo people are inspecting.
+      'MOTD_PATH'                    => Rails.root.join('demo', 'fixtures', 'motd.md').to_s,
+      'MOTD_FORMAT'                  => 'markdown',
+
       # Stubbed by demo/bin/myquota, which emits three header lines.
       'OOD_QUOTA_COMMAND'            => 'myquota',
       'OOD_QUOTA_COMMAND_SKIP_LINES' => '3',

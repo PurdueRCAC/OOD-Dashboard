@@ -1,0 +1,28 @@
+# Keep the build context small and the image reproducible. Without this, the
+# Dockerfile's `COPY . .` drags in the git history, whatever node_modules and
+# compiled assets happen to be lying around, and any local .env -- which would
+# bake site configuration, or secrets, into the image.
+.git
+.github
+node_modules
+tmp
+log
+public/assets
+public/packs
+# 6.7MB of committed build output; the image regenerates it via `yarn build`,
+# and the Dockerfile creates the directory first so the build does not depend on
+# each tool creating its own output directory.
+app/assets/builds
+
+# Local configuration and credentials: never copy these into an image.
+.env
+.env.*
+!.env.local.example
+
+# Bundler config, so the image's own `bundle install` settings are not
+# overwritten by whatever the host had configured.
+.bundle
+vendor/bundle
+
+*.sif
+*.log

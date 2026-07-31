@@ -40,12 +40,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   account is read as CPU-denominated. An invalid pattern is logged and ignored
   rather than raising.
 
+### Added
+- `.dockerignore`, keeping the git history, `node_modules`, stale build output
+  and any local `.env` out of the Docker build context.
+- A demo message-of-the-day fixture, so `MotdFile` stops logging a warning on
+  every request in demo mode.
+
 ### Removed
 - The dormant LLM job-summary experiment: the commented-out Langchain/OpenAI
   block in `job_info_controller.rb`, the commented `langchainrb` and
   `ruby-openai` gems, and the `OPENAI_*` keys. It was never enabled, and
   shipping a disabled integration with API-key placeholders in a catalog
   submission invites questions it does not answer.
+- `demo/Dockerfile` brought in line with the Apptainer recipe: sibling core-app
+  layout, all gem groups installed, and the OOD app URLs set, all of which the
+  Apptainer build proved were needed outside a real portal.
 - Commented-out dead code in `api/account_list_controller.rb` (an alternative
   `sacct` shell-out and a GPU-hour summation superseded by the live
   calculation) and `api/jobs_controller.rb` (two disabled branches of a session

@@ -23,7 +23,7 @@ A dark banner across the top marks every page as demo data.
 | Dashboard Guide | The in-portal help page |
 
 Populated with: 7 partitions, 82 nodes (including L40 and H100 GPU nodes), 250
-jobs across 6 states, 4 allocations (one GPU-denominated), 4 filesystems, and 6
+jobs across 6 states, 4 allocations (one GPU-denominated), 4 filesystems, 6
 announcements including a live outage and an upcoming maintenance window.
 
 ## How it works
@@ -36,7 +36,13 @@ stub executables stand in for the real tools:
 demo/bin/sinfo  squeue  sacct  sacctmgr  scontrol  scancel  myquota  jobstats
 demo/lib/demo_cluster.rb     one seeded, self-consistent fake cluster
 demo/fixtures/news.json      announcements feed
+demo/fixtures/motd.md        message of the day
 ```
+
+`motd.md` is configured but not shown: this fork's dashboard does not place the
+MOTD widget on its home page. It exists because `MotdFile` logs a warning on
+every request when no path is set, which reads like a fault in a demo people
+are inspecting. Sites that do render the widget get a working example.
 
 Every stub reads the same `demo_cluster.rb` dataset, so the nodes `sinfo`
 summarises are the nodes `scontrol` lists, and the jobs `squeue` shows are the
@@ -97,9 +103,21 @@ docker build -f demo/Dockerfile -t ood-hpc-dashboard:demo .
 docker run --rm -p 3000:3000 ood-hpc-dashboard:demo
 ```
 
-> The `Dockerfile` was written without a container runtime available and has
-> **not been executed** — unlike the Apptainer recipe, which was. If the image
-> build needs a fix, the `rails server` command above gives the identical demo.
+It mirrors the Apptainer recipe: same sibling-app layout, same gem install,
+same runtime environment. The one deliberate difference is that it installs
+Node with `apt`, which is fine because a Docker build genuinely runs as root.
+
+> **The image has never been built** — no container runtime was available where
+> it was written, whereas the Apptainer recipe was built and run. What *is*
+> verified on every change: that each `COPY` source and every file the build
+> references exists, and that the exact runtime environment it sets boots the
+> app with all pages and endpoints serving. The untested part is the build
+> itself. If it needs a fix, the `rails server` command above gives the
+> identical demo.
+
+A `.dockerignore` keeps the git history, `node_modules`, stale compiled assets
+and any local `.env` out of the build context — the last of those would
+otherwise bake site configuration, or secrets, into the image.
 
 ## Refreshing the announcements
 

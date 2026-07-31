@@ -44,9 +44,9 @@ apptainer run --cleanenv dashboard-demo.sif
 ```
 
 `--cleanenv` matters: without it the host's `LD_PRELOAD` (XALT) leaks in and the
-container will not start. A `demo/Dockerfile` is provided too, though unlike the
-Apptainer recipe it has not been executed. See [demo/README.md](demo/README.md).
-Demo mode is opt-in and inert when off.
+container will not start. A `demo/Dockerfile` mirrors it for Docker sites,
+though unlike the Apptainer recipe that image has not been built — see
+[demo/README.md](demo/README.md). Demo mode is opt-in and inert when off.
 
 ## Screenshots
 
