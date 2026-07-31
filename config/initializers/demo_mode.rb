@@ -38,6 +38,13 @@ if ActiveModel::Type::Boolean.new.cast(ENV['OOD_DEMO_MODE']).present?
 
       'OOD_SCRATCH_DIR_TEMPLATE'     => '/scratch/demo/$USER',
 
+      # Stubbed by demo/bin/myquota, which emits three header lines.
+      'OOD_QUOTA_COMMAND'            => 'myquota',
+      'OOD_QUOTA_COMMAND_SKIP_LINES' => '3',
+
+      # The demo's "vision-gpu" allocation is denominated in GPU minutes.
+      'OOD_GPU_ACCOUNT_PATTERN'      => '-gpu\z',
+
       # Charge the two GPU partitions, with no historical cutoff, so the GPU
       # hour columns and charts are populated.
       'OOD_GPU_HOURS_PARTITIONS'     => 'ai,gpu',

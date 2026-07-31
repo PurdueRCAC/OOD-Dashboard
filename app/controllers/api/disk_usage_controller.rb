@@ -1,23 +1,52 @@
+require "open3"
+
 module Api
   class DiskUsageController < ApplicationController
-    def get
-      myquota = Rails.cache.fetch("disk_usage/#{@user.name}", expires_in: 60.seconds, race_condition_ttl: 3.seconds) do
-        output = `myquota #{@user.name}`
+    # Columns the quota command is expected to emit, in order.
+    COLUMNS = %i[
+      type location disk_usage disk_usage_limit disk_usage_percentage
+      file_count file_count_limit file_count_percentage
+    ].freeze
 
-        if $?.success?
-          output
-        else
-          return false
-        end
+    def get
+      # No portable way to ask a cluster for quotas, so this is a site-local
+      # command. Without one configured the widget has nothing to show; report
+      # that as "no filesystems" rather than an error, so the page still renders.
+      return render(json: [].to_json, status: :ok) unless ::Configuration.quota_command_enabled?
+
+      quotas = Rails.cache.fetch(cache_key, expires_in: 60.seconds, race_condition_ttl: 3.seconds) do
+        output, status = Open3.capture2(::Configuration.quota_command, @user.name)
+
+        next nil unless status.success?
+
+        parse(output)
       end
 
-      if myquota
-        render json: myquota.split("\n").drop(3).map { |line|
-          s = line.split
-          { type: s[0], location: s[1], disk_usage: s[2], disk_usage_limit: s[3], disk_usage_percentage: s[4], file_count: s[5], file_count_limit: s[6], file_count_percentage: s[7] }
-        }.to_json, status: :ok
+      if quotas
+        render json: quotas.to_json, status: :ok
       else
         head :internal_server_error
+      end
+    end
+
+    private
+
+    # The command is site configuration, so a change to it must not keep serving
+    # rows parsed from the previous one.
+    def cache_key
+      ["disk_usage", @user.name, ::Configuration.quota_command].join("/")
+    end
+
+    # Skips the command's header rows, then reads whitespace-separated columns.
+    # Short rows are dropped rather than yielding entries full of nils.
+    def parse(output)
+      skip = ::Configuration.quota_command_skip_lines.to_i
+
+      output.split("\n").drop(skip).filter_map do |line|
+        fields = line.split
+        next if fields.size < COLUMNS.size
+
+        COLUMNS.zip(fields).to_h
       end
     end
   end

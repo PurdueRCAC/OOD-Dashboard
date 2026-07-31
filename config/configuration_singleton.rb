@@ -121,6 +121,25 @@ class ConfigurationSingleton
       # `$USER` is expanded to the current user's name.
       :scratch_dir_template               => nil,
 
+      # Command the Storage widget runs to report filesystem quotas, given the
+      # username as its only argument. There is no portable way to ask a cluster
+      # this, so it is a site-local wrapper; leave unset and the widget hides
+      # itself. Its output must be whitespace-separated columns:
+      #   type location disk_used disk_limit disk_pct files file_limit file_pct
+      # See demo/bin/myquota for a worked example.
+      :quota_command                      => nil,
+      # Header lines to skip before the first data row.
+      :quota_command_skip_lines           => '3',
+
+      # Slurm associations record an allocation's balance under a TRES name, and
+      # which name depends on what the allocation is denominated in. Accounts
+      # whose name matches `gpu_account_pattern` are read from
+      # `gpu_account_tres`; every other account from `cpu_account_tres`.
+      # Unset the pattern (the default) and every account is treated as CPU.
+      :gpu_account_pattern                => nil,
+      :gpu_account_tres                   => 'gres/gpu',
+      :cpu_account_tres                   => 'cpu',
+
       # GPU-hour accounting. Sites that do not charge for GPU hours can leave
       # these unset, in which case GPU hours are reported as "N/A".
       # Jobs numbered at or below this id predate GPU accounting and are exempt.
@@ -176,6 +195,29 @@ class ConfigurationSingleton
   # @return [Boolean] whether the news feed widget has an endpoint to call
   def news_feed_enabled?
     news_feed_url.present?
+  end
+
+  # @return [Boolean] whether the Storage widget has a command to report quotas
+  def quota_command_enabled?
+    quota_command.present?
+  end
+
+  # Which TRES an account's balance is recorded under. Allocations denominated
+  # in GPU time are held under a different TRES from CPU ones, and sites tell
+  # them apart by account naming -- `gpu_account_pattern` is matched against the
+  # account name as a regular expression (so a plain "-gpu" matches any account
+  # containing it, and "-gpu\z" only a suffix).
+  #
+  # @param account [String] Slurm account name
+  # @return [String] TRES key to read the balance from
+  def account_tres_for(account)
+    pattern = gpu_account_pattern
+    return cpu_account_tres if pattern.blank?
+
+    Regexp.new(pattern).match?(account.to_s) ? gpu_account_tres : cpu_account_tres
+  rescue RegexpError => e
+    Rails.logger.warn("Invalid gpu_account_pattern #{pattern.inspect}: #{e.message}")
+    cpu_account_tres
   end
 
   # @return [String, nil] scratch directory for the given user, if configured

@@ -29,6 +29,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - `app/views/shared/_docs_info_link.html.erb`, replacing five copies of the
   per-widget documentation info icon.
 
+### Changed
+- The Storage widget's quota source is now `OOD_QUOTA_COMMAND` rather than a
+  hardcoded `myquota`, with `OOD_QUOTA_COMMAND_SKIP_LINES` for its header rows.
+  Unset, the widget reports no filesystems instead of failing.
+- The Accounts and Balance widgets no longer assume an account name ending in
+  `-gpu` means the allocation is denominated in GPU minutes. The account pattern
+  and both TRES names are configurable via `OOD_GPU_ACCOUNT_PATTERN`,
+  `OOD_GPU_ACCOUNT_TRES` and `OOD_CPU_ACCOUNT_TRES`; with no pattern set, every
+  account is read as CPU-denominated. An invalid pattern is logged and ignored
+  rather than raising.
+
 ### Fixed
 - The dashboard home page and My Jobs no longer raise `undefined method
   \'files_path\'` on portals where the Files app is absent. The `files` routes
