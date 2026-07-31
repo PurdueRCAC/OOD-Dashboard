@@ -21,7 +21,7 @@ implementation_tags:
 
 maintainer:
   name: "Purdue RCAC"
-  support_url: "https://github.com/purdue-rcac/ood-hpc-dashboard/issues"
+  support_url: "https://github.com/PurdueRCAC/OOD-Dashboard/issues"
 
-website: "https://github.com/purdue-rcac/ood-hpc-dashboard"
-docs: "https://github.com/purdue-rcac/ood-hpc-dashboard#readme"
+website: "https://github.com/PurdueRCAC/OOD-Dashboard"
+docs: "https://github.com/PurdueRCAC/OOD-Dashboard#readme"

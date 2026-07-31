@@ -1,7 +1,7 @@
 # Demo container: the dashboard with an invented cluster behind it.
 #
-#   docker build -f demo/Dockerfile -t ood-hpc-dashboard:demo .
-#   docker run --rm -p 3000:3000 ood-hpc-dashboard:demo
+#   docker build -f demo/Dockerfile -t ood-dashboard:demo .
+#   docker run --rm -p 3000:3000 ood-dashboard:demo
 #   open http://localhost:3000
 #
 # There is no scheduler, no Open OnDemand portal and no authentication here.

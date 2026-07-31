@@ -25,8 +25,8 @@ Before deploying anything, you can click through the whole dashboard with an
 invented cluster behind it:
 
 ```bash
-git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git
-cd ood-hpc-dashboard && bundle install && yarn install
+git clone https://github.com/PurdueRCAC/OOD-Dashboard.git
+cd OOD-Dashboard && bundle install && yarn install
 OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 # open http://localhost:3000
 ```
@@ -158,7 +158,7 @@ on the next run. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 ### 3. Clone and build
 
 ```bash
-git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git \
+git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
   "$HOME/ondemand/dev/dashboard"
 cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
@@ -236,7 +236,7 @@ the portal for every user; take a backup of the existing directory first.
 
 ```bash
 # Sandbox deployment
-git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git \
+git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
   "$HOME/ondemand/dev/dashboard"
 cd "$HOME/ondemand/dev/dashboard"
 ```
@@ -261,7 +261,7 @@ To install from a fork, set `REPO_SLUG` (and `REPO_HOST` for GitHub
 Enterprise) before running `install.sh`:
 
 ```bash
-REPO_SLUG=myorg/ood-hpc-dashboard ./install.sh
+REPO_SLUG=myorg/OOD-Dashboard ./install.sh
 ```
 
 ### 3. Configure for your site
@@ -537,7 +537,7 @@ Please keep site-specific values out of views and controllers — add a key to
 `.env.local.example` instead.
 
 For bugs or feature requests,
-[open an issue](https://github.com/purdue-rcac/ood-hpc-dashboard/issues).
+[open an issue](https://github.com/PurdueRCAC/OOD-Dashboard/issues).
 
 This app is part of the
 [OOD Appverse](https://openondemand.connectci.org/affinity-groups/ood-appverse).

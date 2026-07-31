@@ -33,7 +33,7 @@ portal for that user, listing every app under `~/ondemand/dev`.
 
 ```bash
 ssh <user>@<login-node>
-git clone https://github.com/purdue-rcac/ood-hpc-dashboard.git \
+git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
   "$HOME/ondemand/dev/dashboard"
 cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
@@ -44,7 +44,7 @@ compiles assets. To install from a fork, set `REPO_SLUG` (and `REPO_HOST` for
 GitHub Enterprise) first:
 
 ```bash
-REPO_SLUG=myorg/ood-hpc-dashboard ./install.sh
+REPO_SLUG=myorg/OOD-Dashboard ./install.sh
 ```
 
 ## Opening the dashboard

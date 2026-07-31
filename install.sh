@@ -28,7 +28,7 @@ function check_nvm {
 }
 
 # Upstream repository. Override REPO_SLUG to install from a fork.
-REPO_SLUG="${REPO_SLUG:-purdue-rcac/ood-hpc-dashboard}"
+REPO_SLUG="${REPO_SLUG:-PurdueRCAC/OOD-Dashboard}"
 REPO_HOST="${REPO_HOST:-github.com}"
 REPO_URL="https://${REPO_HOST}/${REPO_SLUG}"
 REPO_SSH_URL="git@${REPO_HOST}:${REPO_SLUG}.git"

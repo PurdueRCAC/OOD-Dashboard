@@ -165,7 +165,7 @@ From: ruby:3.1-bullseye
 
 %labels
     Description HPC Dashboard demo with an invented cluster
-    Upstream https://github.com/purdue-rcac/ood-hpc-dashboard
+    Upstream https://github.com/PurdueRCAC/OOD-Dashboard
 
 %help
     Runs the HPC Dashboard against a fake cluster so you can click through every

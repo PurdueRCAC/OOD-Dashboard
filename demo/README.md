@@ -116,8 +116,8 @@ The image is ~580 MB and takes roughly ten minutes to build.
 ### Docker
 
 ```bash
-docker build -f demo/Dockerfile -t ood-hpc-dashboard:demo .
-docker run --rm -p 3000:3000 ood-hpc-dashboard:demo
+docker build -f demo/Dockerfile -t ood-dashboard:demo .
+docker run --rm -p 3000:3000 ood-dashboard:demo
 ```
 
 It mirrors the Apptainer recipe: same sibling-app layout, same gem install,
