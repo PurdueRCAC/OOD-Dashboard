@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   `ruby-openai` gems, and the `OPENAI_*` keys. It was never enabled, and
   shipping a disabled integration with API-key placeholders in a catalog
   submission invites questions it does not answer.
+- Both container recipes select the Node tarball by architecture, so they build
+  on arm64 (Apple Silicon) as well as x86_64.
 - `demo/Dockerfile` installs Node from the official tarball rather than apt.
   Debian bullseye ships Node 12.22 and `sass` requires >= 14, so `yarn install`
   failed outright on the distro package.

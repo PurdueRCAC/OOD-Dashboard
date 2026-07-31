@@ -111,6 +111,11 @@ That is required, not preference — Debian bullseye ships Node 12.22 and
 `sass` needs >= 14, so `yarn install` fails on the apt version. If you bump
 `NODE_VERSION`, bump it in both files.
 
+The tarball architecture is derived from `uname -m`, so both recipes build on
+x86_64 and arm64. On an Apple Silicon Mac, Docker pulls the arm64 base image,
+and a hardcoded x86-64 Node would die in Rosetta rather than merely running
+slowly.
+
 > The Dockerfile is maintained without a Docker daemon available, so build
 > fixes land one real build at a time. If a step fails, the error is the useful
 > thing — send it along. Everything the image *configures* is verified

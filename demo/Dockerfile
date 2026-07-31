@@ -32,11 +32,22 @@ ENV NODE_VERSION=18.20.4
 # `#!/usr/bin/env node` script, so invoking it by absolute path still fails with
 # "env: 'node': No such file or directory" unless node is already resolvable.
 ENV PATH=/opt/node/bin:$PATH
-RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-      | tar -xJ --no-same-owner -C /opt \
- && mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node \
- && npm install -g yarn@1 \
- && node --version && yarn --version
+# The tarball must match the image's architecture. Hardcoding x64 breaks on
+# arm64 hosts -- on an Apple Silicon Mac, Docker pulls the arm64 base image and
+# an x86-64 Node binary dies in Rosetta with "failed to open elf at
+# /lib64/ld-linux-x86-64.so.2". Derived from uname so it is correct on whatever
+# the builder actually is, rather than depending on a BuildKit-only ARG.
+RUN set -eux; \
+    case "$(uname -m)" in \
+      x86_64)          node_arch=x64 ;; \
+      aarch64 | arm64) node_arch=arm64 ;; \
+      *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" \
+      | tar -xJ --no-same-owner -C /opt; \
+    mv "/opt/node-v${NODE_VERSION}-linux-${node_arch}" /opt/node; \
+    npm install -g yarn@1; \
+    node --version; yarn --version
 
 # The dashboard identifies the user from the process uid (OodSupport::User, and
 # the demo dataset), so run as a real user that exists in /etc/passwd.

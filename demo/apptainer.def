@@ -55,11 +55,18 @@ From: ruby:3.1-bullseye
     set -eux
 
     NODE_VERSION=18.20.4
+    # Match the tarball to the build host's architecture rather than assuming
+    # x86_64, so this also builds on aarch64 machines.
+    case "$(uname -m)" in
+        x86_64)          NODE_ARCH=x64 ;;
+        aarch64 | arm64) NODE_ARCH=arm64 ;;
+        *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+    esac
     # --no-same-owner matters: in an unprivileged root-mapped namespace the
     # build cannot chown to the tarball's uid/gid, and tar fails without it.
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz" \
         | tar -xJ --no-same-owner --no-same-permissions -C /opt
-    mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node
+    mv "/opt/node-v${NODE_VERSION}-linux-${NODE_ARCH}" /opt/node
     # Put the whole Node bin directory on PATH rather than symlinking tools one
     # by one -- `npm install -g` drops yarn in there too.
     export PATH="/opt/node/bin:${PATH}"
