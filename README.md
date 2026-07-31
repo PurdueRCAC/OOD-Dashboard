@@ -524,8 +524,6 @@ welcome contribution.
   in `api/account_list_controller.rb` still read the `gres/hp_cpu` and `billing`
   TRES directly. Sites that do not define those will see that widget fail.
 - **Only tested on RHEL 9 with Slurm.** Other combinations are untested.
-- **The LLM job-summary integration is disabled**, in both the controller and
-  the Gemfile. It is kept as a starting point, not a supported feature.
 
 ## Contributing
 

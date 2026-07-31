@@ -148,25 +148,6 @@ class JobInfoController < ApplicationController
       end
     end
 
-    # WIP Langchain integration with job info
-    # llm = Langchain::LLM::OpenAI.new(
-    #   api_key: ENV.fetch("OPENAI_API_KEY", ""),
-    #   default_options: { temperature: 0, chat_model: "llama3.2:latest" },
-    #   llm_options: { uri_base: ENV.fetch("OPENAI_API_BASE_URL", ""), api_version: "" },
-    # )
-
-    # assistant = Langchain::Assistant.new(
-    #   llm:          llm,
-    #   tools:        [],   # no tools
-    #   instructions: "You are a helpful assistant."
-    # )
-
-    # assistant.add_message(role: "system", content: "You are a concise, helpful assistant that manages jobs on a high-performance computing cluster called #{Configuration.site_name}. Respond only to the user prompt below in a helpful, concise manner.")
-    # messages = assistant.add_message_and_run!(content: "Here is info about my job: #{result_hash.to_s}. Give me a short summary about my job in full sentences.")
-    # ai_msg = messages.reverse.find { |m| m.role == "assistant" }
-
-    # result_hash["Summary"] = ai_msg&.content
-
     if result_hash
       render json: result_hash.to_json, status: :ok
     else

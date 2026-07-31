@@ -66,7 +66,3 @@ gem "sinatra", require: false
 gem "sinatra-contrib", require: false
 gem "erubi", require: false
 gem "dalli", require: false
-
-
-# gem "langchainrb", "~> 0.19.5"
-# gem "ruby-openai", "~> 8.1.0"

@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
   account is read as CPU-denominated. An invalid pattern is logged and ignored
   rather than raising.
 
+### Removed
+- The dormant LLM job-summary experiment: the commented-out Langchain/OpenAI
+  block in `job_info_controller.rb`, the commented `langchainrb` and
+  `ruby-openai` gems, and the `OPENAI_*` keys. It was never enabled, and
+  shipping a disabled integration with API-key placeholders in a catalog
+  submission invites questions it does not answer.
+
 ### Fixed
 - The dashboard home page and My Jobs no longer raise `undefined method
   \'files_path\'` on portals where the Files app is absent. The `files` routes
