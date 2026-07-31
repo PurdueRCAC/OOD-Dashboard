@@ -11,11 +11,12 @@
 # On HPC, prefer demo/apptainer.def -- it needs no daemon and no root. This
 # file mirrors it; the two are kept deliberately in step.
 #
-# NOTE: this image has never been built -- no container runtime was available
-# where it was written, whereas the Apptainer recipe was built and run. What IS
-# verified is everything it configures: the same demo mode, layout and
-# environment are exercised on every change. If the build itself needs a fix,
-# the demo runs identically with:
+# NOTE: this file is maintained without a Docker daemon to hand, so build fixes
+# arrive one real build at a time. Two failures found and fixed so far: the
+# distro Node being too old for sass, and PATH being set after the step that
+# needed it. What is continuously verified is everything it *configures* -- the
+# same demo mode, layout and runtime environment are exercised on every change.
+# If a build step still needs a fix, the demo runs identically with:
 #   OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 
 FROM ruby:3.1-bullseye
@@ -27,11 +28,15 @@ FROM ruby:3.1-bullseye
 # 12.22, and sass 1.70 requires >= 14, so `yarn install` fails outright on the
 # distro version. Bump NODE_VERSION here and in demo/apptainer.def together.
 ENV NODE_VERSION=18.20.4
+# PATH must be set *before* the install step, not after: npm is a
+# `#!/usr/bin/env node` script, so invoking it by absolute path still fails with
+# "env: 'node': No such file or directory" unless node is already resolvable.
+ENV PATH=/opt/node/bin:$PATH
 RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
       | tar -xJ --no-same-owner -C /opt \
  && mv "/opt/node-v${NODE_VERSION}-linux-x64" /opt/node \
- && /opt/node/bin/npm install -g yarn@1
-ENV PATH=/opt/node/bin:$PATH
+ && npm install -g yarn@1 \
+ && node --version && yarn --version
 
 # The dashboard identifies the user from the process uid (OodSupport::User, and
 # the demo dataset), so run as a real user that exists in /etc/passwd.
@@ -70,10 +75,17 @@ RUN mkdir -p app/assets/builds \
  && SECRET_KEY_BASE=build-time-only bundle exec rails assets:precompile
 
 # Sibling core apps, so Configuration#can_access_files? and friends are true.
+#
+# tmp/ and log/ are created explicitly because .dockerignore keeps the host's
+# copies out of the context, and the container runs as an unprivileged user that
+# could not create them under a root-owned /app. Rails does make them on demand,
+# but only if the parent is writable -- so create them here and let the chown
+# below cover them.
 RUN for a in files activejobs projects file-editor; do \
         mkdir -p "/app/$a" && \
         cp "/app/dashboard/other-apps/$a/manifest.yml" "/app/$a/manifest.yml"; \
     done \
+ && mkdir -p /app/dashboard/tmp/cache /app/dashboard/tmp/pids /app/dashboard/log \
  && chown -R demo:demo /app
 
 USER demo

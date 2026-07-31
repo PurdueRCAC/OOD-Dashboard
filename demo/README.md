@@ -111,6 +111,11 @@ That is required, not preference — Debian bullseye ships Node 12.22 and
 `sass` needs >= 14, so `yarn install` fails on the apt version. If you bump
 `NODE_VERSION`, bump it in both files.
 
+> The Dockerfile is maintained without a Docker daemon available, so build
+> fixes land one real build at a time. If a step fails, the error is the useful
+> thing — send it along. Everything the image *configures* is verified
+> continuously; the build steps themselves depend on someone running them.
+
 A `.dockerignore` keeps the git history, `node_modules`, stale compiled assets
 and any local `.env` out of the build context — the last of those would
 otherwise bake site configuration, or secrets, into the image.
