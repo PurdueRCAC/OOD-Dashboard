@@ -95,7 +95,7 @@ GEM
       railties (>= 6.0.0)
     dalli (3.2.7)
       base64
-    date (3.3.4)
+    date (3.5.1)
     domain_name (0.6.20240107)
     dotenv (2.8.1)
     dotenv-rails (2.8.1)
@@ -148,7 +148,7 @@ GEM
     multi_json (1.15.0)
     mustermann (3.0.0)
       ruby2_keywords (~> 0.0.1)
-    net-imap (0.3.7)
+    net-imap (0.6.4)
       date
       net-protocol
     net-pop (0.1.2)
@@ -292,6 +292,7 @@ DEPENDENCIES
   jsbundling-rails (~> 1.0)
   local_time (~> 1.0.3)
   mocha (~> 2.1)
+  net-imap (= 0.6.4)
   ood_appkit (~> 2.1.0)
   ood_core (~> 0.25)
   ood_support (~> 0.0.2)

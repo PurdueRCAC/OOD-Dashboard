@@ -1,4 +1,5 @@
 ---
 BUNDLE_RETRY: "2"
 BUNDLE_JOBS: "4"
+BUNDLE_PATH: "vendor/bundle"
 BUNDLE_WITHOUT: "doc"

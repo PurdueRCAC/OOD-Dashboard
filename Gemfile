@@ -66,3 +66,4 @@ gem "sinatra", require: false
 gem "sinatra-contrib", require: false
 gem "erubi", require: false
 gem "dalli", require: false
+gem 'net-imap', '0.6.4'
