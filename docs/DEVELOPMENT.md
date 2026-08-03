@@ -1,7 +1,7 @@
 # Development
 
-Notes for working on the dashboard itself. For deploying it, see the
-[README](../README.md).
+Notes for working on the dashboard itself. For deploying it, see
+[Installation](INSTALLATION.md).
 
 ## Enabling developer mode
 
@@ -71,8 +71,7 @@ Under VS Code Remote SSH the port is forwarded automatically, so the app is
 reachable at <http://localhost:8080/>.
 
 Copy `.env.local.example` to `.env.local` and fill in your site's values first —
-see the [Configuration section of the README](../README.md#3-configure-for-your-site)
-for what each key does. `.env.local` is gitignored; keep real credentials out of
+see the [Configuration reference](CONFIGURATION.md) for what each key does. `.env.local` is gitignored; keep real credentials out of
 commits.
 
 ## Rebuilding assets
@@ -104,5 +103,6 @@ Do not hardcode cluster names, paths, or URLs in views and controllers. Instead:
    entries in the hash generate singleton methods that would shadow yours.
 3. Expose it to views via a helper in `app/helpers/application_helper.rb` if
    templates need it.
-4. Document it in `.env.local.example` and the README's configuration tables.
+4. Document it in `.env.local.example` and in
+   [docs/CONFIGURATION.md](CONFIGURATION.md).
 5. Make the feature degrade gracefully when the key is unset.

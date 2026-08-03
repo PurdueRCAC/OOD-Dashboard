@@ -149,7 +149,8 @@ class ConfigurationSingleton
       :gpu_hours_discounted_charge_factor => '0.25',
 
       # jobstats integration. Both must be set for per-job utilization metrics
-      # to appear; see README for why an explicit interpreter is needed.
+      # to appear; see docs/CONFIGURATION.md for why an explicit interpreter is
+      # needed.
       :jobstats_python                    => nil,
       :jobstats_script                    => nil
     }
