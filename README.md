@@ -49,7 +49,9 @@ container will not start. A `demo/Dockerfile` mirrors it for Docker sites — se
 
 ## Screenshots
 
-![Launching the dashboard from the Develop menu](docs/dashboard-setup.png)
+Here is screenshot for the dashboard:
+
+![Launching the dashboard from the Develop menu](docs/dashboard-demo.png)
 
 ## Features
 
