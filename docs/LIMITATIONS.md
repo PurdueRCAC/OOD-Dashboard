@@ -13,7 +13,10 @@ dashboard your users see.
   applied by upgrading OOD.
 - **Forked from OOD 3.x / Rails 6.1.** It has not been rebased onto newer
   upstream dashboard releases.
-- **Only tested on RHEL 9 with Slurm.** Other combinations are untested.
+- **Only tested on RHEL 9 with Slurm.** Confirmed on Rocky Linux 9.8 against
+  Open OnDemand 4.2.2 with Slurm 26.05.1; see
+  [Known-good versions](INSTALLATION.md#known-good-versions). Other combinations
+  are untested.
 
 ## Features that need site-local work
 

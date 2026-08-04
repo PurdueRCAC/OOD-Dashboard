@@ -21,6 +21,34 @@ This app runs on the OOD web node, inside the per-user NGINX (PUN):
 - Slurm client commands on the PUN host and in its `PATH`: `sinfo`, `squeue`,
   `sacct`, `scontrol`, `scancel`, `sshare`
 
+### Known-good versions
+
+The list above gives floors. This exact combination is verified working — gems
+and packages install clean, assets compile, and the app boots and serves:
+
+| Component | Version | Notes |
+| --- | --- | --- |
+| Open OnDemand | 4.2.2 | Portal host; app runs as a sandbox app in the PUN |
+| OS | Rocky Linux 9.8 | |
+| Ruby | 3.1.2 | via rbenv, pinned by `.ruby-version` |
+| RubyGems | 3.3.7 | ships with Ruby 3.1.2 |
+| Bundler | 2.3.6 | selected by `BUNDLED WITH` in `Gemfile.lock` |
+| Rails | 6.1.7.6 | pinned in `Gemfile` |
+| Node.js | 18.20.8 | via nvm |
+| Yarn | 1.22.22 | classic; `yarn.lock` is authoritative |
+| Slurm | 26.05.1 | all six client commands |
+
+Note that the app is forked from the OOD **3.x** dashboard but runs on a **4.x**
+portal, because a sandbox app carries its own Rails stack and is not coupled to
+the portal's. Do not infer the portal version from the `ood_appkit` /
+`ood_core` gems in `Gemfile.lock` — those are client libraries at the versions
+the fork pins, not the OOD release.
+
+Use rbenv's Ruby, not the system Ruby. On RHEL 9 the system Ruby is 3.3.x, which
+Rails 6.1 does not support and which typically lacks the development headers
+needed to build native gems; see
+[Troubleshooting](TROUBLESHOOTING.md#bundle-install-fails-building-native-gems).
+
 ### Scheduler
 
 **Slurm only.** Unlike the stock dashboard, the monitoring features here shell

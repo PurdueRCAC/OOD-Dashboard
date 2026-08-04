@@ -142,14 +142,19 @@ fi
 # 3. Install Ruby dependencies
 info "Checking Ruby dependencies..."
 
-# Install rbenv if not installed
+# Install rbenv if not installed. rbenv may already be present but absent from
+# PATH when the user's shell rc never initialized it, so look in the default
+# install location before concluding it is missing.
+if ! command -v rbenv >/dev/null && [ -x "$HOME/.rbenv/bin/rbenv" ]; then
+  export PATH="$HOME/.rbenv/bin:$PATH"
+fi
+
 if command -v rbenv >/dev/null; then
   success "rbenv is already installed."
 else
   info "Installing rbenv... (ETA: 3-5 minutes)"
   curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash >/dev/null 2>&1
-  [[ "$SHELL" == "bash" ]] && source "$HOME/.bash_profile" >/dev/null 2>&1
-  [[ "$SHELL" == "zsh" ]] && source "$HOME/.zshrc" >/dev/null 2>&1
+  [ -x "$HOME/.rbenv/bin/rbenv" ] && export PATH="$HOME/.rbenv/bin:$PATH"
   if command -v rbenv >/dev/null; then
     success "rbenv installed successfully."
   else
@@ -158,19 +163,47 @@ else
   fi
 fi
 
+# Put rbenv's shims ahead of the system Ruby for the rest of this script. Without
+# this, `gem`, `bundle`, and `ruby` below resolve to the system Ruby, which is
+# too new for the Rails 6.1 pin in the Gemfile and typically lacks the
+# development headers needed to build native gems.
+eval "$(rbenv init - bash)" >/dev/null 2>&1
+
 # Check if Ruby 3.1.2 is installed and set up
-if rbenv versions | grep -q "3.1.2"; then
+if rbenv versions --bare | grep -qx "3.1.2"; then
   success "Ruby 3.1.2 is already installed."
 else
   info "Installing Ruby 3.1.2... (ETA: 1-2 minutes)"
   rbenv install 3.1.2 >/dev/null 2>&1
-  rbenv local 3.1.2 >/dev/null 2>&1
-  if ruby -v | grep "3.1.2" >/dev/null 2>&1; then
-    success "Ruby 3.1.2 installed and activated."
+  rbenv rehash >/dev/null 2>&1
+  if rbenv versions --bare | grep -qx "3.1.2"; then
+    success "Ruby 3.1.2 installed."
   else
     error "Failed to install Ruby 3.1.2. Please check rbenv installation and ensure your system meets the Ruby requirements."
     exit 1
   fi
+fi
+
+# Always pin this checkout to 3.1.2. This has to run whether or not we just
+# installed Ruby: without a .ruby-version here, rbenv falls back to the global
+# version, which is rarely 3.1.2.
+rbenv local 3.1.2 >/dev/null 2>&1
+if ruby -v | grep -q "3.1.2"; then
+  success "Ruby 3.1.2 activated for this directory."
+else
+  error "Ruby 3.1.2 is installed but not active here (got: $(ruby -v))."
+  error "Check that 'rbenv local 3.1.2' succeeded and that rbenv's shims precede /usr/bin in PATH."
+  exit 1
+fi
+
+# The steps above only affect this script's environment. Warn if the user's own
+# shell will still pick up the system Ruby after we exit.
+if ! grep -qs "rbenv init" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" 2>/dev/null; then
+  info "Note: your shell startup files do not initialize rbenv, so 'bundle' and"
+  info "'rails' will use the system Ruby in new shells. Add these lines to your"
+  info "shell rc file (after any lines that overwrite PATH):"
+  info '  export PATH="$HOME/.rbenv/bin:$PATH"'
+  info '  eval "$(rbenv init - <your-shell>)"'
 fi
 
 # Install bundler if not installed
@@ -245,18 +278,15 @@ else
   fi
 fi
 
-# Install required NodeJS dependencies
-if npm ls >/dev/null 2>&1; then
-  success "All required NodeJS dependencies are already installed."
+# Install required NodeJS dependencies. Use yarn, not npm: this repo ships a
+# yarn.lock, which npm ignores, so `npm install` would resolve its own versions
+# and write a competing package-lock.json.
+info "Installing required NodeJS dependencies... (ETA: 5-10 seconds)"
+if yarn install >/dev/null 2>&1; then
+  success "NodeJS dependencies installed successfully."
 else
-  info "Installing required NodeJS dependencies... (ETA: 5-10 seconds)"
-  npm install >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    success "NodeJS dependencies installed successfully."
-  else
-    error "Failed to install NodeJS dependencies. Please check the package.json for issues and ensure you have network access."
-    exit 1
-  fi
+  error "Failed to install NodeJS dependencies. Please check the package.json for issues and ensure you have network access."
+  exit 1
 fi
 
 # 5. Compile the CSS/JS assets

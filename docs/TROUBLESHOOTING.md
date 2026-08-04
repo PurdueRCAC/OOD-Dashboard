@@ -1,5 +1,47 @@
 # Troubleshooting
 
+## `bundle install` fails building native gems
+
+```
+mkmf.rb can't find header files for ruby at /usr/share/include/ruby.h
+An error occurred while installing redcarpet (3.6.0), and Bundler cannot continue.
+```
+
+You are running against the system Ruby instead of rbenv's. Check:
+
+```bash
+ruby -v          # want 3.1.2, not the system 3.3.x
+which ruby       # want ~/.rbenv/shims/ruby, not /usr/bin/ruby
+```
+
+The app is pinned to Rails 6.1, which does not support Ruby 3.3, and the system
+Ruby usually has no `ruby-devel` headers — so gems with C extensions (`byebug`,
+`ffi`, `nio4r`, `racc`, `redcarpet`, `websocket-driver`) fail to compile.
+
+Do **not** install `ruby-devel`; it needs root and only moves the failure later.
+Initialize rbenv in your shell instead, and pin the checkout:
+
+```bash
+export PATH="$HOME/.rbenv/bin:$PATH"
+eval "$(rbenv init - zsh)"       # or: bash
+rbenv local 3.1.2                # writes .ruby-version (gitignored)
+```
+
+Add those first two lines to your shell rc file so it survives new shells,
+**after** any line that overwrites `PATH` wholesale — a later `export PATH=...`
+will otherwise drop the shims. Note that `rbenv local` matters even when Ruby
+3.1.2 is already installed: without a `.ruby-version` here, rbenv falls back to
+your global version.
+
+If a failed run already left a broken gem tree, remove it before retrying:
+
+```bash
+rm -rf ~/.local/share/gem/ruby
+```
+
+Because `install.sh` runs `bundle install && yarn install`, a Bundler failure
+also means `yarn install` never ran and `node_modules/` is empty.
+
 ## Widgets show "Failed to load"
 
 The dashboard's monitoring endpoints shell out to Slurm. Confirm the commands

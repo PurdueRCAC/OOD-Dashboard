@@ -5,7 +5,7 @@ monitoring: allocation balances, storage quotas, live Slurm partition and node
 status, searchable job history with per-job efficiency metrics, and site
 announcements — on top of everything the stock dashboard already does.
 
-[![Open OnDemand 3.0+](https://img.shields.io/badge/Open%20OnDemand-3.0%2B-informational)](https://openondemand.org/)
+[![Open OnDemand 3.0+, tested on 4.2.2](https://img.shields.io/badge/Open%20OnDemand-3.0%2B%20%7C%20tested%20on%204.2.2-informational)](https://openondemand.org/)
 [![Scheduler: Slurm](https://img.shields.io/badge/scheduler-Slurm-informational)](https://slurm.schedmd.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -121,8 +121,10 @@ interactive sessions, Files, Projects, and Active Jobs.
 ## Install it
 
 Requires Open OnDemand 3.0+, Ruby 3.1, Node 16+, and Slurm client commands
-reachable from the PUN host. Deploy as a sandbox app first — nothing your users
-see changes:
+reachable from the PUN host. Verified on Open OnDemand 4.2.2 / Rocky Linux 9.8 /
+Ruby 3.1.2 / Node 18.20.8 / Slurm 26.05.1 — see
+[Known-good versions](docs/INSTALLATION.md#known-good-versions) for the full
+list. Deploy as a sandbox app first — nothing your users see changes:
 
 ```bash
 git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
