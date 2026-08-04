@@ -25,34 +25,48 @@ No Slurm, no Open OnDemand, no root required — stub scheduler tools serve a co
 fake cluster (7 partitions, 82 nodes, 250 jobs, 4 allocations) so every page and
 widget is populated. All jobs data are invented.
 
-### Option1: Install it locally
-
-```bash
-git clone https://github.com/PurdueRCAC/OOD-Dashboard.git
-cd OOD-Dashboard && bundle install && yarn install
-OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
-# open http://localhost:3000
-```
-
-### Option2: Container - Apptainer
+### (Recommended) Option1: Container - Apptainer
 
 Apptainer needs no root and is the path of least resistance on HPC.
 
 ```bash
 apptainer build --ignore-fakeroot-command dashboard-demo.sif demo/apptainer.def
 apptainer run --cleanenv dashboard-demo.sif
+# open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
 
 > `--cleanenv` matters: without it the host's `LD_PRELOAD` leaks in and the
 > container will not start if anything pollutes it (e.g. XALT). 
 
-### Option3: Container - Docker
+### (Recommended) Option2: Container - Docker
 
 A `demo/Dockerfile` mirrors it for Docker sites.
 
 ```bash
 docker build -f demo/Dockerfile -t ood-dashboard:demo .
 docker run --rm -p 3000:3000 ood-dashboard:demo
+# open http://localhost:3000 or check with `demo/smoke.sh` (see below)
+```
+
+### Option3: Install all the required applications and gems
+
+You can install all required applications and gems under your own space (`root` is not required), then try 
+the demo using pre-installed packages with the commands below
+
+```bash
+git clone https://github.com/PurdueRCAC/OOD-Dashboard.git
+cd OOD-Dashboard && rbenv local 3.1.2 && bundle install && yarn install
+OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
+# open http://localhost:3000 or check with `demo/smoke.sh` (see below)
+```
+
+or if your system has fully configured Open Ondemand instance, you can just run
+
+```bash
+# Install all required packages, gems etc.
+./install.sh
+OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
+# open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
 
 ### Checking it works
