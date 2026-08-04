@@ -44,7 +44,7 @@ apptainer run --cleanenv dashboard-demo.sif
 ```
 
 > `--cleanenv` matters: without it the host's `LD_PRELOAD` leaks in and the
-> container will not start if there are pollution to it (e.g. XALT). 
+> container will not start if anything pollutes it (e.g. XALT). 
 
 ### Option3: Container - Docker
 
@@ -57,7 +57,7 @@ docker run --rm -p 3000:3000 ood-dashboard:demo
 
 ### Checking it works
 
-You can option the assigned URL with port (defaults to http://localhost:3000) 
+You can open the assigned URL with port (defaults to http://localhost:3000) 
 in the browser or use `demo/smoke.sh` to check in terminal.
 
 See more details about using this demo in [DEMO](demo/README.md)
