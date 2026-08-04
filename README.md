@@ -17,11 +17,15 @@ announcements — on top of everything the stock dashboard already does.
 > [Known Limitations](docs/LIMITATIONS.md) first. Deploying as a sandbox app
 > needs no root; replacing the system dashboard does.
 
-## Try it without a cluster
+## Try it first in demo mode
 
-No Slurm, no Open OnDemand, no root — stub scheduler tools serve a consistent
+Before thinking about deploying this dashboard to your system, you can try all features in an interactive demo.
+
+No Slurm, no Open OnDemand, no root required — stub scheduler tools serve a consistent
 fake cluster (7 partitions, 82 nodes, 250 jobs, 4 allocations) so every page and
-widget is populated. A banner marks the data as invented.
+widget is populated. All jobs data are invented.
+
+### Option1: Install it locally
 
 ```bash
 git clone https://github.com/PurdueRCAC/OOD-Dashboard.git
@@ -30,19 +34,33 @@ OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 # open http://localhost:3000
 ```
 
-<details>
-<summary><b>Prefer a container?</b> Apptainer needs no root and is the path of least resistance on HPC</summary>
+### Option2: Container - Apptainer
+
+Apptainer needs no root and is the path of least resistance on HPC.
 
 ```bash
 apptainer build --ignore-fakeroot-command dashboard-demo.sif demo/apptainer.def
 apptainer run --cleanenv dashboard-demo.sif
 ```
 
-`--cleanenv` matters: without it the host's `LD_PRELOAD` (XALT) leaks in and the
-container will not start. A `demo/Dockerfile` mirrors it for Docker sites.
-Demo mode is opt-in and inert when off — see [demo/README.md](demo/README.md).
+> `--cleanenv` matters: without it the host's `LD_PRELOAD` leaks in and the
+> container will not start if there are pollution to it (e.g. XALT). 
 
-</details>
+### Option3: Container - Docker
+
+A `demo/Dockerfile` mirrors it for Docker sites.
+
+```bash
+docker build -f demo/Dockerfile -t ood-dashboard:demo .
+docker run --rm -p 3000:3000 ood-dashboard:demo
+```
+
+### Checking it works
+
+You can option the assigned URL with port (defaults to http://localhost:3000) 
+in the browser or use `demo/smoke.sh` to check in terminal.
+
+See more details about using this demo in [DEMO](demo/README.md)
 
 ## Features
 
