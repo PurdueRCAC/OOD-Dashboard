@@ -51,6 +51,10 @@ cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
 ```
 
+Run this on the OOD web node — `install.sh` detects the PUN's Ruby there and
+bundles for it. On another node it will stop and ask you to run on the host or
+pass `PUN_RUBY_ABI` (see [Installation](INSTALLATION.md#2-clone-and-build)).
+
 ## 4. Set the two values worth setting
 
 ```bash

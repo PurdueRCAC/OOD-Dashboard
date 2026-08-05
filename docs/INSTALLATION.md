@@ -16,27 +16,35 @@ evaluation path, follow the [Quick Start](QUICKSTART.md) instead.
 This app runs on the OOD web node, inside the per-user NGINX (PUN):
 
 - Open OnDemand 3.0+
-- Ruby 3.1 (the app is pinned to Rails 6.1; see `Gemfile`)
+- Ruby matching the PUN's `passenger_ruby` — usually the system Ruby (3.3.x on
+  RHEL 9), though some sites pin an rbenv Ruby (e.g. 3.1.2) via `passenger_ruby`.
+  `install.sh` detects whichever it is and builds a same-ABI rbenv Ruby to bundle
+  against; Rails 6.1 runs on both.
 - Node.js 16+ and Yarn 1.x, to build CSS/JS assets
 - Slurm client commands on the PUN host and in its `PATH`: `sinfo`, `squeue`,
   `sacct`, `scontrol`, `scancel`, `sshare`
 
 ### Known-good versions
 
-The list above gives floors. This exact combination is verified working — gems
-and packages install clean, assets compile, and the app boots and serves:
+The list above gives floors. Two full stacks are verified end-to-end — gems and
+packages install clean, assets compile, and the app boots and serves. They
+differ only in the PUN's Ruby; `install.sh` detects which and bundles to match:
 
-| Component | Version | Notes |
+| Component | Verified (A) | Verified (B) |
 | --- | --- | --- |
-| Open OnDemand | 4.2.2 | Portal host; app runs as a sandbox app in the PUN |
-| OS | Rocky Linux 9.8 | |
-| Ruby | 3.1.2 | via rbenv, pinned by `.ruby-version` |
-| RubyGems | 3.3.7 | ships with Ruby 3.1.2 |
-| Bundler | 2.3.6 | selected by `BUNDLED WITH` in `Gemfile.lock` |
-| Rails | 6.1.7.6 | pinned in `Gemfile` |
-| Node.js | 18.20.8 | via nvm |
-| Yarn | 1.22.22 | classic; `yarn.lock` is authoritative |
-| Slurm | 26.05.1 | all six client commands |
+| Open OnDemand | 4.2.2 | 4.2.2 |
+| OS | Rocky Linux 9.8 | Rocky Linux 9.8 |
+| Ruby (PUN, built via rbenv) | 3.1.2 | 3.3.10 |
+| Bundler | 2.3.6 | 2.5.16 |
+| Rails | 6.1.7.6 | 6.1.7.6 |
+| Node.js | 18.20.8 | 18.20.8 |
+| Yarn | 1.22.22 | 1.22.22 |
+| Slurm | 26.05.1 | 26.05.1 |
+
+(A) is a site that pins Ruby 3.1.2 via `passenger_ruby`; (B) leaves it unset, so
+Passenger uses the system Ruby (3.3.x on RHEL 9, built as rbenv 3.3.10). On (B)
+`install.sh` also pulls a precompiled `nokogiri` (1.19.4 `x86_64-linux-gnu`) so
+no gem links a host library. Rails 6.1 runs on both.
 
 Note that the app is forked from the OOD **3.x** dashboard but runs on a **4.x**
 portal, because a sandbox app carries its own Rails stack and is not coupled to
@@ -44,10 +52,16 @@ the portal's. Do not infer the portal version from the `ood_appkit` /
 `ood_core` gems in `Gemfile.lock` — those are client libraries at the versions
 the fork pins, not the OOD release.
 
-Use rbenv's Ruby, not the system Ruby. On RHEL 9 the system Ruby is 3.3.x, which
-Rails 6.1 does not support and which typically lacks the development headers
-needed to build native gems; see
-[Troubleshooting](TROUBLESHOOTING.md#bundle-install-fails-building-native-gems).
+The app must be bundled for the Ruby the PUN boots it with — its
+`passenger_ruby`. At most sites that is unset and resolves to the system Ruby
+(3.3.x on RHEL 9); some sites instead pin an rbenv Ruby such as 3.1.2.
+`install.sh` detects that Ruby, builds a same-ABI rbenv Ruby (rbenv ships the
+build headers the system Ruby usually lacks), vendors the
+gems into `vendor/bundle`, and uses **precompiled** native gems so nothing links
+a host-specific library. Editing your shell rc does **not** help: the PUN starts
+with a scrubbed environment and never sources it, so it always uses
+`passenger_ruby`. See
+[Troubleshooting](TROUBLESHOOTING.md#bundlergemnotfound-when-the-page-loads-but-the-cli-is-fine).
 
 ### Scheduler
 
@@ -106,15 +120,26 @@ cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
 ```
 
-`install.sh` installs Ruby 3.1.2 via rbenv, installs gems and Node packages, and
-compiles assets. If you manage Ruby and Node yourself, the equivalent is:
+**Run `install.sh` on the OOD web node.** It detects the PUN's Ruby there; on a
+login or compute node it can't, and will stop and ask you to run on the host or
+pass `PUN_RUBY_ABI` (see below). It then installs a same-ABI rbenv Ruby, vendors
+the gems into `vendor/bundle` with precompiled native gems, installs Node
+packages, and compiles assets. If you manage Ruby and Node yourself, the
+equivalent is:
 
 ```bash
+bundle config set --local path vendor/bundle
+bundle lock --add-platform "$(ruby -e 'print Gem::Platform.local')"
+bundle lock --remove-platform ruby     # force self-contained precompiled gems
 bundle install
 yarn install
 bin/recompile_js       # esbuild alone is not enough; this also runs the
                        # Sprockets step the browser actually loads
 ```
+
+`install.sh` writes `.bundle/config` (`BUNDLE_PATH`) and `.ruby-version`
+(gitignored), and may update `Gemfile.lock` — see
+[What install.sh changes](#what-installsh-changes).
 
 To install from a fork, set `REPO_SLUG` (and `REPO_HOST` for GitHub Enterprise)
 before running `install.sh`:
@@ -122,6 +147,35 @@ before running `install.sh`:
 ```bash
 REPO_SLUG=myorg/OOD-Dashboard ./install.sh
 ```
+
+If detection can't run (not on the OOD host) or guesses wrong, override it:
+
+| Variable | Purpose |
+| --- | --- |
+| `PUN_RUBY` | Path to the interpreter Passenger uses (skips detection) |
+| `PUN_RUBY_ABI` | Its `MAJOR.MINOR` (e.g. `3.3`) when the path isn't known |
+| `RBENV_VERSION` | Exact rbenv Ruby to build with |
+| `BUNDLER_VERSION` | Bundler to use (default: the lockfile's `BUNDLED WITH`) |
+| `TARGET_PLATFORM` | Gem platform for precompiled natives (default: this host's) |
+| `SKIP_OOD_HOST_CHECK` | Set to `1` to bypass the OOD-host guard |
+
+### What install.sh changes
+
+On a machine the committed `Gemfile.lock` already covers, the build is a no-op on
+the lock. It only rewrites version-pinned files when the target needs something
+the lock doesn't yet have:
+
+- **`Gemfile.lock`** — adds this host's platform to `PLATFORMS` and drops the
+  generic `ruby` platform; if a native gem was still building from source and
+  linking a host library, the self-heal step runs `bundle update <gem>` and that
+  gem's **pinned version can move** (e.g. `nokogiri 1.15.5 → 1.19.4`). Bundler
+  version is taken from `BUNDLED WITH`, so that line does not churn.
+- **`.bundle/config`** — sets `BUNDLE_PATH: vendor/bundle` and `BUNDLE_WITHOUT: doc`.
+- **`.ruby-version`** — pinned to the rbenv build Ruby (gitignored; not a tracked change).
+
+`Gemfile`, `package.json`, and `yarn.lock` are not touched by the Ruby steps.
+Commit a `Gemfile.lock` that already lists every platform you deploy to (and its
+precompiled native gems) to keep `install.sh` from modifying it on those hosts.
 
 ## 3. Configure for your site
 

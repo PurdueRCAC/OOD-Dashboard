@@ -134,11 +134,12 @@ interactive sessions, Files, Projects, and Active Jobs.
 
 ## Install it
 
-Requires Open OnDemand 3.0+, Ruby 3.1, Node 16+, and Slurm client commands
-reachable from the PUN host. Verified on Open OnDemand 4.2.2 / Rocky Linux 9.8 /
-Ruby 3.1.2 / Node 18.20.8 / Slurm 26.05.1 — see
-[Known-good versions](docs/INSTALLATION.md#known-good-versions) for the full
-list. Deploy as a sandbox app first — nothing your users see changes:
+Requires Open OnDemand 3.0+, the PUN's Ruby (usually the system Ruby, 3.3.x on
+RHEL 9; some sites pin an rbenv Ruby such as 3.1.2), Node 16+, and Slurm client
+commands reachable from the PUN host. Verified on Open OnDemand 4.2.2 / Rocky
+Linux 9.8 / Node 18.20.8 / Slurm 26.05.1 with two PUN Rubies — 3.1.2 and 3.3.10
+— see [Known-good versions](docs/INSTALLATION.md#known-good-versions) for the
+full list. Deploy as a sandbox app first — nothing your users see changes:
 
 ```bash
 git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
@@ -147,7 +148,10 @@ cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
 ```
 
-Then launch it from *Develop → My Sandbox Apps (Development)*.
+Run `install.sh` on the OOD web node — it detects and matches the PUN's Ruby
+there (off-host, pass `PUN_RUBY_ABI`; see
+[Installation](docs/INSTALLATION.md#2-clone-and-build)). Then launch it from
+*Develop → My Sandbox Apps (Development)*.
 
 **Every site-specific value is configuration — you should not need to edit any
 view or controller.** Any feature whose configuration is missing hides itself or

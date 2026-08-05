@@ -39,9 +39,14 @@ cd "$HOME/ondemand/dev/dashboard"
 ./install.sh
 ```
 
-`install.sh` installs Ruby 3.1.2 via rbenv, installs gems and Node packages, and
-compiles assets. To install from a fork, set `REPO_SLUG` (and `REPO_HOST` for
-GitHub Enterprise) first:
+`install.sh` detects the PUN's Ruby, builds a same-ABI rbenv Ruby, vendors the
+gems (with precompiled native gems) into `vendor/bundle`, installs Node packages,
+and compiles assets. It expects to run on the OOD web node; on a login node it
+can't read the PUN's config, so either run it from the portal's shell on the web
+node, or — if your login node shares `$HOME` and runs the same OS as the web node
+— pass the PUN's Ruby explicitly, e.g. `PUN_RUBY_ABI=3.3 ./install.sh`. To
+install from a fork, set `REPO_SLUG` (and `REPO_HOST` for GitHub Enterprise)
+first:
 
 ```bash
 REPO_SLUG=myorg/OOD-Dashboard ./install.sh
