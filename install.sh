@@ -27,6 +27,45 @@ function check_nvm {
   fi
 }
 
+# Detect the Ruby interpreter Open OnDemand's Passenger uses to boot the app
+# (its `passenger_ruby`). The dashboard must be bundled for THIS Ruby's ABI, not
+# whatever Ruby is on your shell PATH: the PUN starts with a scrubbed environment
+# and never sources your shell rc, so editing rc files cannot change its Ruby.
+# Honors overrides (see the "Determine which Ruby to build for" section):
+#   PUN_RUBY=/path/to/ruby   force a specific interpreter
+# Prints the interpreter path, or nothing if it cannot be determined.
+function detect_pun_ruby {
+  if [ -n "$PUN_RUBY" ]; then echo "$PUN_RUBY"; return; fi
+
+  # passenger_ruby may live in nginx_stage.yml or any drop-in; last one wins.
+  local cfg line found=""
+  for cfg in /etc/ood/config/nginx_stage.yml /etc/ood/config/nginx_stage.d/*.yml; do
+    [ -f "$cfg" ] || continue
+    line=$(grep -E '^[[:space:]]*passenger_ruby[[:space:]]*:' "$cfg" 2>/dev/null | tail -n1)
+    [ -n "$line" ] && found=$(echo "$line" | sed -E "s/^[[:space:]]*passenger_ruby[[:space:]]*:[[:space:]]*//; s/^['\"]//; s/['\"][[:space:]]*\$//; s/[[:space:]]*\$//")
+  done
+  if [ -n "$found" ]; then echo "$found"; return; fi
+
+  # Unset -> Passenger falls back to the system Ruby. Return a real interpreter,
+  # never an rbenv shim.
+  local cand
+  for cand in /usr/bin/ruby /bin/ruby; do
+    [ -x "$cand" ] && { echo "$cand"; return; }
+  done
+}
+
+# True when running on the Open OnDemand web node (where the PUN runs). Any one
+# of the OnDemand runtime markers is sufficient. Used to confirm that Ruby/
+# passenger_ruby detection is reliable — a login or compute node can carry a
+# different Ruby than the PUN.
+function on_ood_host {
+  [ -d /etc/ood/config ]            && return 0
+  [ -d /opt/rh/ondemand ]           && return 0
+  [ -d /opt/ood ]                   && return 0
+  command -v nginx_stage >/dev/null 2>&1 && return 0
+  return 1
+}
+
 # Upstream repository. Override REPO_SLUG to install from a fork.
 REPO_SLUG="${REPO_SLUG:-PurdueRCAC/OOD-Dashboard}"
 REPO_HOST="${REPO_HOST:-github.com}"
@@ -142,6 +181,31 @@ fi
 # 3. Install Ruby dependencies
 info "Checking Ruby dependencies..."
 
+# Confirm this is the Open OnDemand web node before touching Ruby. The app must
+# be bundled for the PUN's Ruby, and detection of it (below) is only reliable
+# here; a login or compute node can carry a different Ruby than the PUN. Building
+# on a node that shares $HOME with the web node still works, but only if you
+# target the PUN's Ruby explicitly (PUN_RUBY_ABI / PUN_RUBY).
+if on_ood_host; then
+  success "Open OnDemand host detected — Ruby detection is reliable here."
+elif [ "$SKIP_OOD_HOST_CHECK" = "1" ] || [ -n "$PUN_RUBY" ] || [ -n "$PUN_RUBY_ABI" ]; then
+  info "Not on the OOD web node, but an explicit Ruby target/override was given — continuing."
+else
+  error "This does not look like the Open OnDemand web node"
+  error "(no /etc/ood/config, /opt/rh/ondemand, /opt/ood, or nginx_stage found)."
+  info  "The dashboard must be bundled for the PUN's Ruby, which is detected reliably"
+  info  "only on the OOD host. Recommended: run install.sh on the OOD web node -- \$HOME"
+  info  "is shared, so the vendored bundle will be picked up by your PUN."
+  info  "Otherwise set PUN_RUBY_ABI=X.Y (and optionally TARGET_PLATFORM=...) to target the"
+  info  "PUN explicitly, or SKIP_OOD_HOST_CHECK=1 to bypass this check."
+  read -p "Continue anyway with best-effort detection? (yes/no) [default: no]: " proceed_non_ood
+  proceed_non_ood=${proceed_non_ood:-no}
+  case "$proceed_non_ood" in
+    yes|y|Y) info "Proceeding with best-effort detection." ;;
+    *) error "Aborting. Run on the OOD host, or set PUN_RUBY_ABI / SKIP_OOD_HOST_CHECK."; exit 1 ;;
+  esac
+fi
+
 # Install rbenv if not installed. rbenv may already be present but absent from
 # PATH when the user's shell rc never initialized it, so look in the default
 # install location before concluding it is missing.
@@ -163,74 +227,151 @@ else
   fi
 fi
 
-# Put rbenv's shims ahead of the system Ruby for the rest of this script. Without
-# this, `gem`, `bundle`, and `ruby` below resolve to the system Ruby, which is
-# too new for the Rails 6.1 pin in the Gemfile and typically lacks the
-# development headers needed to build native gems.
+# Put rbenv's shims ahead of the system Ruby for the rest of this script, so
+# `ruby`, `gem`, and `bundle` below resolve to the rbenv Ruby we select rather
+# than the system one.
 eval "$(rbenv init - bash)" >/dev/null 2>&1
 
-# Check if Ruby 3.1.2 is installed and set up
-if rbenv versions --bare | grep -qx "3.1.2"; then
-  success "Ruby 3.1.2 is already installed."
-else
-  info "Installing Ruby 3.1.2... (ETA: 1-2 minutes)"
-  rbenv install 3.1.2 >/dev/null 2>&1
-  rbenv rehash >/dev/null 2>&1
-  if rbenv versions --bare | grep -qx "3.1.2"; then
-    success "Ruby 3.1.2 installed."
-  else
-    error "Failed to install Ruby 3.1.2. Please check rbenv installation and ensure your system meets the Ruby requirements."
-    exit 1
-  fi
+# --- Determine which Ruby to build for --------------------------------------
+# The app must be bundled for the ABI of the PUN's passenger_ruby. We build with
+# a matching rbenv Ruby (same MAJOR.MINOR): rbenv Rubies ship their own headers
+# so the few source-only gems still compile, while precompiled gems are selected
+# by platform (not interpreter) and load fine under the PUN's own Ruby.
+#
+# Overrides (export before running to skip/redirect detection):
+#   PUN_RUBY=/path/to/ruby    the interpreter Passenger uses
+#   PUN_RUBY_ABI=X.Y          its MAJOR.MINOR (e.g. 3.3), if detection can't find it
+#   RBENV_VERSION=X.Y.Z       exact rbenv Ruby to build with
+#   BUNDLER_VERSION=X.Y.Z     bundler to use (default: the lockfile's BUNDLED WITH)
+#   TARGET_PLATFORM=...        gem platform for precompiled natives (default: this host's)
+PUN_RUBY_BIN=$(detect_pun_ruby)
+
+if [ -n "$PUN_RUBY_ABI" ]; then
+  RUBY_MINOR="$PUN_RUBY_ABI"
+elif [ -n "$PUN_RUBY_BIN" ] && [ -x "$PUN_RUBY_BIN" ]; then
+  RUBY_MINOR=$("$PUN_RUBY_BIN" -e 'print RbConfig::CONFIG["ruby_version"].split(".")[0,2].join(".")' 2>/dev/null)
+  PUN_RUBY_FULL=$("$PUN_RUBY_BIN" -e 'print RUBY_VERSION' 2>/dev/null)
 fi
 
-# Always pin this checkout to 3.1.2. This has to run whether or not we just
-# installed Ruby: without a .ruby-version here, rbenv falls back to the global
-# version, which is rarely 3.1.2.
-rbenv local 3.1.2 >/dev/null 2>&1
-if ruby -v | grep -q "3.1.2"; then
-  success "Ruby 3.1.2 activated for this directory."
-else
-  error "Ruby 3.1.2 is installed but not active here (got: $(ruby -v))."
-  error "Check that 'rbenv local 3.1.2' succeeded and that rbenv's shims precede /usr/bin in PATH."
+if [ -z "$RUBY_MINOR" ]; then
+  error "Could not detect the PUN's Ruby. Set PUN_RUBY=/path/to/ruby or PUN_RUBY_ABI=X.Y and re-run."
+  error "Find it with: grep -R passenger_ruby /etc/ood/config/  (unset means the system Ruby)."
+  exit 1
+fi
+info "PUN Ruby: ${PUN_RUBY_BIN:-<system default>} -> building for Ruby ${RUBY_MINOR}.x"
+
+# Choose the rbenv Ruby: honor RBENV_VERSION, else prefer the PUN's exact patch,
+# else the latest patch in the minor (ABI is identical across patch levels).
+RBENV_FALLBACK=$(rbenv install -l 2>/dev/null | tr -d ' ' | grep -E "^${RUBY_MINOR//./\.}\.[0-9]+$" | tail -n1)
+RBENV_VERSION="${RBENV_VERSION:-${PUN_RUBY_FULL:-$RBENV_FALLBACK}}"
+if [ -z "$RBENV_VERSION" ]; then
+  error "No installable Ruby ${RUBY_MINOR}.x found via rbenv. Update ruby-build, or set RBENV_VERSION."
   exit 1
 fi
 
-# The steps above only affect this script's environment. Warn if the user's own
-# shell will still pick up the system Ruby after we exit.
+# Install it, falling back to the latest-in-minor if the exact patch is
+# unavailable (rbenv install -s can build a patch that `-l` does not list).
+function ensure_rbenv_ruby {
+  local v="$1"
+  rbenv versions --bare | grep -qx "$v" && return 0
+  info "Installing Ruby $v... (ETA: 1-3 minutes)"
+  rbenv install -s "$v" >/dev/null 2>&1
+  rbenv rehash >/dev/null 2>&1
+  rbenv versions --bare | grep -qx "$v"
+}
+if ensure_rbenv_ruby "$RBENV_VERSION"; then
+  :
+elif [ -n "$RBENV_FALLBACK" ] && [ "$RBENV_FALLBACK" != "$RBENV_VERSION" ] && ensure_rbenv_ruby "$RBENV_FALLBACK"; then
+  info "Ruby $RBENV_VERSION was unavailable; using $RBENV_FALLBACK (same ABI)."
+  RBENV_VERSION="$RBENV_FALLBACK"
+else
+  error "Failed to install Ruby $RBENV_VERSION via rbenv. Check ruby-build and your build tools, or set RBENV_VERSION."
+  exit 1
+fi
+success "Ruby $RBENV_VERSION ready."
+
+# Pin this checkout to the selected Ruby (writes .ruby-version, which is gitignored).
+rbenv local "$RBENV_VERSION" >/dev/null 2>&1
+if ! ruby -v | grep -q "$RBENV_VERSION"; then
+  error "Ruby $RBENV_VERSION is installed but not active here (got: $(ruby -v))."
+  error "Check that 'rbenv local $RBENV_VERSION' succeeded and that rbenv's shims precede /usr/bin in PATH."
+  exit 1
+fi
+success "Ruby $RBENV_VERSION activated for this directory."
+
+# The steps above only affect this script. The PUN never reads your shell rc, so
+# this note is only about YOUR interactive shells picking up the right Ruby.
 if ! grep -qs "rbenv init" "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.zshrc" 2>/dev/null; then
   info "Note: your shell startup files do not initialize rbenv, so 'bundle' and"
-  info "'rails' will use the system Ruby in new shells. Add these lines to your"
-  info "shell rc file (after any lines that overwrite PATH):"
+  info "'rails' will use the system Ruby in new interactive shells. Add these"
+  info "lines to your shell rc file (after any lines that overwrite PATH):"
   info '  export PATH="$HOME/.rbenv/bin:$PATH"'
   info '  eval "$(rbenv init - <your-shell>)"'
 fi
 
-# Install bundler if not installed
-if gem list bundler -i --version 2.4.22 >/dev/null; then
-  success "bundler 2.4.22 is already installed."
-else
-  info "Installing bundler... (ETA: 3-5 seconds)"
-  gem install bundler -v 2.4.22 >/dev/null 2>&1
-  if [ $? -ne 0 ]; then
-    error "Failed to install bundler. Please check your Ruby setup and ensure you have the necessary permissions."
-    exit 1
-  fi
+# Ensure a bundler is available. Prefer the version the lockfile was built with,
+# so the PUN's bundler does not have to switch; fall back to the Ruby's default.
+LOCK_BUNDLER=$(awk '/^BUNDLED WITH/{getline; gsub(/ /,""); print; exit}' Gemfile.lock 2>/dev/null)
+BUNDLER_VERSION="${BUNDLER_VERSION:-$LOCK_BUNDLER}"
+if [ -n "$BUNDLER_VERSION" ] && ! gem list bundler -i --version "$BUNDLER_VERSION" >/dev/null 2>&1; then
+  info "Installing bundler $BUNDLER_VERSION..."
+  gem install bundler -v "$BUNDLER_VERSION" >/dev/null 2>&1 || {
+    info "Could not install bundler $BUNDLER_VERSION; falling back to the Ruby's default bundler."
+    BUNDLER_VERSION=""
+  }
+fi
+# Run bundle with the pinned version when we have one, else the default.
+function bndl { if [ -n "$BUNDLER_VERSION" ]; then bundle "_${BUNDLER_VERSION}_" "$@"; else bundle "$@"; fi; }
+
+# --- Bundle for the target: vendored + precompiled native gems --------------
+# Vendoring keeps the gems inside the app so they are found regardless of gem
+# home. Adding this host's platform and dropping the generic `ruby` platform
+# makes Bundler use precompiled native gems, which are self-contained; a source
+# build can link a module/spack library (e.g. libiconv) absent from the PUN.
+TARGET_PLATFORM="${TARGET_PLATFORM:-$(ruby -e 'print Gem::Platform.local.to_s' 2>/dev/null)}"
+info "Installing Ruby gems into vendor/bundle for platform ${TARGET_PLATFORM}... (ETA: 1-3 minutes)"
+
+bndl config set --local path vendor/bundle  >/dev/null 2>&1
+bndl config set --local without doc         >/dev/null 2>&1
+bndl lock --add-platform "$TARGET_PLATFORM" >/dev/null 2>&1
+bndl lock --remove-platform ruby            >/dev/null 2>&1 || true
+
+if ! bndl install >/dev/null 2>&1; then
+  error "bundle install failed. Re-run 'bundle install' in $DASHBOARD_DIR to see the underlying error."
+  exit 1
 fi
 
-# Install required Ruby gems
-if bundle check >/dev/null 2>&1; then
-  success "All required Ruby gems are already installed."
-else
-  info "Installing required Ruby gems... (ETA: 10-20 seconds)"
-  bundle install >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    success "Ruby dependencies installed successfully."
-  else
-    error "Failed to install Ruby dependencies. Please check the Gemfile for issues and ensure you have network access."
+# Verify no compiled extension links a library outside the standard system paths
+# (module/spack trees, or anything reported "not found"). Such a gem loads on
+# this build node but fails inside the PUN. Self-heal by pulling the offending
+# gem's precompiled platform variant, then re-check.
+function scan_bad_so {
+  find vendor/bundle -name '*.so' 2>/dev/null | while read -r so; do
+    if ldd "$so" 2>/dev/null | grep -qE '/apps/|/spack|not found'; then
+      echo "$so" | sed -E 's#.*/gems/([^/]+)/.*#\1#'   # -> <gem>-<ver>[-<platform>]
+    fi
+  done | sort -u
+}
+
+attempt=0
+while :; do
+  bndl clean --force >/dev/null 2>&1     # drop source/stale builds no longer resolved
+  bad=$(scan_bad_so)
+  [ -z "$bad" ] && break
+  attempt=$((attempt + 1))
+  if [ "$attempt" -gt 2 ]; then
+    error "These gems link a library the PUN may not have (they build here but fail in the PUN):"
+    echo "$bad" | while read -r g; do error "  - $g"; done
+    error "No precompiled variant exists for $TARGET_PLATFORM. Either install the missing"
+    error "library into a PUN-visible path, or pin a gem version that ships a precompiled"
+    error "$TARGET_PLATFORM build."
     exit 1
   fi
-fi
+  gems=$(echo "$bad" | sed -E 's/-[0-9].*$//' | sort -u | tr '\n' ' ')
+  info "Fetching precompiled builds for:${gems:+ }${gems}(attempt $attempt)..."
+  bndl update $gems >/dev/null 2>&1
+done
+success "Ruby dependencies installed (vendored, precompiled for $TARGET_PLATFORM)."
 
 # 4. Install NodeJS dependencies
 info "Checking NodeJS dependencies..."

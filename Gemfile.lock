@@ -273,7 +273,7 @@ GEM
     zip_kit (6.2.2)
 
 PLATFORMS
-  ruby
+  x86_64-linux
 
 DEPENDENCIES
   addressable (~> 2.4)
