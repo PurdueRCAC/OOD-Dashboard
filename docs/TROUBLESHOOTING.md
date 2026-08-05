@@ -116,6 +116,66 @@ find vendor/bundle -name '*.so' -exec sh -c \
 
 No output means every compiled gem is self-contained.
 
+## Ruby will not start — `libfabric.so.1` / UCX / RDMA `not found`
+
+```
+ruby: error while loading shared libraries: libfabric.so.1: cannot open shared object file
+```
+
+(or `libucp.so.0`, `libucs.so.0`, `librdmacm.so.1`, …) — and `install.sh` reports
+the interpreter as "installed but will not run."
+
+Your rbenv Ruby was compiled with HPC modules loaded (MPI/UCX/OFI), so its binary
+is linked against fabric/RDMA libraries that exist only while those modules are.
+Outside that environment — including inside the PUN — Ruby cannot start. Confirm:
+
+```bash
+ldd ~/.rbenv/versions/<ver>/bin/ruby | grep -iE 'fabric|ucp|ucs|not found'
+```
+
+Rebuild it — and anything it compiles — in a clean environment:
+
+```bash
+module purge
+gcc --version                          # ensure a plain compiler remains
+rbenv uninstall -f <ver> && rbenv install <ver>
+ldd ~/.rbenv/versions/<ver>/bin/ruby | grep -i 'not found'   # expect empty
+```
+
+Keep the shell purged for the whole `install.sh` run, so native gems don't relink
+the same libraries. `install.sh` also refuses a Ruby that links module/spack paths
+rather than shipping a bundle that will fail in the PUN.
+
+## `yarn install` fails: esbuild engine incompatible / wrong Node
+
+```
+error esbuild@0.14.54: The engine "node" is incompatible with this module. Expected version ">=12". Got "10.17.0"
+```
+
+`yarn install` ran under an old system Node, not Node 18. Two causes, both now
+handled by `install.sh`:
+
+- nvm's version check matched the **LTS alias line** (`lts/hydrogen -> v18.20.8`)
+  even though 18.20.8 was never installed, so the real `nvm install` was skipped.
+- Node 18 was installed but never *activated*, leaving the system Node first on
+  `PATH`.
+
+Fix by hand:
+
+```bash
+source ~/.nvm/nvm.sh
+nvm install 18.20.8      # actually install it (alias match is not an install)
+nvm use 18.20.8
+node -v                 # must print v18.20.8
+npm install -g yarn     # yarn follows the active Node; reinstall it here
+yarn install
+bin/recompile_js
+```
+
+If `nvm install` / `npm install` time out, the OOD node has no outbound network —
+set your site `HTTPS_PROXY`, or build `node_modules` on a login node that has
+internet (shared `$HOME` carries it to the PUN).
+
 ## Widgets show "Failed to load"
 
 The dashboard's monitoring endpoints shell out to Slurm. Confirm the commands

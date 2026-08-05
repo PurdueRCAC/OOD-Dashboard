@@ -46,10 +46,14 @@ function detect_pun_ruby {
   done
   if [ -n "$found" ]; then echo "$found"; return; fi
 
-  # Unset -> Passenger falls back to the system Ruby. Return a real interpreter,
-  # never an rbenv shim.
+  # Unset -> Passenger falls back to its default Ruby, which for the OOD-packaged
+  # nginx/Passenger is an OOD-bundled Ruby, not the system one. Prefer those, then
+  # the system Ruby. Never return an rbenv shim.
   local cand
-  for cand in /usr/bin/ruby /bin/ruby; do
+  for cand in /opt/ood/nginx_stage/bin/ruby \
+              /opt/rh/ondemand/root/usr/bin/ruby \
+              /opt/ood/ondemand/root/usr/bin/ruby \
+              /usr/bin/ruby /bin/ruby; do
     [ -x "$cand" ] && { echo "$cand"; return; }
   done
 }
@@ -292,9 +296,30 @@ success "Ruby $RBENV_VERSION ready."
 
 # Pin this checkout to the selected Ruby (writes .ruby-version, which is gitignored).
 rbenv local "$RBENV_VERSION" >/dev/null 2>&1
-if ! ruby -v | grep -q "$RBENV_VERSION"; then
-  error "Ruby $RBENV_VERSION is installed but not active here (got: $(ruby -v))."
+rbenv rehash >/dev/null 2>&1
+RUBY_BIN=$(rbenv which ruby 2>/dev/null)
+RUBY_V=$(ruby -v 2>/dev/null)
+if [ -z "$RUBY_V" ]; then
+  # Present but won't execute -- usually a broken build linking libraries absent
+  # from this environment. Common on HPC when Ruby was compiled with modules
+  # (MPI/UCX/libfabric) loaded; those libs vanish once the modules unload.
+  error "Ruby $RBENV_VERSION is installed but will not run -- likely a broken build."
+  ldd "$RUBY_BIN" 2>/dev/null | grep -i 'not found' | sed 's/^/         missing: /'
+  error "Rebuild it in a clean environment:"
+  error "  module purge && rbenv uninstall -f $RBENV_VERSION && rbenv install $RBENV_VERSION"
+  exit 1
+elif ! echo "$RUBY_V" | grep -q "$RBENV_VERSION"; then
+  error "Ruby $RBENV_VERSION is not active here (got: $RUBY_V)."
   error "Check that 'rbenv local $RBENV_VERSION' succeeded and that rbenv's shims precede /usr/bin in PATH."
+  exit 1
+fi
+# Even when it runs here, a module-contaminated build links libraries from
+# module/spack trees the PUN will not have. Catch that before bundling.
+RUBY_BADLIBS=$(ldd "$RUBY_BIN" 2>/dev/null | grep -iE '/apps/|/spack|not found')
+if [ -n "$RUBY_BADLIBS" ]; then
+  error "Ruby $RBENV_VERSION links libraries from paths the PUN will not have:"
+  echo "$RUBY_BADLIBS" | sed 's/^/         /'
+  error "Rebuild it in a clean environment (module purge) before deploying."
   exit 1
 fi
 success "Ruby $RBENV_VERSION activated for this directory."
@@ -393,19 +418,30 @@ else
 fi
 
 # Check if NodeJS 18.20.8 is installed and set up
-if nvm ls | grep -q "v18.20.8"; then
+if nvm which 18.20.8 >/dev/null 2>&1; then
   success "NodeJS 18.20.8 is already installed."
 else
   info "Installing NodeJS 18.20.8... (ETA: 10-15 seconds)"
   nvm install 18.20.8 >/dev/null 2>&1
-  nvm use 18.20.8 >/dev/null 2>&1
-  if node -v | grep "v18.20.8" >/dev/null 2>&1; then
-    success "NodeJS 18.20.8 installed and activated."
+  if nvm which 18.20.8 >/dev/null 2>&1; then
+    success "NodeJS 18.20.8 installed."
   else
     error "Failed to install NodeJS 18.20.8. Please ensure nvm is functioning properly and you have network access."
     exit 1
   fi
 fi
+
+# Activate it whether it was just installed or already present. Skipping this
+# when already installed (the old behavior) leaves whatever Node is first on
+# PATH active -- often a system Node too old for esbuild -- so `yarn install`
+# below fails with an engine-incompatibility error.
+nvm use 18.20.8 >/dev/null 2>&1
+if ! node -v 2>/dev/null | grep -q "v18.20.8"; then
+  error "NodeJS 18.20.8 is installed but not active (got: $(node -v 2>/dev/null))."
+  error "Check that 'nvm use 18.20.8' works and that no module or system Node overrides nvm."
+  exit 1
+fi
+success "NodeJS 18.20.8 activated."
 
 # Install yarn if not installed
 if command -v yarn >/dev/null; then
