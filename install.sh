@@ -250,11 +250,28 @@ eval "$(rbenv init - bash)" >/dev/null 2>&1
 #   TARGET_PLATFORM=...        gem platform for precompiled natives (default: this host's)
 PUN_RUBY_BIN=$(detect_pun_ruby)
 
+# Probe the PUN's Ruby the way the PUN itself would: with rbenv neutralized.
+# This matters because passenger_ruby is often a wrapper that ends in `exec ruby`
+# (OOD ships exactly that at /opt/ood/nginx_stage/bin/ruby). By this point in the
+# script rbenv is on PATH, so a naive probe resolves that `ruby` to an rbenv shim
+# and reports OUR Ruby back to us -- detection then "confirms" whatever we were
+# already going to build, the ABI check downstream compares a value against
+# itself, and the mismatch only surfaces as Bundler::GemNotFound inside the PUN.
+# The PUN starts with a scrubbed environment and never sees rbenv, so strip it.
+function pun_ruby_probe {
+  local rb="$1"; shift
+  local clean_path
+  clean_path=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v "^${HOME}/\.rbenv" | paste -sd: -)
+  env -u RBENV_VERSION -u RBENV_DIR -u RBENV_HOOK_PATH -u RUBYOPT -u RUBYLIB \
+      -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE -u BUNDLE_PATH \
+      PATH="$clean_path" "$rb" "$@" 2>/dev/null
+}
+
 if [ -n "$PUN_RUBY_ABI" ]; then
   RUBY_MINOR="$PUN_RUBY_ABI"
 elif [ -n "$PUN_RUBY_BIN" ] && [ -x "$PUN_RUBY_BIN" ]; then
-  RUBY_MINOR=$("$PUN_RUBY_BIN" -e 'print RbConfig::CONFIG["ruby_version"].split(".")[0,2].join(".")' 2>/dev/null)
-  PUN_RUBY_FULL=$("$PUN_RUBY_BIN" -e 'print RUBY_VERSION' 2>/dev/null)
+  RUBY_MINOR=$(pun_ruby_probe "$PUN_RUBY_BIN" -e 'print RbConfig::CONFIG["ruby_version"].split(".")[0,2].join(".")')
+  PUN_RUBY_FULL=$(pun_ruby_probe "$PUN_RUBY_BIN" -e 'print RUBY_VERSION')
 fi
 
 if [ -z "$RUBY_MINOR" ]; then
@@ -275,11 +292,14 @@ fi
 
 # Install it, falling back to the latest-in-minor if the exact patch is
 # unavailable (rbenv install -s can build a patch that `-l` does not list).
+# Build output is kept so a failure can be reported instead of swallowed: a
+# silent failure here is what lets a wrong-ABI bundle get built later.
+RBENV_BUILD_LOG=$(mktemp 2>/dev/null || echo /tmp/rbenv-build.$$)
 function ensure_rbenv_ruby {
   local v="$1"
   rbenv versions --bare | grep -qx "$v" && return 0
   info "Installing Ruby $v... (ETA: 1-3 minutes)"
-  rbenv install -s "$v" >/dev/null 2>&1
+  rbenv install -s "$v" >"$RBENV_BUILD_LOG" 2>&1
   rbenv rehash >/dev/null 2>&1
   rbenv versions --bare | grep -qx "$v"
 }
@@ -289,7 +309,38 @@ elif [ -n "$RBENV_FALLBACK" ] && [ "$RBENV_FALLBACK" != "$RBENV_VERSION" ] && en
   info "Ruby $RBENV_VERSION was unavailable; using $RBENV_FALLBACK (same ABI)."
   RBENV_VERSION="$RBENV_FALLBACK"
 else
-  error "Failed to install Ruby $RBENV_VERSION via rbenv. Check ruby-build and your build tools, or set RBENV_VERSION."
+  error "Failed to provide a Ruby ${RUBY_MINOR}.x to build with."
+  # The common cause is a ruby-build too old to know the PUN's patch release.
+  # Say so explicitly, with the newest patch it does know, because the fix
+  # (update ruby-build, or name an older same-ABI patch) is not obvious.
+  if [ -z "$RBENV_FALLBACK" ]; then
+    error "ruby-build ($(rbenv install --version 2>/dev/null | awk '{print $2}')) lists no ${RUBY_MINOR}.x release at all."
+    error "Update it:  git -C \"\$(rbenv root)/plugins/ruby-build\" pull"
+  else
+    error "ruby-build knows ${RUBY_MINOR}.x only up to $RBENV_FALLBACK, and neither it nor"
+    error "$RBENV_VERSION could be built. Any ${RUBY_MINOR}.x patch works -- the ABI is the same."
+    error "Update ruby-build, or:  RBENV_VERSION=$RBENV_FALLBACK $0"
+  fi
+  [ -s "$RBENV_BUILD_LOG" ] && { error "Last lines of the build log:"; tail -15 "$RBENV_BUILD_LOG" | sed 's/^/         /'; }
+  exit 1
+fi
+rm -f "$RBENV_BUILD_LOG"
+
+# The invariant everything below depends on: the Ruby we bundle with must have
+# the SAME ABI as the PUN's Ruby, because Bundler resolves a vendored bundle
+# under vendor/bundle/ruby/<abi>/. Patch level is irrelevant (3.3.8 and 3.3.10
+# are both ABI 3.3.0); the MAJOR.MINOR is not. Assert it rather than trusting
+# that the selection logic above got there -- a mismatch is silent at build time
+# and only surfaces as Bundler::GemNotFound when the PUN loads the app.
+#
+# Checked before `rbenv local` below, so aborting here leaves .ruby-version as
+# it was rather than repinning the checkout to a Ruby we just rejected.
+BUILD_ABI=$("$(rbenv prefix "$RBENV_VERSION" 2>/dev/null)/bin/ruby" -e 'print RbConfig::CONFIG["ruby_version"]' 2>/dev/null)
+if [ "$BUILD_ABI" != "${RUBY_MINOR}.0" ]; then
+  error "ABI mismatch: building with Ruby $RBENV_VERSION (ABI ${BUILD_ABI:-unknown}), but the"
+  error "PUN's Ruby needs ABI ${RUBY_MINOR}.0. The vendored bundle would land in"
+  error "vendor/bundle/ruby/${BUILD_ABI:-?}/ where the PUN never looks."
+  error "Install a ${RUBY_MINOR}.x Ruby and re-run, or set RBENV_VERSION=${RUBY_MINOR}.<patch>."
   exit 1
 fi
 success "Ruby $RBENV_VERSION ready."
@@ -308,7 +359,9 @@ if [ -z "$RUBY_V" ]; then
   error "Rebuild it in a clean environment:"
   error "  module purge && rbenv uninstall -f $RBENV_VERSION && rbenv install $RBENV_VERSION"
   exit 1
-elif ! echo "$RUBY_V" | grep -q "$RBENV_VERSION"; then
+elif [ "$(ruby -e 'print RUBY_VERSION' 2>/dev/null)" != "$RBENV_VERSION" ]; then
+  # Exact compare, not `grep "$RBENV_VERSION"`: unanchored, and `.` is a regex
+  # wildcard there, so a near-miss version could satisfy the check.
   error "Ruby $RBENV_VERSION is not active here (got: $RUBY_V)."
   error "Check that 'rbenv local $RBENV_VERSION' succeeded and that rbenv's shims precede /usr/bin in PATH."
   exit 1
@@ -396,6 +449,26 @@ while :; do
   info "Fetching precompiled builds for:${gems:+ }${gems}(attempt $attempt)..."
   bndl update $gems >/dev/null 2>&1
 done
+# Final outcome check, independent of how we got here: the gems must actually be
+# under the ABI the PUN resolves against, and that ABI must be loadable by the
+# PUN's own interpreter. Checking the result rather than the process catches any
+# path that produces a mismatch, including ones the logic above does not foresee.
+if [ ! -d "vendor/bundle/ruby/${RUBY_MINOR}.0" ]; then
+  error "Bundle was installed, but not for the PUN's ABI (${RUBY_MINOR}.0)."
+  error "Found instead: $(ls vendor/bundle/ruby/ 2>/dev/null | tr '\n' ' ')"
+  error "The PUN resolves vendor/bundle/ruby/${RUBY_MINOR}.0/ and would fail with"
+  error "Bundler::GemNotFound. Remove vendor/bundle and re-run."
+  exit 1
+fi
+if [ -n "$PUN_RUBY_BIN" ] && [ -x "$PUN_RUBY_BIN" ]; then
+  if ! "$PUN_RUBY_BIN" -S bundle check >/dev/null 2>&1; then
+    error "The PUN's Ruby ($PUN_RUBY_BIN) cannot resolve the bundle:"
+    "$PUN_RUBY_BIN" -S bundle check 2>&1 | head -8 | sed 's/^/         /'
+    error "The app would fail to boot in the PUN. Remove vendor/bundle and re-run."
+    exit 1
+  fi
+  success "Verified: the PUN's Ruby resolves the vendored bundle."
+fi
 success "Ruby dependencies installed (vendored, precompiled for $TARGET_PLATFORM)."
 
 # 4. Install NodeJS dependencies

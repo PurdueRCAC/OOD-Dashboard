@@ -79,6 +79,45 @@ rbenv Ruby, and vendors the bundle — which is also how the deployed
 `sys/dashboard` is packaged. See the next entry: a source-built native gem may
 still fail to load even after this.
 
+### Confirming the ABI, not guessing
+
+What Bundler keys on is the **ABI** (`MAJOR.MINOR.0`), not the patch level:
+3.3.8 and 3.3.10 are both ABI `3.3.0` and are interchangeable here. Compare the
+directory that exists against the one the PUN wants:
+
+```bash
+ls vendor/bundle/ruby/                                    # what you built
+/opt/ood/nginx_stage/bin/ruby -e 'puts RbConfig::CONFIG["ruby_version"]'
+```
+
+The authoritative check is to ask the PUN's own interpreter to resolve the
+bundle — if this passes, Passenger will boot:
+
+```bash
+/opt/ood/nginx_stage/bin/ruby -S bundle check
+```
+
+### If `install.sh` built for the wrong ABI
+
+Two causes, both now guarded against, but worth recognizing on older checkouts:
+
+- **ruby-build is too old to know the PUN's patch release.** `rbenv install
+  3.3.10` fails when ruby-build only lists up to 3.3.8, so no same-ABI Ruby gets
+  built. Any patch in the minor works — `RBENV_VERSION=3.3.8 ./install.sh` — or
+  update ruby-build with `git -C "$(rbenv root)/plugins/ruby-build" pull`.
+
+- **`passenger_ruby` is a wrapper ending in `exec ruby`.** OOD ships exactly
+  that at `/opt/ood/nginx_stage/bin/ruby`. Probing it from a shell that has rbenv
+  on `PATH` resolves that `ruby` to an rbenv shim, so detection reports *your*
+  Ruby back to you and happily builds for the wrong ABI. Probe it with rbenv
+  stripped from `PATH`, the way the PUN's scrubbed environment sees it.
+
+That wrapper also means an app can pin its own interpreter: if `bin/ruby` exists
+in the app directory, Passenger execs it in preference to the system default.
+
+Run `install.sh` **on the OOD web node**, where this detection is reliable —
+`$HOME` is shared, so the vendored bundle is picked up by your PUN either way.
+
 ## `libiconv.so.2: cannot open shared object file` (nokogiri) at boot
 
 ```
