@@ -13,6 +13,10 @@ function error {
   echo -e "\033[1;31m[ERROR]\033[0m $1"
 }
 
+function warn {
+  echo -e "\033[1;33m[WARN]\033[0m $1"
+}
+
 # Function to check if nvm is installed and sourced
 function check_nvm {
   if [ -s "$HOME/.nvm/nvm.sh" ]; then
@@ -283,7 +287,11 @@ info "PUN Ruby: ${PUN_RUBY_BIN:-<system default>} -> building for Ruby ${RUBY_MI
 
 # Choose the rbenv Ruby: honor RBENV_VERSION, else prefer the PUN's exact patch,
 # else the latest patch in the minor (ABI is identical across patch levels).
-RBENV_FALLBACK=$(rbenv install -l 2>/dev/null | tr -d ' ' | grep -E "^${RUBY_MINOR//./\.}\.[0-9]+$" | tail -n1)
+# -L, not -l: `rbenv install -l` prints a shortlist (latest patch per minor, e.g.
+# 3.2.8/3.3.8/3.4.4) that omits whole minors. A site whose PUN runs 3.1.x found
+# no fallback there and the script bailed claiming no 3.1.x was installable,
+# when ruby-build can build it. -L lists every definition.
+RBENV_FALLBACK=$(rbenv install -L 2>/dev/null | tr -d ' ' | grep -E "^${RUBY_MINOR//./\.}\.[0-9]+$" | tail -n1)
 RBENV_VERSION="${RBENV_VERSION:-${PUN_RUBY_FULL:-$RBENV_FALLBACK}}"
 if [ -z "$RBENV_VERSION" ]; then
   error "No installable Ruby ${RUBY_MINOR}.x found via rbenv. Update ruby-build, or set RBENV_VERSION."
@@ -419,6 +427,15 @@ if ! bndl install >/dev/null 2>&1; then
   exit 1
 fi
 
+# A vendored .so appears under two layouts -- gems/<gem>/... and
+# extensions/<platform>/<abi>/<gem>/... -- so match both. Matching only /gems/
+# leaves the extensions copy as a full path, which then shows up as a bogus
+# second entry in any list and, worse, feeds a path instead of a gem name to
+# `bundle update` in the self-heal loop below.
+function gem_name_from_so {
+  sed -E 's#.*/(gems|extensions/[^/]+/[^/]+)/([^/]+)/.*#\2#'   # -> <gem>-<ver>[-<platform>]
+}
+
 # Verify no compiled extension links a library outside the standard system paths
 # (module/spack trees, or anything reported "not found"). Such a gem loads on
 # this build node but fails inside the PUN. Self-heal by pulling the offending
@@ -426,7 +443,7 @@ fi
 function scan_bad_so {
   find vendor/bundle -name '*.so' 2>/dev/null | while read -r so; do
     if ldd "$so" 2>/dev/null | grep -qE '/apps/|/spack|not found'; then
-      echo "$so" | sed -E 's#.*/gems/([^/]+)/.*#\1#'   # -> <gem>-<ver>[-<platform>]
+      echo "$so" | gem_name_from_so
     fi
   done | sort -u
 }
@@ -449,6 +466,31 @@ while :; do
   info "Fetching precompiled builds for:${gems:+ }${gems}(attempt $attempt)..."
   bndl update $gems >/dev/null 2>&1
 done
+# Source-built extensions bake the build Ruby's lib dir into their RPATH, so a
+# vendored bundle is not as self-contained as the precompiled-gem strategy above
+# intends. Not fatal: when the rbenv Ruby is gone the loader skips the dead RPATH
+# entry and finds the system libruby of the same ABI, which is what the PUN is
+# running anyway. It does mean the bundle is not relocatable and breaks if that
+# rbenv Ruby is replaced by a different ABI. Warn rather than abort -- several of
+# these gems (byebug, redcarpet, nio4r, websocket-driver) publish no precompiled
+# x86_64-linux variant, so there is nothing to fall back to, and stripping the
+# RPATH would need patchelf/chrpath, which HPC images rarely carry.
+RBENV_PREFIX_DIR=$(rbenv prefix "$RBENV_VERSION" 2>/dev/null)
+if [ -n "$RBENV_PREFIX_DIR" ]; then
+  rpath_gems=$(find vendor/bundle -name '*.so' 2>/dev/null | while read -r so; do
+    if readelf -d "$so" 2>/dev/null | grep -qE '\((RPATH|RUNPATH)\).*'"$RBENV_PREFIX_DIR"; then
+      echo "$so" | gem_name_from_so
+    fi
+  done | sort -u)
+  if [ -n "$rpath_gems" ]; then
+    warn "These gems were built from source and hard-code $RBENV_PREFIX_DIR/lib in their RPATH:"
+    echo "$rpath_gems" | while read -r g; do warn "  - $g"; done
+    warn "They still load in the PUN (the loader falls back to the system libruby of the"
+    warn "same ABI), but the bundle is not relocatable: replacing rbenv Ruby $RBENV_VERSION"
+    warn "with a different ABI, or moving this checkout, requires a rebuild."
+  fi
+fi
+
 # Final outcome check, independent of how we got here: the gems must actually be
 # under the ABI the PUN resolves against, and that ABI must be loadable by the
 # PUN's own interpreter. Checking the result rather than the process catches any
