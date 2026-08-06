@@ -15,36 +15,43 @@ evaluation path, follow the [Quick Start](QUICKSTART.md) instead.
 
 This app runs on the OOD web node, inside the per-user NGINX (PUN):
 
-- Open OnDemand 3.0+
+- Open OnDemand 2.0+ (tested on 2.0.32 through 4.2.2)
 - Ruby matching the PUN's `passenger_ruby` — usually the system Ruby (3.3.x on
-  RHEL 9), though some sites pin an rbenv Ruby (e.g. 3.1.2) via `passenger_ruby`.
-  `install.sh` detects whichever it is and builds a same-ABI rbenv Ruby to bundle
-  against; Rails 6.1 runs on both.
+  RHEL 9) or the OOD-bundled Ruby (2.7.x–3.1.x on OnDemand 2.0–3.1); some sites
+  pin one via `passenger_ruby`. `install.sh` detects whichever it is and builds a
+  same-ABI rbenv Ruby to bundle against; Rails 6.1 runs on all of them.
 - Node.js 16+ and Yarn 1.x, to build CSS/JS assets
 - Slurm client commands on the PUN host and in its `PATH`: `sinfo`, `squeue`,
   `sacct`, `scontrol`, `scancel`, `sshare`
 
 ### Known-good versions
 
-The list above gives floors. Two full stacks are verified end-to-end — gems and
-packages install clean, assets compile, and the app boots and serves. They
-differ only in the PUN's Ruby; `install.sh` detects which and bundles to match:
+The list above gives floors. Four full stacks are verified end-to-end — gems and
+packages install clean, assets compile, and the app boots and serves. They span
+OnDemand 2.0–4.2 and differ in the PUN's Ruby; `install.sh` detects each and
+bundles to match:
 
-| Component | Verified (A) | Verified (B) |
-| --- | --- | --- |
-| Open OnDemand | 4.2.2 | 4.2.2 |
-| OS | Rocky Linux 9.8 | Rocky Linux 9.8 |
-| Ruby (PUN, built via rbenv) | 3.1.2 | 3.3.10 |
-| Bundler | 2.3.6 | 2.5.16 |
-| Rails | 6.1.7.6 | 6.1.7.6 |
-| Node.js | 18.20.8 | 18.20.8 |
-| Yarn | 1.22.22 | 1.22.22 |
-| Slurm | 26.05.1 | 26.05.1 |
+| Component | Verified (A) | Verified (B) | Verified (C) | Verified (D) |
+| --- | --- | --- | --- | --- |
+| Open OnDemand | 4.2.2 | 4.2.2 | 3.1.14 | 2.0.32 |
+| OS | Rocky Linux 9.8 | Rocky Linux 9.8 | Rocky Linux 9.6 | Rocky Linux 8.10 |
+| Ruby (PUN, built via rbenv) | 3.1.2 | 3.3.10 | 3.1.7 | 2.7.8 |
+| Bundler | 2.3.6 | 2.3.6 | 2.3.6 | 2.3.6 |
+| Rails | 6.1.7.6 | 6.1.7.6 | 6.1.7.6 | 6.1.7.6 |
+| Nokogiri | 1.15.5 | 1.15.5 | 1.15.5 | 1.15.5 |
+| Node.js | 18.20.8 | 18.20.8 | 18.20.8 | 18.20.8 |
+| Yarn | 1.22.22 | 1.22.22 | 1.22.22 | 1.22.22 |
+| Slurm | 26.05.1 | 26.05.1 | 25.05.2 | 25.11.1 |
 
-(A) is a site that pins Ruby 3.1.2 via `passenger_ruby`; (B) leaves it unset, so
-Passenger uses the system Ruby (3.3.x on RHEL 9, built as rbenv 3.3.10). On (B)
-`install.sh` also pulls a precompiled `nokogiri` (1.19.4 `x86_64-linux-gnu`) so
-no gem links a host library. Rails 6.1 runs on both.
+(A) and (B) are OnDemand 4.2.2 / Rocky 9.8 sites differing only in the PUN's Ruby
+(3.1.2 vs the system 3.3.x); (C) OnDemand 3.1.14 and (D) OnDemand 2.0.32 are older
+portals whose OOD-bundled Ruby is 3.1.x and 2.7.x. `install.sh` reads each PUN's
+Ruby from its `passenger_ruby` (here `/opt/ood/nginx_stage/bin/ruby`) and builds a
+same-ABI rbenv Ruby — Ruby 2.7 through 3.3, all on the same Rails 6.1 stack. On
+these OOD hosts the build environment is clean, so `nokogiri` stays a
+self-contained source build (1.15.5); `install.sh`'s precompiled-gem fallback only
+triggers on a build host where a source gem would otherwise link a host library
+(e.g. a login node with spack modules loaded).
 
 Note that the app is forked from the OOD **3.x** dashboard but runs on a **4.x**
 portal, because a sandbox app carries its own Rails stack and is not coupled to

@@ -5,7 +5,7 @@ monitoring: allocation balances, storage quotas, live Slurm partition and node
 status, searchable job history with per-job efficiency metrics, and site
 announcements — on top of everything the stock dashboard already does.
 
-[![Open OnDemand 3.0+, tested on 4.2.2](https://img.shields.io/badge/Open%20OnDemand-3.0%2B%20%7C%20tested%20on%204.2.2-informational)](https://openondemand.org/)
+[![Open OnDemand 2.0+, tested 2.0.32 to 4.2.2](https://img.shields.io/badge/Open%20OnDemand-2.0%2B%20%7C%20tested%202.0.32--4.2.2-informational)](https://openondemand.org/)
 [![Scheduler: Slurm](https://img.shields.io/badge/scheduler-Slurm-informational)](https://slurm.schedmd.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -134,12 +134,12 @@ interactive sessions, Files, Projects, and Active Jobs.
 
 ## Install it
 
-Requires Open OnDemand 3.0+, the PUN's Ruby (usually the system Ruby, 3.3.x on
-RHEL 9; some sites pin an rbenv Ruby such as 3.1.2), Node 16+, and Slurm client
-commands reachable from the PUN host. Verified on Open OnDemand 4.2.2 / Rocky
-Linux 9.8 / Node 18.20.8 / Slurm 26.05.1 with two PUN Rubies — 3.1.2 and 3.3.10
-— see [Known-good versions](docs/INSTALLATION.md#known-good-versions) for the
-full list. Deploy as a sandbox app first — nothing your users see changes:
+Requires Open OnDemand (tested 2.0.32–4.2.2), the PUN's Ruby (its system or
+OOD-bundled Ruby — 2.7 to 3.3 across tested portals), Node 16+, and Slurm client
+commands reachable from the PUN host. Verified on four portals spanning OnDemand
+2.0.32–4.2.2 (Rocky Linux 8–9, Ruby 2.7–3.3, Node 18.20.8) — see
+[Known-good versions](docs/INSTALLATION.md#known-good-versions) for the full
+list. Deploy as a sandbox app first — nothing your users see changes:
 
 ```bash
 git clone https://github.com/PurdueRCAC/OOD-Dashboard.git \
