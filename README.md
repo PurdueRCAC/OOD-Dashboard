@@ -55,12 +55,19 @@ the demo using pre-installed packages with the commands below
 
 ```bash
 git clone https://github.com/PurdueRCAC/OOD-Dashboard.git
-cd OOD-Dashboard && rbenv local 3.1.2 && bundle install && yarn install
+cd OOD-Dashboard && bundle install && yarn install
 OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 # open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
 
-or if your system has fully configured Open Ondemand instance, you can just run
+Needs Ruby 3.1–3.3, Node 16+ and Yarn 1.x on your `PATH`. Demo mode talks to no
+PUN, so there is no Ruby ABI to match — any version the app runs under is fine
+(verified on 2.7.8, 3.1.2 and 3.3.10). If you manage Ruby with rbenv, pin a
+version you actually have (`rbenv local 3.3.8`): `rbenv local` on a version that
+is not installed fails without writing anything, which silently stops the rest
+of the `&&` chain.
+
+or, **on the Open OnDemand web node** of a configured instance, you can just run
 
 ```bash
 # Install all required packages, gems etc.
@@ -68,6 +75,17 @@ or if your system has fully configured Open Ondemand instance, you can just run
 OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 # open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
+
+Two things to know about this second path, because neither fails loudly:
+
+- `install.sh` bundles for the **PUN's** Ruby, so run the demo on that same
+  host. On a login node carrying a different Ruby, `bundle exec` reports
+  `bundler: command not found: rails` — the gems are there, just under a
+  different ABI directory.
+- `install.sh` also creates `.env.local` from the example, and anything set
+  there wins over the demo's own defaults. If your site config points the news
+  feed at a real API, the Announcements widget comes back empty. Comment out the
+  `OOD_NEWS_*` lines and restart — `.env.local` is only read at boot.
 
 ### Checking it works
 
