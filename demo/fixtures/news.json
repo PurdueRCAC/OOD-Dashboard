@@ -8,7 +8,7 @@
       "formatteddate": "July 30, 2026",
       "formattedbody": "<p>We are investigating elevated latency on the <code>/scratch</code> filesystem. Jobs performing heavy I/O may run slower than usual. No data loss is expected.</p>",
       "datetimenews": "2026-07-30T05:59:38",
-      "datetimenewsend": "2026-07-30T17:59:38",
+      "datetimenewsend": "3026-07-30T17:59:38",
       "resources": [
         {
           "name": "Demo Cluster"
