@@ -13,10 +13,9 @@ dashboard your users see.
   applied by upgrading OOD.
 - **Forked from OOD 3.x / Rails 6.1.** It has not been rebased onto newer
   upstream dashboard releases.
-- **Only tested on RHEL 9 with Slurm.** Confirmed on Rocky Linux 9.8 against
-  Open OnDemand 4.2.2 with Slurm 26.05.1; see
-  [Known-good versions](INSTALLATION.md#known-good-versions). Other combinations
-  are untested.
+- **Only tested on several systems.** See
+  [Known-good versions](INSTALLATION.md#known-good-versions) for our test results.
+  Other combinations are untested.
 
 ## Features that need site-local work
 
@@ -34,9 +33,20 @@ dashboard your users see.
 
 ## Testing
 
-| Site | OOD Version | Scheduler | Status |
-|------|-------------|-----------|--------|
-| Purdue RCAC (Gautschi) | 3.1 | Slurm | In production |
+This dashboard has been tested and deployed on all HPC clusters at Purdue RCAC.
+See below the current in production package combinations
+
+| Component | Cluster1 | Cluster2 | Cluster3 | Cluster4 |
+| --- | --- | --- | --- | --- |
+| Open OnDemand | 4.2.2 | 4.2.2 | 3.1.14 | 2.0.32 |
+| OS | Rocky Linux 9.8 | Rocky Linux 9.8 | Rocky Linux 9.6 | Rocky Linux 8.10 |
+| Ruby (PUN, built via rbenv) | 3.1.2 | 3.3.10 | 3.1.7 | 2.7.8 |
+| Bundler | 2.3.6 | 2.3.6 | 2.3.6 | 2.3.6 |
+| Rails | 6.1.7.6 | 6.1.7.6 | 6.1.7.6 | 6.1.7.6 |
+| Nokogiri | 1.15.5 | 1.15.5 | 1.15.5 | 1.15.5 |
+| Node.js | 18.20.8 | 18.20.8 | 18.20.8 | 18.20.8 |
+| Yarn | 1.22.22 | 1.22.22 | 1.22.22 | 1.22.22 |
+| Slurm | 26.05.1 | 26.05.1 | 25.05.2 | 25.11.1 |
 
 **There is no automated test suite.** The upstream dashboard's tests were not
 carried over into this fork, so `bin/rails test` runs zero tests. Changes are

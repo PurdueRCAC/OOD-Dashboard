@@ -2,7 +2,7 @@
 
 Every site-specific value is configuration — **you should not need to edit any
 view or controller.** `.env.local.example` is the annotated master list; it uses
-Purdue's Gautschi cluster as a worked example, so replace those values with your
+"Demo" cluster as a worked example, so replace those values with your
 own.
 
 Every key is optional. A feature whose configuration is missing hides itself or

@@ -46,7 +46,7 @@ module DemoCluster
 
   # Node families. The prefix letters matter: the cluster status page only
   # displays nodes matching /\A[abghi]\d+\z/, a naming convention inherited from
-  # Gautschi, so the demo uses names that satisfy it.
+  # one of Purdue HPC clusters, so the demo uses names that satisfy it.
   NODE_FAMILIES = [
     { prefix: 'a', count: 48, cpus: 128, mem_mb: 257_000,   partitions: 'cpu,debug',   gres: nil,          gpus: 0 },
     { prefix: 'b', count: 12, cpus: 128, mem_mb: 1_031_000, partitions: 'highmem',     gres: nil,          gpus: 0 },
