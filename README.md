@@ -252,5 +252,5 @@ The balance and service-unit widgets originate in the Anvil OOD dashboard.
 Purdue University Research Computing.
 
 Built by [Purdue University Research Computing (RCAC)](https://www.rcac.purdue.edu/)
-on top of Open OnDemand, which is supported by NSF awards 1534949, 1835725,
-2138286, 2303692, and 2411375.
+on top of Open OnDemand, which is supported by the National Science Foundation under 
+[Grant No. 2005632](https://www.nsf.gov/awardsearch/showAward?AWD_ID=2005632).
