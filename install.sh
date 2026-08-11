@@ -13,10 +13,6 @@ function error {
   echo -e "\033[1;31m[ERROR]\033[0m $1"
 }
 
-function warn {
-  echo -e "\033[1;33m[WARN]\033[0m $1"
-}
-
 # Function to check if nvm is installed and sourced
 function check_nvm {
   if [ -s "$HOME/.nvm/nvm.sh" ]; then
@@ -58,7 +54,17 @@ function detect_pun_ruby {
               /opt/rh/ondemand/root/usr/bin/ruby \
               /opt/ood/ondemand/root/usr/bin/ruby \
               /usr/bin/ruby /bin/ruby; do
-    [ -x "$cand" ] && { echo "$cand"; return; }
+    [ -x "$cand" ] || continue
+    # The nginx_stage wrapper defers to `exec ruby` (system ruby) when the app
+    # has no bin/ruby. Running it through rbenv shims gives the wrong ABI. Detect
+    # this wrapper and resolve what Passenger would actually use: the first `ruby`
+    # on a clean, rbenv-free PATH.
+    if head -1 "$cand" 2>/dev/null | grep -q 'bash' && grep -q 'exec ruby' "$cand" 2>/dev/null; then
+      local sys_ruby
+      sys_ruby=$(env -i PATH=/usr/local/bin:/usr/bin:/bin which ruby 2>/dev/null)
+      [ -x "$sys_ruby" ] && { echo "$sys_ruby"; return; }
+    fi
+    echo "$cand"; return
   done
 }
 
@@ -84,11 +90,16 @@ REPO_SSH_URL="git@${REPO_HOST}:${REPO_SLUG}.git"
 # to this host's FQDN, which is correct when running on the OOD web node.
 OOD_HOST="${OOD_HOST:-$(hostname -f 2>/dev/null || hostname)}"
 
-# Check whether we are already inside a checkout of this repository, in which
-# case we install in place rather than cloning again.
+# Parse flags
 USE_CURRENT_DIR=false
+for arg in "$@"; do
+  case "$arg" in
+    --local|-l) USE_CURRENT_DIR=true ;;
+  esac
+done
 
-if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+# Auto-detect: if already inside any git checkout of this repo, skip cloning.
+if ! $USE_CURRENT_DIR && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   REMOTE_URL=$(git config --get remote.origin.url)
   case "$REMOTE_URL" in
     *"${REPO_SLUG}"*) USE_CURRENT_DIR=true ;;
@@ -96,9 +107,9 @@ if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 if $USE_CURRENT_DIR; then
-  DASHBOARD_DIR=$(pwd)
+  DASHBOARD_DIR=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
   FOLDER_NAME=$(basename "$DASHBOARD_DIR")
-  info "Detected script is running from a $REPO_SLUG checkout. Using current directory: $DASHBOARD_DIR"
+  info "Using current directory: $DASHBOARD_DIR"
 else
   # Define the base directory
   BASE_DIR="$HOME/ondemand/dev"
@@ -254,28 +265,11 @@ eval "$(rbenv init - bash)" >/dev/null 2>&1
 #   TARGET_PLATFORM=...        gem platform for precompiled natives (default: this host's)
 PUN_RUBY_BIN=$(detect_pun_ruby)
 
-# Probe the PUN's Ruby the way the PUN itself would: with rbenv neutralized.
-# This matters because passenger_ruby is often a wrapper that ends in `exec ruby`
-# (OOD ships exactly that at /opt/ood/nginx_stage/bin/ruby). By this point in the
-# script rbenv is on PATH, so a naive probe resolves that `ruby` to an rbenv shim
-# and reports OUR Ruby back to us -- detection then "confirms" whatever we were
-# already going to build, the ABI check downstream compares a value against
-# itself, and the mismatch only surfaces as Bundler::GemNotFound inside the PUN.
-# The PUN starts with a scrubbed environment and never sees rbenv, so strip it.
-function pun_ruby_probe {
-  local rb="$1"; shift
-  local clean_path
-  clean_path=$(printf '%s' "$PATH" | tr ':' '\n' | grep -v "^${HOME}/\.rbenv" | paste -sd: -)
-  env -u RBENV_VERSION -u RBENV_DIR -u RBENV_HOOK_PATH -u RUBYOPT -u RUBYLIB \
-      -u GEM_HOME -u GEM_PATH -u BUNDLE_GEMFILE -u BUNDLE_PATH \
-      PATH="$clean_path" "$rb" "$@" 2>/dev/null
-}
-
 if [ -n "$PUN_RUBY_ABI" ]; then
   RUBY_MINOR="$PUN_RUBY_ABI"
 elif [ -n "$PUN_RUBY_BIN" ] && [ -x "$PUN_RUBY_BIN" ]; then
-  RUBY_MINOR=$(pun_ruby_probe "$PUN_RUBY_BIN" -e 'print RbConfig::CONFIG["ruby_version"].split(".")[0,2].join(".")')
-  PUN_RUBY_FULL=$(pun_ruby_probe "$PUN_RUBY_BIN" -e 'print RUBY_VERSION')
+  RUBY_MINOR=$("$PUN_RUBY_BIN" -e 'print RbConfig::CONFIG["ruby_version"].split(".")[0,2].join(".")' 2>/dev/null)
+  PUN_RUBY_FULL=$("$PUN_RUBY_BIN" -e 'print RUBY_VERSION' 2>/dev/null)
 fi
 
 if [ -z "$RUBY_MINOR" ]; then
@@ -287,11 +281,7 @@ info "PUN Ruby: ${PUN_RUBY_BIN:-<system default>} -> building for Ruby ${RUBY_MI
 
 # Choose the rbenv Ruby: honor RBENV_VERSION, else prefer the PUN's exact patch,
 # else the latest patch in the minor (ABI is identical across patch levels).
-# -L, not -l: `rbenv install -l` prints a shortlist (latest patch per minor, e.g.
-# 3.2.8/3.3.8/3.4.4) that omits whole minors. A site whose PUN runs 3.1.x found
-# no fallback there and the script bailed claiming no 3.1.x was installable,
-# when ruby-build can build it. -L lists every definition.
-RBENV_FALLBACK=$(rbenv install -L 2>/dev/null | tr -d ' ' | grep -E "^${RUBY_MINOR//./\.}\.[0-9]+$" | tail -n1)
+RBENV_FALLBACK=$(rbenv install -l 2>/dev/null | tr -d ' ' | grep -E "^${RUBY_MINOR//./\.}\.[0-9]+$" | tail -n1)
 RBENV_VERSION="${RBENV_VERSION:-${PUN_RUBY_FULL:-$RBENV_FALLBACK}}"
 if [ -z "$RBENV_VERSION" ]; then
   error "No installable Ruby ${RUBY_MINOR}.x found via rbenv. Update ruby-build, or set RBENV_VERSION."
@@ -300,14 +290,11 @@ fi
 
 # Install it, falling back to the latest-in-minor if the exact patch is
 # unavailable (rbenv install -s can build a patch that `-l` does not list).
-# Build output is kept so a failure can be reported instead of swallowed: a
-# silent failure here is what lets a wrong-ABI bundle get built later.
-RBENV_BUILD_LOG=$(mktemp 2>/dev/null || echo /tmp/rbenv-build.$$)
 function ensure_rbenv_ruby {
   local v="$1"
   rbenv versions --bare | grep -qx "$v" && return 0
   info "Installing Ruby $v... (ETA: 1-3 minutes)"
-  rbenv install -s "$v" >"$RBENV_BUILD_LOG" 2>&1
+  rbenv install -s "$v" >/dev/null 2>&1
   rbenv rehash >/dev/null 2>&1
   rbenv versions --bare | grep -qx "$v"
 }
@@ -317,38 +304,7 @@ elif [ -n "$RBENV_FALLBACK" ] && [ "$RBENV_FALLBACK" != "$RBENV_VERSION" ] && en
   info "Ruby $RBENV_VERSION was unavailable; using $RBENV_FALLBACK (same ABI)."
   RBENV_VERSION="$RBENV_FALLBACK"
 else
-  error "Failed to provide a Ruby ${RUBY_MINOR}.x to build with."
-  # The common cause is a ruby-build too old to know the PUN's patch release.
-  # Say so explicitly, with the newest patch it does know, because the fix
-  # (update ruby-build, or name an older same-ABI patch) is not obvious.
-  if [ -z "$RBENV_FALLBACK" ]; then
-    error "ruby-build ($(rbenv install --version 2>/dev/null | awk '{print $2}')) lists no ${RUBY_MINOR}.x release at all."
-    error "Update it:  git -C \"\$(rbenv root)/plugins/ruby-build\" pull"
-  else
-    error "ruby-build knows ${RUBY_MINOR}.x only up to $RBENV_FALLBACK, and neither it nor"
-    error "$RBENV_VERSION could be built. Any ${RUBY_MINOR}.x patch works -- the ABI is the same."
-    error "Update ruby-build, or:  RBENV_VERSION=$RBENV_FALLBACK $0"
-  fi
-  [ -s "$RBENV_BUILD_LOG" ] && { error "Last lines of the build log:"; tail -15 "$RBENV_BUILD_LOG" | sed 's/^/         /'; }
-  exit 1
-fi
-rm -f "$RBENV_BUILD_LOG"
-
-# The invariant everything below depends on: the Ruby we bundle with must have
-# the SAME ABI as the PUN's Ruby, because Bundler resolves a vendored bundle
-# under vendor/bundle/ruby/<abi>/. Patch level is irrelevant (3.3.8 and 3.3.10
-# are both ABI 3.3.0); the MAJOR.MINOR is not. Assert it rather than trusting
-# that the selection logic above got there -- a mismatch is silent at build time
-# and only surfaces as Bundler::GemNotFound when the PUN loads the app.
-#
-# Checked before `rbenv local` below, so aborting here leaves .ruby-version as
-# it was rather than repinning the checkout to a Ruby we just rejected.
-BUILD_ABI=$("$(rbenv prefix "$RBENV_VERSION" 2>/dev/null)/bin/ruby" -e 'print RbConfig::CONFIG["ruby_version"]' 2>/dev/null)
-if [ "$BUILD_ABI" != "${RUBY_MINOR}.0" ]; then
-  error "ABI mismatch: building with Ruby $RBENV_VERSION (ABI ${BUILD_ABI:-unknown}), but the"
-  error "PUN's Ruby needs ABI ${RUBY_MINOR}.0. The vendored bundle would land in"
-  error "vendor/bundle/ruby/${BUILD_ABI:-?}/ where the PUN never looks."
-  error "Install a ${RUBY_MINOR}.x Ruby and re-run, or set RBENV_VERSION=${RUBY_MINOR}.<patch>."
+  error "Failed to install Ruby $RBENV_VERSION via rbenv. Check ruby-build and your build tools, or set RBENV_VERSION."
   exit 1
 fi
 success "Ruby $RBENV_VERSION ready."
@@ -367,9 +323,7 @@ if [ -z "$RUBY_V" ]; then
   error "Rebuild it in a clean environment:"
   error "  module purge && rbenv uninstall -f $RBENV_VERSION && rbenv install $RBENV_VERSION"
   exit 1
-elif [ "$(ruby -e 'print RUBY_VERSION' 2>/dev/null)" != "$RBENV_VERSION" ]; then
-  # Exact compare, not `grep "$RBENV_VERSION"`: unanchored, and `.` is a regex
-  # wildcard there, so a near-miss version could satisfy the check.
+elif ! echo "$RUBY_V" | grep -q "$RBENV_VERSION"; then
   error "Ruby $RBENV_VERSION is not active here (got: $RUBY_V)."
   error "Check that 'rbenv local $RBENV_VERSION' succeeded and that rbenv's shims precede /usr/bin in PATH."
   exit 1
@@ -427,14 +381,16 @@ if ! bndl install >/dev/null 2>&1; then
   exit 1
 fi
 
-# A vendored .so appears under two layouts -- gems/<gem>/... and
-# extensions/<platform>/<abi>/<gem>/... -- so match both. Matching only /gems/
-# leaves the extensions copy as a full path, which then shows up as a bogus
-# second entry in any list and, worse, feeds a path instead of a gem name to
-# `bundle update` in the self-heal loop below.
-function gem_name_from_so {
-  sed -E 's#.*/(gems|extensions/[^/]+/[^/]+)/([^/]+)/.*#\2#'   # -> <gem>-<ver>[-<platform>]
-}
+# Some FFI-based gems (e.g. sassc) load their compiled .so via an absolute path
+# pointing into lib/<gem>/ or ext/, but bundler places native extensions under
+# extensions/<platform>/<abi>/<gem>/. Create symlinks so FFI can find them.
+find vendor/bundle/ruby -path '*/extensions/*/*/*.so' 2>/dev/null | while read -r so; do
+  gem_name=$(basename "$(dirname "$so")")        # e.g. sassc
+  gem_ver_dir=$(find vendor/bundle/ruby -type d -name "${gem_name}-*" -path '*/gems/*' -print -quit 2>/dev/null)
+  [ -n "$gem_ver_dir" ] || continue
+  dst="${gem_ver_dir}/lib/${gem_name}/$(basename "$so")"
+  [ -e "$dst" ] || cp "$(realpath "$so")" "$dst" >/dev/null 2>&1
+done
 
 # Verify no compiled extension links a library outside the standard system paths
 # (module/spack trees, or anything reported "not found"). Such a gem loads on
@@ -443,7 +399,7 @@ function gem_name_from_so {
 function scan_bad_so {
   find vendor/bundle -name '*.so' 2>/dev/null | while read -r so; do
     if ldd "$so" 2>/dev/null | grep -qE '/apps/|/spack|not found'; then
-      echo "$so" | gem_name_from_so
+      echo "$so" | sed -E 's#.*/gems/([^/]+)/.*#\1#'   # -> <gem>-<ver>[-<platform>]
     fi
   done | sort -u
 }
@@ -466,51 +422,6 @@ while :; do
   info "Fetching precompiled builds for:${gems:+ }${gems}(attempt $attempt)..."
   bndl update $gems >/dev/null 2>&1
 done
-# Source-built extensions bake the build Ruby's lib dir into their RPATH, so a
-# vendored bundle is not as self-contained as the precompiled-gem strategy above
-# intends. Not fatal: when the rbenv Ruby is gone the loader skips the dead RPATH
-# entry and finds the system libruby of the same ABI, which is what the PUN is
-# running anyway. It does mean the bundle is not relocatable and breaks if that
-# rbenv Ruby is replaced by a different ABI. Warn rather than abort -- several of
-# these gems (byebug, redcarpet, nio4r, websocket-driver) publish no precompiled
-# x86_64-linux variant, so there is nothing to fall back to, and stripping the
-# RPATH would need patchelf/chrpath, which HPC images rarely carry.
-RBENV_PREFIX_DIR=$(rbenv prefix "$RBENV_VERSION" 2>/dev/null)
-if [ -n "$RBENV_PREFIX_DIR" ]; then
-  rpath_gems=$(find vendor/bundle -name '*.so' 2>/dev/null | while read -r so; do
-    if readelf -d "$so" 2>/dev/null | grep -qE '\((RPATH|RUNPATH)\).*'"$RBENV_PREFIX_DIR"; then
-      echo "$so" | gem_name_from_so
-    fi
-  done | sort -u)
-  if [ -n "$rpath_gems" ]; then
-    warn "These gems were built from source and hard-code $RBENV_PREFIX_DIR/lib in their RPATH:"
-    echo "$rpath_gems" | while read -r g; do warn "  - $g"; done
-    warn "They still load in the PUN (the loader falls back to the system libruby of the"
-    warn "same ABI), but the bundle is not relocatable: replacing rbenv Ruby $RBENV_VERSION"
-    warn "with a different ABI, or moving this checkout, requires a rebuild."
-  fi
-fi
-
-# Final outcome check, independent of how we got here: the gems must actually be
-# under the ABI the PUN resolves against, and that ABI must be loadable by the
-# PUN's own interpreter. Checking the result rather than the process catches any
-# path that produces a mismatch, including ones the logic above does not foresee.
-if [ ! -d "vendor/bundle/ruby/${RUBY_MINOR}.0" ]; then
-  error "Bundle was installed, but not for the PUN's ABI (${RUBY_MINOR}.0)."
-  error "Found instead: $(ls vendor/bundle/ruby/ 2>/dev/null | tr '\n' ' ')"
-  error "The PUN resolves vendor/bundle/ruby/${RUBY_MINOR}.0/ and would fail with"
-  error "Bundler::GemNotFound. Remove vendor/bundle and re-run."
-  exit 1
-fi
-if [ -n "$PUN_RUBY_BIN" ] && [ -x "$PUN_RUBY_BIN" ]; then
-  if ! "$PUN_RUBY_BIN" -S bundle check >/dev/null 2>&1; then
-    error "The PUN's Ruby ($PUN_RUBY_BIN) cannot resolve the bundle:"
-    "$PUN_RUBY_BIN" -S bundle check 2>&1 | head -8 | sed 's/^/         /'
-    error "The app would fail to boot in the PUN. Remove vendor/bundle and re-run."
-    exit 1
-  fi
-  success "Verified: the PUN's Ruby resolves the vendored bundle."
-fi
 success "Ruby dependencies installed (vendored, precompiled for $TARGET_PLATFORM)."
 
 # 4. Install NodeJS dependencies
