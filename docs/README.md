@@ -8,6 +8,7 @@
 | [Troubleshooting](TROUBLESHOOTING.md) | Symptom-first fixes for empty widgets, missing metrics, stale assets |
 | [Known Limitations](LIMITATIONS.md) | What this fork does not do, and what needs site-local work |
 | [Development](DEVELOPMENT.md) | Working on the dashboard itself: sandbox setup, local server, asset rebuilds |
+| [Architecture](ARCHITECTURE_OVERVIEW.md) | Which files implement each widget and page |
 | [Demo mode](../demo/README.md) | Running the whole dashboard with an invented cluster behind it |
 
 `.env.local.example` in the repository root is the authoritative annotated list

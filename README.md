@@ -196,6 +196,7 @@ OOD_DASHBOARD_DOCS_URL="https://docs.example.edu/"
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Symptom-first fixes for empty widgets, missing metrics, stale assets |
 | [Known Limitations](docs/LIMITATIONS.md) | What this fork does not do, and what needs site-local work |
 | [Development](docs/DEVELOPMENT.md) | Working on the dashboard itself |
+| [Architecture](docs/ARCHITECTURE_OVERVIEW.md) | Which files implement each widget and page |
 | [Demo mode](demo/README.md) | Running the whole dashboard with an invented cluster behind it |
 
 ## Before you deploy
