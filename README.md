@@ -25,6 +25,10 @@ No Slurm, no Open OnDemand, no root required — stub scheduler tools serve a co
 fake cluster (7 partitions, 82 nodes, 250 jobs, 4 allocations) so every page and
 widget is populated. All jobs data are invented.
 
+We've built a website to host the demo at: https://tinyurl.com/ood-dashboard-demo
+
+If you want to play with the demo and build your own demo, please follow the options below.
+
 ### (Recommended) Option1: Container - Apptainer
 
 Apptainer needs no root and is the path of least resistance on HPC.
