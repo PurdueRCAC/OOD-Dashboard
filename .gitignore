@@ -10,3 +10,4 @@ testfile.json
 /data
 /vendor/bundle
 /tmp
+/demo/k8s/
