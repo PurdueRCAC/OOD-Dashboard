@@ -11,7 +11,7 @@ description: |
   layout, documentation links, news endpoint, GPU accounting rules) are
   configuration, so it can be deployed without patching views.
 
-software: "Open OnDemand"
+software: "Dashboards"
 
 app_type: "dashboard"
 
