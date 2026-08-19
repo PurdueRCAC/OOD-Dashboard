@@ -1,5 +1,18 @@
 #!/bin/bash
 
+# Third-party installers this script pipes into a shell, pinned to a tagged
+# revision rather than a moving branch. Piping a URL into bash trusts whatever
+# that URL serves at the moment it runs; pinning means the code we execute is
+# the code that was reviewed, and a compromised or simply changed upstream
+# branch cannot alter this install. Bump these deliberately.
+#
+# Override for testing with e.g. RBENV_INSTALLER_REF=HEAD ./install.sh
+#
+# rbenv-installer publishes no tags, so it is pinned by commit SHA; nvm is
+# pinned to a release tag. Verified against the upstream repos 2026-08-19.
+RBENV_INSTALLER_REF="${RBENV_INSTALLER_REF:-a5350919f70fd398f327b2efcd072500ab7f29ce}"
+NVM_INSTALLER_REF="${NVM_INSTALLER_REF:-v0.40.7}"
+
 # Function to display messages
 function info {
   echo -e "\033[1;34m[INFO]\033[0m $1"
@@ -225,7 +238,7 @@ if command -v rbenv >/dev/null; then
   success "rbenv is already installed."
 else
   info "Installing rbenv... (ETA: 3-5 minutes)"
-  curl -fsSL https://github.com/rbenv/rbenv-installer/raw/HEAD/bin/rbenv-installer | bash >/dev/null 2>&1
+  curl -fsSL "https://github.com/rbenv/rbenv-installer/raw/${RBENV_INSTALLER_REF}/bin/rbenv-installer" | bash >/dev/null 2>&1
   [ -x "$HOME/.rbenv/bin/rbenv" ] && export PATH="$HOME/.rbenv/bin:$PATH"
   if command -v rbenv >/dev/null; then
     success "rbenv installed successfully."
@@ -521,7 +534,7 @@ if check_nvm; then
   success "nvm is already installed."
 else
   info "Installing nvm... (ETA: 5-10 seconds)"
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash >/dev/null 2>&1
+  curl -o- "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_INSTALLER_REF}/install.sh" | bash >/dev/null 2>&1
   [[ "$SHELL" == "bash" ]] && source "$HOME/.bash_profile" >/dev/null 2>&1
   [[ "$SHELL" == "zsh" ]] && source "$HOME/.zshrc" >/dev/null 2>&1
   if check_nvm; then

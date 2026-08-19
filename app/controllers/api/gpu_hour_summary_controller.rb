@@ -1,3 +1,5 @@
+require "open3"
+
 module Api
   class GpuHourSummaryController < ApplicationController
     def get
@@ -12,9 +14,14 @@ module Api
       end
 
       gpu_hour_summary = Rails.cache.fetch("gpu_hour_summary/#{allocation}", expires_in: 1.hours, race_condition_ttl: 3.seconds) do
-        output = `scontrol show assoc accounts=#{allocation} flags=assoc -o | tail -n +3`
+        # No shell: `| tail -n +3` skipped the two header lines, which
+        # `lines.drop(2)` does directly.
+        raw_output, scontrol_status = Open3.capture2e(
+          "scontrol", "show", "assoc", "accounts=#{allocation}", "flags=assoc", "-o"
+        )
+        output = raw_output.lines.drop(2).join
 
-        if $?.success?
+        if scontrol_status.success?
           # First find the limit from the account line
           account_line = Util.scontrol_to_hash(output).find { |line_h| line_h["Account"] == allocation }
           limit = if account_line

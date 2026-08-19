@@ -110,7 +110,7 @@
                                 ${row.account} ${percentUsedAccount >= 95 ? `<i class="fa fa-warning text-warning" data-toggle="tooltip" title="You have reached over 95% of your service unit limit."></i>` : ""}
                             </div>
                             <div class="btn-group">
-                                <button id="${row.account}-export-dropdown-button" 
+                                <button id="${escapeHtml(row.account)}-export-dropdown-button" 
                                     class="btn btn-sm btn-outline-info dropdown-toggle rounded-pill shadow-sm" 
                                     style="font-size: 0.875rem;"
                                     data-toggle="dropdown" 
@@ -118,8 +118,8 @@
                                     <i class="fas fa-download"></i> <span class="d-none d-sm-inline">Export</span>
                                 </button>
                                 <div class="su-export-dropdown dropdown-menu dropdown-menu-right shadow-sm" 
-                                    aria-labelledby="${row.account}-export-dropdown-button" 
-                                    data-account="${row.account}"
+                                    aria-labelledby="${escapeHtml(row.account)}-export-dropdown-button" 
+                                    data-account="${escapeHtml(row.account)}"
                                     data-total-sus-used="${row.used}"
                                     data-total-sus-limit="${row.limit}">
                                     <button class="dropdown-item text-body" style="font-size: 0.875rem;">

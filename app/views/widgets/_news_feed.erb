@@ -289,7 +289,7 @@
                                         UPDATE
                                     </div>
                                     <div style="color: hsl(215.4 16.3% 46.9%); font-size: 0.875rem; margin-bottom: 0.25rem;">
-                                            ${update.formattedcreateddate}
+                                            ${escapeHtml(update.formattedcreateddate)}
                                         </div>
                                     <div style="font-size: 0.95rem; line-height: 1.6; color: #1f2937;">
                                             ${update.formattedbody}
@@ -325,14 +325,14 @@
                                     : `<div class="past-indicator mr-3"></div>`}
                                 <div style="flex: 1; min-width: 0;">
                                     <div class="font-weight-medium" style="font-size: 1rem; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 0.75rem;">
-                                        ${article.headline}
+                                        ${escapeHtml(article.headline)}
                                     </div>
                                     <div style="color: #4b5563; font-size: 0.85rem;">
-                                        ${article.formatteddate}
+                                        ${escapeHtml(article.formatteddate)}
                                     </div>
                                 </div>
                             </div>
-                            <a href="${article.uri}" target="_blank" 
+                            <a href="${escapeHtml(article.uri || '#')}" target="_blank" 
                                class="action-btn mr-2" 
                                style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(215.4 16.3% 46.9%); border-radius: 6px; padding: 0.375rem; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-decoration: none; display: flex; align-items: center; justify-content: center; width: 28px; height: 28px;"
                                onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'; this.style.color='hsl(222.2 84% 4.9%)'"

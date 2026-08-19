@@ -1,9 +1,14 @@
+require "open3"
+
 module Api
     class PerformanceMetricsController < ApplicationController
         def getuserdata
-            output = `sacct -S now-100000days -P -n -u #{@user.name} -o #{MyJobsController::SACCT_FIELDS.join(",")}`
-      
-            if $?.success?
+            output, sacct_status = Open3.capture2e(
+              "sacct", "-S", "now-100000days", "-P", "-n", "-u", @user.name,
+              "-o", MyJobsController::SACCT_FIELDS.join(",")
+            )
+
+            if sacct_status.success?
               interactive_app_regex = %r{\A/home/#{Regexp.escape(@user.name)}/ondemand/data/sys/dashboard/batch_connect/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
               jobs = {}
       
@@ -41,7 +46,9 @@ module Api
           end
         
         def getsacctuser
-            output = `sacct -u #{@user.name} -S now-100000days -X -o JobID,Submit,Start,End,`
+            output, _sacct_status = Open3.capture2e(
+              "sacct", "-u", @user.name, "-S", "now-100000days", "-X", "-o", "JobID,Submit,Start,End,"
+            )
 
             lines = output.split("\n")
             headers = lines[0].split.map(&:strip)

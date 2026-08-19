@@ -1,3 +1,5 @@
+require "open3"
+
 module Api
   class NodesController < ApplicationController
     GPUS = {
@@ -5,14 +7,23 @@ module Api
       "h100" => "Nvidia H100",
       "h200" => "Nvidia H200",
     }
+    # Slurm node names are alphanumerics plus `-` and `_`. Anything else is
+    # rejected before it reaches the scheduler commands below.
+    NODE_NAME_REGEX = /\A[a-zA-Z0-9_\-]+\z/
+
     def show
-      node = Rails.cache.fetch("node_#{params[:name]}", expires_in: 30.seconds, race_condition_ttl: 3.seconds) do
+      node_name = params[:name].to_s
+      unless NODE_NAME_REGEX.match?(node_name)
+        return render json: { error: "Invalid node name." }, status: :bad_request
+      end
+
+      node = Rails.cache.fetch("node_#{node_name}", expires_in: 30.seconds, race_condition_ttl: 3.seconds) do
         # Get detailed node info including state, memory, GPU
-        output, status = Open3.capture2e("scontrol show node -a --oneliner -d #{params[:name]}")
-        
+        output, status = Open3.capture2e("scontrol", "show", "node", "-a", "--oneliner", "-d", node_name)
+
         if status.success?
           result = Util.scontrol_to_hash(output)
-          node_data = result.find { |node| node["NodeName"] == params[:name] }
+          node_data = result.find { |node| node["NodeName"] == node_name }
           
           if node_data
             alloctres_hash = node_data["AllocTRES"].split(',').map { |pair| pair.split('=', 2) }.to_h
@@ -32,7 +43,9 @@ module Api
             end
             
             # Get jobs running on this node
-            jobs_output, jobs_status = Open3.capture2e("squeue -h -w #{params[:name]} -t all -o '%i|%j|%u|%P|%T|%M|%l|%b|%C'")
+            jobs_output, jobs_status = Open3.capture2e(
+              "squeue", "-h", "-w", node_name, "-t", "all", "-o", "%i|%j|%u|%P|%T|%M|%l|%b|%C"
+            )
             
             if jobs_status.success?
               node_data["jobs"] = if jobs_output.strip.empty?

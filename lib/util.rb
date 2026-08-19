@@ -231,10 +231,15 @@ module Util
 
   def self.get_user_allocations(user)
     allocations = Rails.cache.fetch("allocations/#{user}", expires_in: 1.days) do
-      output = `sacctmgr show user #{user} withassoc format=account -P -n -r | xargs | tr ' ' ',' | tr -d '\n'`
+      # No shell: the `| xargs | tr ' ' ',' | tr -d '\n'` pipeline just collapsed
+      # the one-account-per-line output into a comma-separated list, which
+      # `split.join(",")` does directly.
+      output, status = Open3.capture2e(
+        "sacctmgr", "show", "user", user.to_s, "withassoc", "format=account", "-P", "-n", "-r"
+      )
 
-      if $?.success?
-        output
+      if status.success?
+        output.split.join(",")
       else
         return false
       end

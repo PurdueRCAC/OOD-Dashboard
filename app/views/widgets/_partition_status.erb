@@ -100,7 +100,7 @@
                                 <div class="ms-2 px-3 py-1 rounded-pill d-flex align-items-center" 
                                      style="font-size: 1rem; background-color: ${getStatusStyle(row.state).bg}; color: ${getStatusStyle(row.state).text};">
                                     <i class="fas ${getStatusStyle(row.state).icon}" style="margin-right: 0.5rem;"></i>
-                                    ${row.state.charAt(0).toUpperCase() + row.state.slice(1).toLowerCase()}
+                                    ${escapeHtml(row.state.charAt(0).toUpperCase() + row.state.slice(1).toLowerCase())}
                                 </div>
                             </div>
 

@@ -1,3 +1,5 @@
+require "open3"
+
 module Api
   class BalanceUsageController < ApplicationController
     def get
@@ -9,9 +11,14 @@ module Api
       cache_key = ["balance_usage", user, ::Configuration.gpu_account_pattern,
                    ::Configuration.gpu_account_tres, ::Configuration.cpu_account_tres].join("/")
       mybalance = Rails.cache.fetch(cache_key, expires_in: 1.hours, race_condition_ttl: 3.seconds) do
-        output = `scontrol show assoc users=#{user} accounts=#{allocations} flags=assoc -o | tail -n +3`
+        # No shell: `| tail -n +3` skipped the two header lines, which
+        # `lines.drop(2)` does directly.
+        raw_output, scontrol_status = Open3.capture2e(
+          "scontrol", "show", "assoc", "users=#{user}", "accounts=#{allocations}", "flags=assoc", "-o"
+        )
+        output = raw_output.lines.drop(2).join
 
-        if $?.success?
+        if scontrol_status.success?
           parsed_data = Util.scontrol_to_hash(output)
           parsed_data.select { |line_h| line_h["UserName"].blank? }.map { |line_h|
             grp_tres_mins = line_h["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
