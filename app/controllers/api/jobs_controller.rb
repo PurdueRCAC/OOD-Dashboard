@@ -415,8 +415,9 @@ module Api
     private
 
     def get_job_info(job_id)
-      # Validate job ID format
-      return nil if !(/^\d+(_\d+)?$/.match?(job_id))
+      # Validate job ID format. \A and \z (not ^ and $), so an embedded newline
+      # cannot smuggle a second line past the check.
+      return nil if !(/\A\d+(_\d+)?\z/.match?(job_id))
 
       # Get all possible sacct fields from FIELD_INFO
       sacct_fields = FIELD_INFO.values.map { |info| info[:sacct] }.compact.join(',')
@@ -424,8 +425,10 @@ module Api
       base_job_id = job_id.split("_").first
 
       # Get detailed job info from scontrol and sacct
-      scontrol_output, scontrol_status = Open3.capture2e("scontrol show job #{job_id} -d -o")
-      sacct_output, sacct_status = Open3.capture2e("sacct -j #{base_job_id} -P -n --array --expand-patterns --format=#{sacct_fields}")
+      scontrol_output, scontrol_status = Open3.capture2e("scontrol", "show", "job", job_id, "-d", "-o")
+      sacct_output, sacct_status = Open3.capture2e(
+        "sacct", "-j", base_job_id, "-P", "-n", "--array", "--expand-patterns", "--format=#{sacct_fields}"
+      )
 
       # Check if either command succeeded
       return nil if scontrol_output.blank? && sacct_output.blank?
@@ -614,11 +617,15 @@ module Api
     end
 
     def convert_cancelled_state(value)
-      if value =~ /^CANCELLED by (\d+)$/
-        username = Rails.cache.fetch("user_id/#{$1}") do
-          `id -un #{$1}`.strip
+      if (match = value.match(/\ACANCELLED by (\d+)\z/))
+        uid = match[1]
+        # Resolve inside the cache block: `$?` outside it reflects whatever ran
+        # last, not this lookup, on a cache hit.
+        username = Rails.cache.fetch("user_id/#{uid}") do
+          id_output, id_status = Open3.capture2e("id", "-un", uid)
+          id_status.success? ? id_output.strip : nil
         end
-        value = "CANCELLED by #{username}" if $?.success?
+        value = "CANCELLED by #{username}" if username.present?
       end
       value
     end

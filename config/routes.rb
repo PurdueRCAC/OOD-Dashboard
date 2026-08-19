@@ -73,9 +73,20 @@ Rails.application.routes.draw do
   get "api/balance_summary", action: :get, controller: "api/balance_summary", as: "balance_summary"
   get "api/gpu_hour_summary", action: :get, controller: "api/gpu_hour_summary", as: "gpu_hour_summary"
   get "api/cluster_status", action: :get, controller: "api/cluster_status", as: "cluster_status_api"
-  get "api/nodes/:name", action: :show, controller: "api/nodes", as: "node_api"
-  get "api/jobs/:jobid", action: :show, controller: "api/jobs", as: "job_api"
-  delete "api/jobs/:jobid/cancel", action: :cancel, controller: "api/jobs", as: "cancel_job_api"
+  # Rails' default segment pattern permits shell metacharacters, so these
+  # segments are constrained here as well as validated in the controllers.
+  #
+  # The job id pattern is \w+ rather than the exact \d+(_\d+)? the controllers
+  # enforce, because the views generate these paths once with a literal
+  # "JOB_ID" placeholder and substitute the real id in JavaScript. \w+ still
+  # admits no shell metacharacter and no newline, so it closes the injection
+  # class; the exact format check stays in the controllers.
+  get "api/nodes/:name", action: :show, controller: "api/nodes", as: "node_api",
+      constraints: { name: /[a-zA-Z0-9_\-]+/ }
+  get "api/jobs/:jobid", action: :show, controller: "api/jobs", as: "job_api",
+      constraints: { jobid: /\w+/ }
+  delete "api/jobs/:jobid/cancel", action: :cancel, controller: "api/jobs", as: "cancel_job_api",
+         constraints: { jobid: /\w+/ }
 
   get "api/userdata", action: :getuserdata, controller: "api/performance_metrics"
   get "api/sacctuser", action: :getsacctuser, controller: "api/performance_metrics"
@@ -110,15 +121,15 @@ Rails.application.routes.draw do
 
   get "/performance_metrics" => "performance_metrics#index", as: "performance_metrics"
   get "/cluster_status" => "cluster_status#index", as: "cluster_status"
-  get "/nodes/:name" => "nodes#show", as: "node"
-  get "/job/:jobid" => "job#show", as: "job"
+  get "/nodes/:name" => "nodes#show", as: "node", constraints: { name: /[a-zA-Z0-9_\-]+/ }
+  get "/job/:jobid" => "job#show", as: "job", constraints: { jobid: /\w+/ }
 
   get "/myjobs" => "my_jobs#index", as: "my_jobs"
   get "/myjobs/json" => "my_jobs#json"
   get "/myjobs/gpu_efficiency" => "my_jobs#gpu_efficiency"
   delete "/myjobs" => "my_jobs#cancel_jobs", as: "cancel_jobs"
 
-  get "/job/:jobid/json" => "job_info#json"
+  get "/job/:jobid/json" => "job_info#json", constraints: { jobid: /\w+/ }
 
   get '/jobs/info/:cluster/:id' => 'jobs#info', :defaults => { :format => 'json' }, :as => 'jobs_info'
 

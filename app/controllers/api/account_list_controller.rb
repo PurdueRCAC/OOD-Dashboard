@@ -1,3 +1,5 @@
+require "open3"
+
 module Api
   class AccountListController < ApplicationController
     def get
@@ -5,8 +7,19 @@ module Api
 
       allocations = Util.get_user_allocations(user)
       myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds) do
-        scontrol_output, scontrol_status = Open3.capture2("scontrol show assoc users=#{user} accounts=#{allocations} flags=assoc -o | tail -n +3")
-        squeue_output, squeue_status = Open3.capture2("squeue -h --array -A #{allocations} -t PENDING,REQUEUED -a -r -o '%.60a|%C' | awk '{$1=$1}1'")
+        # No shell: `| tail -n +3` skipped the two header lines and
+        # `| awk '{$1=$1}1'` collapsed the padding `%.60a` adds, both of which
+        # are done in Ruby below.
+        scontrol_raw, scontrol_status = Open3.capture2(
+          "scontrol", "show", "assoc", "users=#{user}", "accounts=#{allocations}", "flags=assoc", "-o"
+        )
+        scontrol_output = scontrol_raw.lines.drop(2).join
+
+        squeue_raw, squeue_status = Open3.capture2(
+          "squeue", "-h", "--array", "-A", allocations.to_s,
+          "-t", "PENDING,REQUEUED", "-a", "-r", "-o", "%.60a|%C"
+        )
+        squeue_output = squeue_raw.lines.map { |line| line.split.join(" ") }.join("\n")
 
         if scontrol_status.success? && squeue_status.success?
           cpu_queued_sums = squeue_output.scan(/(.+?)\|(\d+)/).each_with_object(Hash.new(0)) do |(account, cpus), h|

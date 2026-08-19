@@ -1176,7 +1176,7 @@ function findMax(jobids, arr) {
     let correspondingJobId = filteredJobIds[floatValues.indexOf(maxValue)];
 
     const jobPath = '<%= job_path("JOB_ID") %>';
-    return `Job ID: <a href="${jobPath.replace('JOB_ID', correspondingJobId)}">${correspondingJobId}</a> (${maxValue}%)`;
+    return `Job ID: <a href="${escapeHtml(jobPath.replace('JOB_ID', encodeURIComponent(correspondingJobId)))}">${escapeHtml(correspondingJobId)}</a> (${escapeHtml(maxValue)}%)`;
 }
 
 // find job id with min efficiency
@@ -1200,7 +1200,7 @@ function findMin(jobids, arr) {
     let correspondingJobId = filteredJobIds[floatValues.indexOf(minValue)];
 
     const jobPath = '<%= job_path("JOB_ID") %>';
-    return `Job ID: <a href="${jobPath.replace('JOB_ID', correspondingJobId)}">${correspondingJobId}</a> (${minValue}%)`;
+    return `Job ID: <a href="${escapeHtml(jobPath.replace('JOB_ID', encodeURIComponent(correspondingJobId)))}">${escapeHtml(correspondingJobId)}</a> (${escapeHtml(minValue)}%)`;
 }
 
 // get user average wait time

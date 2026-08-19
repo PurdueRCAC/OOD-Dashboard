@@ -1,12 +1,14 @@
 require "json"
+require "open3"
 
 class JobInfoController < ApplicationController
   def json
     jobid = params[:jobid]
 
-    # Make sure job id is valid
-    if !(/^\d+(_\d+)?$/.match?(jobid))
-      head :internal_server_error
+    # Make sure job id is valid. \A and \z (not ^ and $) so that an embedded
+    # newline cannot smuggle a second line past the check.
+    if !(/\A\d+(_\d+)?\z/.match?(jobid))
+      return head :bad_request
     end
 
     # Cache jobinfo results for jobs that have an exit code
@@ -20,9 +22,9 @@ class JobInfoController < ApplicationController
       result_hash = cached_result
     else
       squeue = Rails.cache.fetch("squeue", expires_in: 1.seconds) do
-        output = `squeue -t all -h -o "%i|%P|%j|%u|%T|%r"`
-  
-        if $?.success?
+        output, squeue_status = Open3.capture2e("squeue", "-t", "all", "-h", "-o", "%i|%P|%j|%u|%T|%r")
+
+        if squeue_status.success?
           jobs = output.split("\n").map { |job|
             s = job.split("|")
             {
@@ -40,8 +42,10 @@ class JobInfoController < ApplicationController
         end
       end
 
-      result = `sacct -j #{jobid} -P -n -o #{MyJobsController::SACCT_FIELDS.join(",")}`
-      if $?.success?
+      result, sacct_status = Open3.capture2e(
+        "sacct", "-j", jobid, "-P", "-n", "-o", MyJobsController::SACCT_FIELDS.join(",")
+      )
+      if sacct_status.success?
         interactive_app_regex = %r{\A/home/#{Regexp.escape(@user.name)}/ondemand/data/sys/dashboard/batch_connect/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
         jobs = {}
 
@@ -65,13 +69,16 @@ class JobInfoController < ApplicationController
             j[field] = MyJobsController::FIELDS[field]["compare_fn"].call(j[field])
           end
 
-          state_match = j["state"].match(/^CANCELLED by (\d+)$/)
+          state_match = j["state"].match(/\ACANCELLED by (\d+)\z/)
           unless state_match.nil?
+            # Resolve inside the cache block: `$?` outside it reflects whatever
+            # ran last, not this lookup, on a cache hit.
             username = Rails.cache.fetch("user_id/#{state_match.captures[0]}") do
-              `id -un #{state_match.captures[0]}`
+              id_output, id_status = Open3.capture2e("id", "-un", state_match.captures[0])
+              id_status.success? ? id_output : nil
             end
 
-            if $?.success?
+            if username.present?
               j["state"] = "CANCELLED by #{username}"
             end
           end
@@ -101,8 +108,8 @@ class JobInfoController < ApplicationController
           j["nodelist"] = expand_nodelist(j["nodelist"])
 
           if j["state"] == "REQUEUED"
-            output = `scontrol show job #{j["jobid"]} -o`
-            if $?.success?
+            output, scontrol_status = Open3.capture2e("scontrol", "show", "job", j["jobid"].to_s, "-o")
+            if scontrol_status.success?
               output_hash = Util.scontrol_to_hash(output)[0]
               j["requeue_count"] = output_hash["Restarts"]
             else

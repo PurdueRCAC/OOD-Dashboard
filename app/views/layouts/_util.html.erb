@@ -1,3 +1,23 @@
 <script>
-    
+    // Escape a value for interpolation into an HTML string.
+    //
+    // Several views build table rows and cards as template literals and assign
+    // them with innerHTML. Any value that originates outside the dashboard --
+    // job names, usernames, partitions, account names, working directories, all
+    // of which come from the scheduler and, on node pages, from *other* users --
+    // must go through this first. Values the dashboard itself computes
+    // (booleans, numbers, colour names, state codes looked up in a fixed map)
+    // do not need it.
+    //
+    // Defined in the layout head so every inline <script> in a view can use it.
+    function escapeHtml(value) {
+        if (value === null || value === undefined) return '';
+        return String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    window.escapeHtml = escapeHtml;
 </script>

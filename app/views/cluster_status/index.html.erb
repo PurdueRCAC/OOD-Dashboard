@@ -1454,13 +1454,13 @@
 
     return `
       <div class="text-left">
-        <strong>${node.NodeName}</strong><br>
+        <strong>${escapeHtml(node.NodeName)}</strong><br>
         <span class="text-${stateColor}">
           ${nodeState}
         </span><br>
         ${isGPUNode ? `GPUs: ${gpuLoad}/${gpuTotal}<br>` : `CPUs: ${cpuAlloc}/${cpuTotal}<br>`}
         Memory: ${formatMemory(allocMem)}/${formatMemory(totalMem)}<br>
-        Partitions: ${partitions.join(', ')}
+        Partitions: ${escapeHtml(partitions.join(', '))}
       </div>
     `;
   }
@@ -1592,16 +1592,16 @@
     const memPercentage = Math.min(100, Math.round((allocMem / totalMem) * 100));
     
     const partitionBadges = (node.Partitions || [])
-      .map(partition => `<span class="partition-badge">${partition}</span>`)
+      .map(partition => `<span class="partition-badge">${escapeHtml(partition)}</span>`)
       .join(' ');
     
-    const nodeUrl = '<%= url_for(controller: "nodes", action: "show", name: "__NAME__") %>'.replace('__NAME__', node.NodeName);
+    const nodeUrl = '<%= url_for(controller: "nodes", action: "show", name: "__NAME__") %>'.replace('__NAME__', encodeURIComponent(node.NodeName));
     
     return `
       <td>
-        <a href="${nodeUrl}" 
+        <a href="${escapeHtml(nodeUrl)}" 
            class="node-name-link"
-           onclick="handleNodeClick(event, '${node.NodeName}')">${node.NodeName}</a>
+           onclick="handleNodeClick(event, ${escapeHtml(JSON.stringify(node.NodeName))})">${escapeHtml(node.NodeName)}</a>
       </td>
       <td><span class="node-state ${stateClass}">${nodeState}</span></td>
       <td>${partitionBadges}</td>

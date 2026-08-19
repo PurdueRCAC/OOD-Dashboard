@@ -76,21 +76,25 @@ class MyJobsController < ApplicationController
   end
 
   def cancel_jobs
-    job_ids = params[:job_ids].split(",")
+    job_ids = params[:job_ids].to_s.split(",")
 
     # Warning: not passing any job ids to scancel when -u is specified will cancel all of the user's jobs
     if job_ids.empty?
       return head :bad_request
     end
 
+    # \A and \z (not ^ and $), so an id containing a newline cannot pass the
+    # check on its first line and carry a second line into the command.
     job_ids.each do |job_id|
-      if !(/^\d+(_\d+)?$/.match?(job_id))
+      if !(/\A\d+(_\d+)?\z/.match?(job_id))
         return head :bad_request
       end
     end
 
+    # Pass the validated ids, not the raw param, and as separate arguments so
+    # no shell is involved.
     # All scancel output is in stderr instead of stdout for some reason
-    result, _ = Open3.capture2e("scancel -u #{@user.name} -v #{params[:job_ids]}")
+    result, _ = Open3.capture2e("scancel", "-u", @user.name, "-v", *job_ids)
 
     cancelled_job_ids = result.split("\n").map { |line| $1 if line =~ /^scancel: Terminating job (\d+(?:_\d+)?)$/ }.compact
 
@@ -137,9 +141,9 @@ class MyJobsController < ApplicationController
     allocations = Util.get_user_allocations(@user.name)
 
     squeue = Rails.cache.fetch("squeue", expires_in: 1.seconds) do
-      output = `squeue -t all -h -o "%i|%P|%j|%u|%T|%r"`
+      output, squeue_status = Open3.capture2e("squeue", "-t", "all", "-h", "-o", "%i|%P|%j|%u|%T|%r")
 
-      if $?.success?
+      if squeue_status.success?
         jobs = output.split("\n").map { |job|
           s = job.split("|")
           {
@@ -158,9 +162,16 @@ class MyJobsController < ApplicationController
     end
 
     # This command gets all jobs in the current user's allocations
-    result = `sacct -S #{start_time.strftime("%FT%T")} -E #{end_time.strftime("%FT%T")} -P -n -a -o #{SACCT_FIELDS.join(",")} -A #{allocations}`
+    result, sacct_status = Open3.capture2e(
+      "sacct",
+      "-S", start_time.strftime("%FT%T"),
+      "-E", end_time.strftime("%FT%T"),
+      "-P", "-n", "-a",
+      "-o", SACCT_FIELDS.join(","),
+      "-A", allocations.to_s
+    )
 
-    if $?.success?
+    if sacct_status.success?
       interactive_app_regex = %r{\A/home/#{Regexp.escape(@user.name)}/ondemand/data/sys/dashboard/batch_connect/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
       jobs = {}
 
@@ -184,13 +195,16 @@ class MyJobsController < ApplicationController
           j[field] = FIELDS[field]["compare_fn"].call(j[field])
         end
 
-        state_match = j["state"].match(/^CANCELLED by (\d+)$/)
+        state_match = j["state"].match(/\ACANCELLED by (\d+)\z/)
         unless state_match.nil?
+          # Resolve inside the cache block: `$?` outside it reflects whatever
+          # ran last, not this lookup, on a cache hit.
           username = Rails.cache.fetch("user_id/#{state_match.captures[0]}") do
-            `id -un #{state_match.captures[0]}`
+            id_output, id_status = Open3.capture2e("id", "-un", state_match.captures[0])
+            id_status.success? ? id_output : nil
           end
 
-          if $?.success?
+          if username.present?
             j["state"] = "CANCELLED by #{username}"
           end
         end
@@ -221,8 +235,8 @@ class MyJobsController < ApplicationController
         j["nodelist"] = expand_nodelist(j["nodelist"])
 
         if j["state"] == "REQUEUED"
-          output = `scontrol show job #{j["jobid"]} -o`
-          if $?.success?
+          output, scontrol_status = Open3.capture2e("scontrol", "show", "job", j["jobid"].to_s, "-o")
+          if scontrol_status.success?
             output_hash = Util.scontrol_to_hash(output)[0]
             j["requeue_count"] = output_hash["Restarts"]
           end

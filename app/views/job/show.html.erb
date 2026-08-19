@@ -246,9 +246,9 @@ function createNodeList(nodes) {
   }
   
   return nodes.map(node => `
-    <a href="${"<%= node_path('NODE_ID') %>".replace('NODE_ID', node)}"
+    <a href="${escapeHtml("<%= node_path('NODE_ID') %>".replace('NODE_ID', encodeURIComponent(node)))}"
       class="node-link">
-      ${node}
+      ${escapeHtml(node)}
     </a>
   `).join('');
 }
@@ -325,6 +325,7 @@ function loadFile(data, tabId, dataKey) {
       
       // Add truncation message if we received exactly 1000 lines and there are more lines
       if (lines.length === 1000 && data.total_lines > 1000) {
+        // Rendered via textContent below, so no escaping here.
         lines.unshift(`--- Output truncated. Showing last 1000 lines (${data.start_line}-${data.total_lines}) ---`);
       }
       
@@ -629,23 +630,23 @@ function renderJobData(data) {
               <div class="info-card-body p-4">
                 <div class="info-item">
                   <span class="info-label">Name</span>
-                  <span class="info-value">${get(data, 'JobName')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'JobName'))}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">User</span>
-                  <span class="info-value">${get(data, 'User')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'User'))}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Account</span>
-                  <span class="info-value">${get(data, 'Account')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'Account'))}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Partition</span>
-                  <span class="info-value">${get(data, 'Partition')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'Partition'))}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">QOS</span>
-                  <span class="info-value">${get(data, 'QOS')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'QOS'))}</span>
                 </div>
               </div>
             </div>
@@ -661,12 +662,12 @@ function renderJobData(data) {
               <div class="info-card-body p-4">
                 <div class="info-item">
                   <span class="info-label">CPUs</span>
-                  <span class="info-value">${get(data, 'NCPUS')}</span>
+                  <span class="info-value">${escapeHtml(get(data, 'NCPUS'))}</span>
                 </div>
                 <div class="info-item">
                   <span class="info-label">Nodes</span>
                   <span class="info-value d-flex align-items-center">
-                    ${get(data, 'NNodes')}
+                    ${escapeHtml(get(data, 'NNodes'))}
                     ${data.NodeList && data.NodeList.length > 0 && data.NodeList[0] !== "None assigned" ? `
                       <button class="nodelist-toggle ml-2" onclick="toggleNodeList(this)" type="button">
                         <i class="fas fa-caret-down"></i>
@@ -782,23 +783,23 @@ function renderJobData(data) {
             <div class="info-item">
               <span class="info-label">Session App</span>
               <span class="info-value">
-                <a href="${get(data, 'SessionAppUrl')}" target="_blank">
-                  ${get(data, 'SessionAppName')}
+                <a href="${escapeHtml(get(data, 'SessionAppUrl'))}" target="_blank">
+                  ${escapeHtml(get(data, 'SessionAppName'))}
                 </a>
               </span>
             </div>
             <div class="info-item">
               <span class="info-label">Session ID</span>
               <span class="info-value">
-                ${get(data, 'SessionId')}
+                ${escapeHtml(get(data, 'SessionId'))}
               </span>
             </div>
             ${get(data, 'SessionPath') ? `
               <div class="info-item">
                 <span class="info-label">Session Path</span>
                 <span class="info-value text-monospace">
-                  <a href="<%= files_path %>${get(data, 'SessionPath')}" class="text-primary">
-                    ${get(data, 'SessionPath')}
+                  <a href="<%= files_path %>${escapeHtml(get(data, 'SessionPath'))}" class="text-primary">
+                    ${escapeHtml(get(data, 'SessionPath'))}
                   </a>
                 </span>
               </div>
@@ -806,8 +807,8 @@ function renderJobData(data) {
             ${get(data, 'SessionConnection') ? `
               <hr>
               <div class="info-item d-block">
-                ${get(data, 'SessionConnectionInfo')}
-                ${get(data, 'SessionConnection')}
+                ${escapeHtml(get(data, 'SessionConnectionInfo'))}
+                ${escapeHtml(get(data, 'SessionConnection'))}
               </div>
             ` : ''}
           </div>
@@ -901,7 +902,7 @@ function renderJobData(data) {
                   })()}
                 </h5>
               </div>
-              <a href="<%= files_path %>${get(data, 'StdOut')}" 
+              <a href="<%= files_path %>${escapeHtml(get(data, 'StdOut'))}" 
                  class="btn btn-sm btn-outline-secondary rounded-pill ml-3 text-nowrap"
                  target="_blank">
                 <i class="fas fa-external-link-alt"></i>
@@ -942,7 +943,7 @@ function renderJobData(data) {
                   })()}
                 </h5>
               </div>
-              <a href="<%= files_path %>${get(data, 'StdErr')}" 
+              <a href="<%= files_path %>${escapeHtml(get(data, 'StdErr'))}" 
                  class="btn btn-sm btn-outline-secondary rounded-pill ml-3 text-nowrap"
                  target="_blank">
                 <i class="fas fa-external-link-alt"></i>
@@ -989,7 +990,7 @@ function renderJobData(data) {
             data-toggle="tooltip"
             data-placement="bottom"
             title="${SIMPLE_JOB_REASON_CODES[data.Reason] || JOB_REASON_CODES[data.Reason] || ''}">
-        ${data.Reason}
+        ${escapeHtml(data.Reason)}
       </span>
     ` : ''}
   `;

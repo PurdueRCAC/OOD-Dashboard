@@ -123,13 +123,13 @@
                         
                         return `
                         <div class="col-12 col-md-auto px-0 px-md-2 mb-2 mb-md-0">
-                            <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.jobid)}" 
+                            <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', escapeHtml(encodeURIComponent(job.jobid)))}" 
                                class="text-decoration-none">
                                 <div class="d-flex flex-column w-100 p-3 bg-white rounded job-queue-card">
                                     <div class="d-flex flex-row justify-content-between align-items-start flex-md-column">
                                         <div class="flex-grow-1 text-truncate pr-3 pr-md-0">
-                                            <div class="font-weight-bold text-truncate text-dark">${job.name.length > 40 ? job.name.substring(0, 40) + '...' : job.name}</div>
-                                            <small class="text-muted text-truncate">${job.jobid} • ${job.partition}</small>
+                                            <div class="font-weight-bold text-truncate text-dark">${escapeHtml(job.name.length > 40 ? job.name.substring(0, 40) + '...' : job.name)}</div>
+                                            <small class="text-muted text-truncate">${escapeHtml(job.jobid)} • ${escapeHtml(job.partition)}</small>
                                             <div class="text-muted mt-1 small">
                                                 <i class="fas fa-clock mr-1"></i> ${timeDisplay}
                                             </div>
@@ -140,7 +140,7 @@
                                                   data-toggle="tooltip" 
                                                   data-placement="top" 
                                                   title="${state_verbose}">
-                                                ${job.state}
+                                                ${escapeHtml(job.state)}
                                             </span>
                                             ${job.reason !== "None" && reason_verbose !== "--" ? 
                                                 `<span class="badge badge-pill badge-secondary ml-0 ml-md-1 shadow-sm d-flex align-items-center"
@@ -148,7 +148,7 @@
                                                        data-toggle="tooltip" 
                                                        data-placement="top" 
                                                        title="${reason_verbose}">
-                                                        ${job.reason}
+                                                        ${escapeHtml(job.reason)}
                                                     </span>`
                                             : ""}
                                         </div>

@@ -104,11 +104,16 @@ function renderNodeData(data) {
   const activeTabId = $('.nav-tabs .nav-link.active').attr('href') || '#details';
   
   // Helper function to safely get nested values
+  // Every caller interpolates the result into an HTML string, so escape here:
+  // these are scontrol-supplied node fields, and this is the one place they
+  // are read. Slurm state names, features and TRES strings contain no HTML
+  // metacharacters, so escaping does not change how any real value renders or
+  // compares.
   const get = (obj, key, defaultValue = 'N/A') => {
     const value = obj.hasOwnProperty(key) ? obj[key] : defaultValue;
     // Handle special values
     if (['None', '(null)', 'N/A', 'Unknown'].includes(value)) return defaultValue;
-    return value;
+    return escapeHtml(value);
   };
   
   // Helper for date formatting
@@ -117,7 +122,7 @@ function renderNodeData(data) {
     try {
       return new Date(dateStr).toLocaleString();
     } catch (e) {
-      return dateStr;
+      return escapeHtml(dateStr);
     }
   };
   
@@ -348,24 +353,24 @@ function renderNodeData(data) {
                           
                           return `
                             <tr>
-                              <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-id-link">${job.id}</a></td>
-                              <td>${job.name || 'N/A'}</td>
-                              <td>${job.user || 'N/A'}</td>
-                              <td>${job.partition || 'N/A'}</td>
+                              <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', escapeHtml(encodeURIComponent(job.id)))}" class="job-id-link">${escapeHtml(job.id)}</a></td>
+                              <td>${escapeHtml(job.name) || 'N/A'}</td>
+                              <td>${escapeHtml(job.user) || 'N/A'}</td>
+                              <td>${escapeHtml(job.partition) || 'N/A'}</td>
                               <td>
                                 <span class="badge badge-pill has-tooltip" 
                                       data-toggle="tooltip" 
                                       title="${stateDescription}"
                                       style="background-color: ${colors.bg}; color: ${colors.fg}">
-                                  ${job.state || 'N/A'}
+                                  ${escapeHtml(job.state) || 'N/A'}
                                 </span>
                               </td>
                               <td>${data.gpu_info ? (job.gpus || 'N/A') : (job.cpus || 'N/A')}</td>
                               <td>${job.memory && job.memory.display !== 'N/A' ? 
-                                `<span class="has-tooltip" data-toggle="tooltip" title="${job.memory.mb} MB">${job.memory.display}</span>` : 
+                                `<span class="has-tooltip" data-toggle="tooltip" title="${escapeHtml(job.memory.mb)} MB">${escapeHtml(job.memory.display)}</span>` : 
                                 'N/A'}</td>
-                              <td>${job.time || 'N/A'}</td>
-                              <td>${job.time_limit || 'N/A'}</td>
+                              <td>${escapeHtml(job.time) || 'N/A'}</td>
+                              <td>${escapeHtml(job.time_limit) || 'N/A'}</td>
                             </tr>
                           `;
                         }).join('')}
@@ -400,24 +405,24 @@ function renderNodeData(data) {
     
     return `
       <tr>
-        <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-id-link">${job.id}</a></td>
-        <td>${job.name || 'N/A'}</td>
-        <td>${job.user || 'N/A'}</td>
-        <td>${job.partition || 'N/A'}</td>
+        <td><a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', escapeHtml(encodeURIComponent(job.id)))}" class="job-id-link">${escapeHtml(job.id)}</a></td>
+        <td>${escapeHtml(job.name) || 'N/A'}</td>
+        <td>${escapeHtml(job.user) || 'N/A'}</td>
+        <td>${escapeHtml(job.partition) || 'N/A'}</td>
         <td>
           <span class="badge badge-pill has-tooltip" 
                 data-toggle="tooltip" 
                 title="${stateDescription}"
                 style="background-color: ${colors.bg}; color: ${colors.fg}">
-            ${job.state || 'N/A'}
+            ${escapeHtml(job.state) || 'N/A'}
           </span>
         </td>
         <td>${data.gpu_info ? (job.gpus || 'N/A') : (job.cpus || 'N/A')}</td>
         <td>${job.memory && job.memory.display !== 'N/A' ? 
-          `<span class="has-tooltip" data-toggle="tooltip" title="${job.memory.mb} MB">${job.memory.display}</span>` : 
+          `<span class="has-tooltip" data-toggle="tooltip" title="${escapeHtml(job.memory.mb)} MB">${escapeHtml(job.memory.display)}</span>` : 
           'N/A'}</td>
-        <td>${job.time || 'N/A'}</td>
-        <td>${job.time_limit || 'N/A'}</td>
+        <td>${escapeHtml(job.time) || 'N/A'}</td>
+        <td>${escapeHtml(job.time_limit) || 'N/A'}</td>
       </tr>
     `;
   };
@@ -427,33 +432,33 @@ function renderNodeData(data) {
     const stateDescription = SIMPLE_JOB_STATE_CODES[job.state] || JOB_STATE_CODES[job.state] || 'Unknown state';
     
     return `
-      <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', job.id)}" class="job-card">
+      <a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', escapeHtml(encodeURIComponent(job.id)))}" class="job-card">
         <div class="job-card-header">
           <div class="job-id">
             <i class="fas fa-terminal text-muted mr-1" aria-hidden="true"></i>
-            <span class="job-id-text">${job.id}</span>
+            <span class="job-id-text">${escapeHtml(job.id)}</span>
           </div>
           <div class="d-flex align-items-center">
             <span class="badge badge-pill mr-2 has-tooltip" 
                   data-toggle="tooltip" 
                   title="${stateDescription}"
                   style="background-color: ${colors.bg}; color: ${colors.fg}">
-              ${job.state || 'N/A'}
+              ${escapeHtml(job.state) || 'N/A'}
             </span>
           </div>
         </div>
         <div class="job-card-body">
           <div class="job-info-row">
             <i class="fas fa-tag text-muted mr-2"></i>
-            <span class="job-name">${job.name || 'N/A'}</span>
+            <span class="job-name">${escapeHtml(job.name) || 'N/A'}</span>
           </div>
           <div class="job-info-row">
             <i class="fas fa-user text-muted mr-2"></i>
-            <span>${job.user || 'N/A'}</span>
+            <span>${escapeHtml(job.user) || 'N/A'}</span>
           </div>
           <div class="job-info-row">
             <i class="fas fa-layer-group text-muted mr-2"></i>
-            <span>${job.partition || 'N/A'}</span>
+            <span>${escapeHtml(job.partition) || 'N/A'}</span>
           </div>
           <div class="job-info-row">
             <i class="fas fa-microchip text-muted mr-2"></i>
@@ -465,8 +470,8 @@ function renderNodeData(data) {
               <div class="resource-item">
                 <span class="resource-label">Memory:</span>
                 <span class="resource-value ${job.memory && job.memory.display !== 'N/A' ? 'has-tooltip' : ''}" 
-                      ${job.memory && job.memory.display !== 'N/A' ? `data-toggle="tooltip" title="${job.memory.mb} MB"` : ''}>
-                  ${job.memory ? job.memory.display : 'N/A'}
+                      ${job.memory && job.memory.display !== 'N/A' ? `data-toggle="tooltip" title="${escapeHtml(job.memory.mb)} MB"` : ''}>
+                  ${job.memory ? escapeHtml(job.memory.display) : 'N/A'}
                 </span>
               </div>
             </div>
@@ -476,11 +481,11 @@ function renderNodeData(data) {
             <div class="time-info">
               <div class="time-item">
                 <span class="time-label">Runtime:</span>
-                <span class="time-value" title="How long the job has been running">${job.time || 'N/A'}</span>
+                <span class="time-value" title="How long the job has been running">${escapeHtml(job.time) || 'N/A'}</span>
               </div>
               <div class="time-item">
                 <span class="time-label">Time Limit:</span>
-                <span class="time-value" title="Maximum allowed runtime">${job.time_limit || 'N/A'}</span>
+                <span class="time-value" title="Maximum allowed runtime">${escapeHtml(job.time_limit) || 'N/A'}</span>
               </div>
             </div>
           </div>

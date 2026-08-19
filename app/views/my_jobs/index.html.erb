@@ -45,7 +45,7 @@
             field: "jobid",
             className: "text-nowrap",
             render: (data, type, row) => {
-                return `<a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', data)}" class="job-id-link">${data}</a>`
+                return `<a href="${'<%= job_path('JOB_ID') %>'.replace('JOB_ID', escapeHtml(encodeURIComponent(data)))}" class="job-id-link">${escapeHtml(data)}</a>`
             }
         },
         {
@@ -58,9 +58,9 @@
                     // route does not exist on portals without it.
                     linkToSession = FILES_BASE
                         ? `
-                        (<a href="${FILES_BASE}${row[getColIndex("Working Directory")]}">${row[getColIndex("Session ID")]}</a>)
+                        (<a href="${escapeHtml(FILES_BASE + encodeURI(row[getColIndex("Working Directory")]))}">${escapeHtml(row[getColIndex("Session ID")])}</a>)
                     `
-                        : ` (${row[getColIndex("Session ID")]})`;
+                        : ` (${escapeHtml(row[getColIndex("Session ID")])})`;
                 }
                 let efficiencyWarning = "";
                 if (isLowTimeEff(row) || isLowCPUMemEff(row)) {
@@ -68,18 +68,18 @@
                         <i role="button" class="efficiency-warning fa fa-warning text-warning" data-toggle="tooltip" title="You requested significantly more resources than you used. Click to learn more."></i>
                     `;
                 }
-                return `<span class="text-nowrap">${data + linkToSession + efficiencyWarning}</span>`
+                return `<span class="text-nowrap">${escapeHtml(data) + linkToSession + efficiencyWarning}</span>`
             }
         },
         {
             title: "User",
             field: "user",
-            render: (data, type, row) => `<span class="user-filter" style="${ data === "<%= @user %>" ? "text-decoration: underline;" : "" }">${data}</span>`,
+            render: (data, type, row) => `<span class="user-filter" style="${ data === "<%= @user %>" ? "text-decoration: underline;" : "" }">${escapeHtml(data)}</span>`,
         },
         {
             title: "Account",
             field: "account",
-            render: (data, type, row) => `<span class="account-filter">${data}</span>`,
+            render: (data, type, row) => `<span class="account-filter">${escapeHtml(data)}</span>`,
             filterType: "multiselect",
         },
         {
@@ -176,13 +176,13 @@
         {
             title: "Partition",
             field: "partition",
-            render: (data, type, row) => `<span class="partition-filter">${data}</span>`,
+            render: (data, type, row) => `<span class="partition-filter">${escapeHtml(data)}</span>`,
             filterType: "multiselect",
         },
         {
             title: "QOS",
             field: "qos",
-            render: (data, type, row) => `<span class="qos-filter">${data}</span>`,
+            render: (data, type, row) => `<span class="qos-filter">${escapeHtml(data)}</span>`,
             filterType: "multiselect",
         },
         {
@@ -197,7 +197,7 @@
                             data-toggle="tooltip" 
                             data-placement="top" 
                             title="${state_verbose + (row[getColIndex("Requeue Count")] ? `\nRequeued ${row[getColIndex("Requeue Count")]} time(s)` : "")}">
-                        ${data + (row[getColIndex("Requeue Count")] ? ` (${row[getColIndex("Requeue Count")]})` : "")}
+                        ${escapeHtml(data) + (row[getColIndex("Requeue Count")] ? ` (${escapeHtml(row[getColIndex("Requeue Count")])})` : "")}
                     </a>` +
                     (row[getColIndex("Reason")] !== "None" && reason_verbose !== "--" ? 
                         `<span class="text-nowrap"> due to
@@ -207,7 +207,7 @@
                                 data-toggle="tooltip" 
                                 data-placement="top" 
                                 title="${reason_verbose}">
-                                ${row[getColIndex("Reason")]}
+                                ${escapeHtml(row[getColIndex("Reason")])}
                             </span>
                         </span>`
                     : "");
@@ -327,7 +327,7 @@
                         </button>
                         <div class="dropdown-menu">
                             ${nodes.map((node) => {
-                                return `<button class="dropdown-item connect-to-node-button">${node}</button>`
+                                return `<button class="dropdown-item connect-to-node-button">${escapeHtml(node)}</button>`
                             }).join("\n")}
                         </div>
                     </div>

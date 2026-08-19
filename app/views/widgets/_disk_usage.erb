@@ -60,7 +60,7 @@
                         showWarning("home-directory-full-warning", `
                         <h4 class="alert-heading">Home Directory Full</h4>
                         <p class="mb-0">You have hit the disk usage limit in your home directory. Interactive jobs will not start while your home directory is full.</p>
-                        ${FILES_BASE ? `<a href="${FILES_BASE}${directoryPath}" class="alert-link mb-0">Click here to delete files from your home directory to reduce your disk usage.</a>` : "Delete files from your home directory to reduce your disk usage."}
+                        ${FILES_BASE ? `<a href="${escapeHtml(FILES_BASE + encodeURI(directoryPath))}" class="alert-link mb-0">Click here to delete files from your home directory to reduce your disk usage.</a>` : "Delete files from your home directory to reduce your disk usage."}
                         `, true);
                     }
                 } else if (row.type === "scratch") {
@@ -116,13 +116,13 @@
                     <div class="pb-3" style="border-bottom: 1px solid rgba(0,0,0,0.1);">
                         <div class="d-flex justify-content-between align-items-center mb-1">
                             <div class="h5 mb-0">
-                                ${row.type} / ${row.location} 
+                                ${escapeHtml(row.type)} / ${escapeHtml(row.location)} 
                                 ${(diskUsagePercentage >= 95 || fileUsagePercentage >= 95) ? 
                                     `<i class="fa fa-warning text-warning" data-toggle="tooltip" 
                                     title="You have reached over 95% of your disk${row.type !== "home" ? " and/or file" : ""} usage limit."></i>` : ""}
                             </div>
                             ${(directoryPath === "" || !FILES_BASE) ? "" : 
-                                `<a href="${FILES_BASE}${directoryPath}" 
+                                `<a href="${escapeHtml(FILES_BASE + encodeURI(directoryPath))}" 
                                 class="btn btn-sm action-btn"
                                 style="background: hsl(0 0% 100%); border: 1px solid hsl(214.3 31.8% 91.4%); color: hsl(222.2 84% 4.9%); border-radius: 8px; padding: 0.375rem 0.75rem; font-weight: 500; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);"
                                 onmouseover="this.style.background='hsl(210 40% 98%)'; this.style.borderColor='hsl(214.3 31.8% 85%)'"
@@ -134,8 +134,8 @@
                         <!-- Disk Usage -->
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="text-nowrap" style="font-size: 1rem;">
-                                <b>${row.disk_usage.replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> / 
-                                <b>${row.disk_usage_limit.replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> disk space
+                                <b>${escapeHtml(row.disk_usage).replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> / 
+                                <b>${escapeHtml(row.disk_usage_limit).replace(/(\d+(?:\.\d+)?)\s*(GB|KB|MB|TB)/, (_, num, unit) => `${parseFloat(num).toString().replace(/\.0$/, '')} ${unit}`)}</b> disk space
                             </div>
                             <div class="text-muted" style="font-size: 1rem;">
                                 ${Math.round(diskUsagePercentage)}% used

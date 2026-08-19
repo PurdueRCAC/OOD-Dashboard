@@ -24,13 +24,16 @@ module Api
             .select { |article| NEWS_TYPE_IDS.include?(article["newstypeid"].to_i) }
             .select { |article| matches_resource_filter?(article) }
 
-          # Only keep the fields we need
+          # Only keep the fields we need. The feed is remote HTML from a
+          # site-configured endpoint, and the widget renders it as markup, so
+          # sanitize the bodies and allow-list the link scheme here rather than
+          # trusting whatever the endpoint returns.
           filtered.map do |article|
             {
               headline: article["headline"],
-              uri: article["uri"],
+              uri: safe_uri(article["uri"]),
               formatteddate: article["formatteddate"],
-              formattedbody: article["formattedbody"],
+              formattedbody: sanitize_body(article["formattedbody"]),
               datetimenews: article["datetimenews"],
               datetimenewsend: article["datetimenewsend"],
               type: {
@@ -38,7 +41,7 @@ module Api
               },
               updates: (article["updates"] || []).map do |update|
                 {
-                  formattedbody: update["formattedbody"],
+                  formattedbody: sanitize_body(update["formattedbody"]),
                   datetimecreated: update["datetimecreated"],
                   formattedcreateddate: update["formattedcreateddate"]
                 }
@@ -59,16 +62,54 @@ module Api
 
     private
 
+    # Tags and attributes the widget needs to render an article body. Anything
+    # else -- <script>, <iframe>, event handlers, style -- is stripped.
+    ALLOWED_TAGS = %w[p br strong b em i u ul ol li a h1 h2 h3 h4 h5 h6 blockquote code pre span div table thead tbody tr th td].freeze
+    ALLOWED_ATTRIBUTES = %w[href title].freeze
+
+    # Schemes a feed link may use. Notably excludes `javascript:`, which would
+    # otherwise execute when the widget puts the value in an href.
+    ALLOWED_URI_SCHEMES = %w[http https].freeze
+
+    # @return [String, nil] the article body with unsafe markup removed
+    def sanitize_body(html)
+      return nil if html.nil?
+
+      ActionController::Base.helpers.sanitize(
+        html.to_s, tags: ALLOWED_TAGS, attributes: ALLOWED_ATTRIBUTES
+      )
+    end
+
+    # @return [String, nil] the link if it is http(s), otherwise nil so the
+    #   widget renders the headline without one
+    def safe_uri(uri)
+      return nil if uri.blank?
+
+      parsed = URI.parse(uri.to_s)
+      ALLOWED_URI_SCHEMES.include?(parsed.scheme&.downcase) ? uri.to_s : nil
+    rescue URI::InvalidURIError
+      nil
+    end
+
     # The feed source may be an HTTP(S) endpoint or a local JSON file, the same
     # way OOD's quota and balance paths accept either. Returns the raw body, or
     # nil if it could not be read.
     def fetch_feed(source)
       if source.to_s.start_with?('http://', 'https://')
-        res = Net::HTTP.get_response(URI(source))
+        # Bounded: a hung endpoint would otherwise tie up a PUN thread until
+        # the request times out at the web-server layer.
+        res = Net::HTTP.start(
+          URI(source).host, URI(source).port,
+          use_ssl: URI(source).scheme == "https",
+          open_timeout: 5, read_timeout: 10
+        ) { |http| http.request(Net::HTTP::Get.new(URI(source))) }
         res.is_a?(Net::HTTPSuccess) ? res.body : nil
       elsif File.readable?(source.to_s)
         File.read(source.to_s)
       end
+    rescue StandardError => e
+      Rails.logger.warn("News feed fetch failed for #{source.inspect}: #{e.message}")
+      nil
     end
 
     # The feed URL and filter are site configuration, so include them in the
