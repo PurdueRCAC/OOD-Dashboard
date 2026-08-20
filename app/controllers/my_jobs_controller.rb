@@ -157,7 +157,11 @@ class MyJobsController < ApplicationController
         }
         jobs
       else
-        return []
+        # `next`, not `return`: `return` here returned from the whole
+        # action, rendering 204. squeue only supplies a fallback `reason`
+        # below, so an empty list is the right degraded value -- the sacct
+        # data this action is actually about is unaffected.
+        next []
       end
     end
 

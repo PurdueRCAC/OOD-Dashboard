@@ -10,7 +10,7 @@ module Api
       # immediately rather than after the hour-long cache expires.
       cache_key = ["balance_usage", user, ::Configuration.gpu_account_pattern,
                    ::Configuration.gpu_account_tres, ::Configuration.cpu_account_tres].join("/")
-      mybalance = Rails.cache.fetch(cache_key, expires_in: 1.hours, race_condition_ttl: 3.seconds) do
+      mybalance = Rails.cache.fetch(cache_key, expires_in: 1.hours, race_condition_ttl: 3.seconds, skip_nil: true) do
         # No shell: `| tail -n +3` skipped the two header lines, which
         # `lines.drop(2)` does directly.
         raw_output, scontrol_status = Open3.capture2e(
@@ -44,7 +44,10 @@ module Api
             }
           }.sort_by { |hash| hash[:account] }
         else
-          return false
+          # `next`, not `return`: `return` here returned from the whole action,
+          # so the :internal_server_error below was unreachable and Rails
+          # replied 204 instead.
+          next nil
         end
       end
 

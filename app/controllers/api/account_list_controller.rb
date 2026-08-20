@@ -6,7 +6,7 @@ module Api
       user = @user.name
 
       allocations = Util.get_user_allocations(user)
-      myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds) do
+      myaccounts = Rails.cache.fetch("account_list/#{user}", expires_in: 1.minutes, race_condition_ttl: 3.seconds, skip_nil: true) do
         # No shell: `| tail -n +3` skipped the two header lines and
         # `| awk '{$1=$1}1'` collapsed the padding `%.60a` adds, both of which
         # are done in Ruby below.
@@ -62,7 +62,10 @@ module Api
             }
           }.sort_by { |hash| hash[:account] }
         else
-          return false
+          # `next`, not `return`: `return` here returned from the whole action,
+          # so the :internal_server_error below was unreachable and Rails
+          # replied 204 instead.
+          next nil
         end
       end
 
