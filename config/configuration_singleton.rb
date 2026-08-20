@@ -96,6 +96,13 @@ class ConfigurationSingleton
   # `site_name` (falls back to the dashboard title), `excluded_partitions` and
   # `gpu_hours_partitions` (both comma-separated lists).
   #
+  # A key listed here must NOT also be defined as a method below.
+  # `add_string_configs` defines singleton methods in the constructor, and those
+  # take precedence over anything declared in the class body -- so a `def` with
+  # the same name is silently ignored and callers get the raw string. Give the
+  # derived form a different name (`node_name_pattern` here, read by
+  # `node_name_regexp`), or keep the key out of this hash entirely.
+  #
   # @return [Hash] key/value pairs of defaults
   def site_string_configs
     {
@@ -152,7 +159,16 @@ class ConfigurationSingleton
       # to appear; see docs/CONFIGURATION.md for why an explicit interpreter is
       # needed.
       :jobstats_python                    => nil,
-      :jobstats_script                    => nil
+      :jobstats_script                    => nil,
+
+      # Which nodes the Cluster Status page lists, as a regular expression
+      # matched against the node name -- e.g. `\A(cn|gpu)-\d+\z`.
+      #
+      # Unset (the default) means show every node the scheduler reports. That
+      # is the safe default for a site this fork has never seen: showing too
+      # many nodes is visible and fixable, whereas the previous hardcoded
+      # pattern showed *none* and said nothing about why.
+      :node_name_pattern                  => nil
     }
   end
 
@@ -186,6 +202,21 @@ class ConfigurationSingleton
   # @return [Array<String>] partitions charged for GPU hours; empty means none
   def gpu_hours_partitions
     site_config_list(:gpu_hours_partitions)
+  end
+
+  # Compiled form of `node_name_pattern`. An unusable pattern is logged and
+  # treated as unset rather than raising, so a typo in site config cannot take
+  # the Cluster Status page down.
+  #
+  # @return [Regexp, nil] nil means match every node
+  def node_name_regexp
+    pattern = node_name_pattern
+    return nil if pattern.blank?
+
+    Regexp.new(pattern)
+  rescue RegexpError => e
+    Rails.logger.warn("Invalid node_name_pattern #{pattern.inspect}: #{e.message}; showing all nodes")
+    nil
   end
 
   # @return [Boolean] whether per-job jobstats metrics can be collected
