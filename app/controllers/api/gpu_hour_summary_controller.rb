@@ -9,11 +9,16 @@ module Api
 
       allocations = Util.get_user_allocations(user)
 
+      # Render directly: `return :not_in_allocation` returned the symbol from
+      # this action, so nothing was rendered and Rails replied 204 -- the
+      # `== :not_in_allocation` comparison further down was never reached.
       if !(allocations && allocations.split(",").include?(allocation))
-        return :not_in_allocation
+        return head :forbidden
       end
 
-      gpu_hour_summary = Rails.cache.fetch("gpu_hour_summary/#{allocation}", expires_in: 1.hours, race_condition_ttl: 3.seconds) do
+      # skip_nil so a scheduler failure is not cached for an hour: the block
+      # yields nil on failure and the next request retries.
+      gpu_hour_summary = Rails.cache.fetch("gpu_hour_summary/#{allocation}", expires_in: 1.hours, race_condition_ttl: 3.seconds, skip_nil: true) do
         # No shell: `| tail -n +3` skipped the two header lines, which
         # `lines.drop(2)` does directly.
         raw_output, scontrol_status = Open3.capture2e(
@@ -41,16 +46,15 @@ module Api
             } }
           }.sort_by { |hash| -hash[:used] }
         else
-          return false
+          # `next`, not `return`: `return` here returned from the whole action,
+          # so the :internal_server_error below was unreachable and Rails
+          # replied 204 instead.
+          next nil
         end
       end
 
       if gpu_hour_summary
-        if gpu_hour_summary == :not_in_allocation
-          head :forbidden
-        else
-          render json: gpu_hour_summary.to_json, status: :ok
-        end
+        render json: gpu_hour_summary.to_json, status: :ok
       else
         head :internal_server_error
       end

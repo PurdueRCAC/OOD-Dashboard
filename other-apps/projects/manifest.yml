@@ -1,7 +1,7 @@
 ---
 name: Projects
 description: |-
-  The Open OnDemand Jobs Composer App
+  Organize work into projects, and create, edit, and submit job scripts.
 category: Jobs
 icon: fa://magic
 role: projects

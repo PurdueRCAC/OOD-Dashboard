@@ -1,7 +1,6 @@
 ---
-name: osc-editor
+name: File Editor
 description: |-
-  A text editor for files on OSC systems
-documentation: |-
+  A text editor for files on this cluster.
 url: files/edit
 new_window: true

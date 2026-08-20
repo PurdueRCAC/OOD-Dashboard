@@ -14,7 +14,9 @@ module Api
     def get
       return head :not_found unless ::Configuration.news_feed_enabled?
 
-      result = Rails.cache.fetch(cache_key, expires_in: 30.minutes, race_condition_ttl: 3.seconds) do
+      # skip_nil so an unreachable endpoint is not cached for half an hour: the
+      # block yields nil on failure and the next request retries.
+      result = Rails.cache.fetch(cache_key, expires_in: 30.minutes, race_condition_ttl: 3.seconds, skip_nil: true) do
         body = fetch_feed(::Configuration.news_feed_url)
 
         if body
@@ -49,7 +51,10 @@ module Api
             }
           end
         else
-          return false
+          # `next`, not `return`: `return` here returned from the whole action,
+          # so the :internal_server_error below was unreachable and Rails
+          # replied 204 instead.
+          next nil
         end
       end
 

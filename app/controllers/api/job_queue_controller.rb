@@ -3,7 +3,7 @@ require "open3"
 module Api
   class JobQueueController < ApplicationController
     def get
-      squeue = Rails.cache.fetch("squeue", expires_in: 5.seconds) do
+      squeue = Rails.cache.fetch("squeue", expires_in: 5.seconds, skip_nil: true) do
         output, squeue_status = Open3.capture2e("squeue", "-t", "all", "-h", "-o", "%i|%P|%j|%u|%T|%r|%V|%S|%e")
 
         if squeue_status.success?
@@ -23,7 +23,10 @@ module Api
           }
           jobs
         else
-          return []
+          # `next`, not `return`: `return` here returned from the whole action,
+          # so the :internal_server_error below was unreachable and Rails
+          # replied 204 instead.
+          next nil
         end
       end
 
