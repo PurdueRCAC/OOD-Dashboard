@@ -147,6 +147,17 @@ class ConfigurationSingleton
       :gpu_account_tres                   => 'gres/gpu',
       :cpu_account_tres                   => 'cpu',
 
+      # TRES the Accounts widget reads an allocation's CPU *capacity* from
+      # (GrpTRES) -- a different axis from the balance (GrpTRESMins) above.
+      # Standard Slurm reports capacity as `cpu`; sites metering a derived
+      # resource set their own, e.g. `gres/hp_cpu`.
+      :cpu_capacity_tres                  => 'cpu',
+
+      # What an allocation's balance is denominated in, for display only. The
+      # Accounts widget labels the figure with this, so a site whose billing
+      # TRES is not GPU time can say "SUs" or "core-hours" instead.
+      :balance_unit_label                 => 'GPU hours',
+
       # GPU-hour accounting. Sites that do not charge for GPU hours can leave
       # these unset, in which case GPU hours are reported as "N/A".
       # Jobs numbered at or below this id predate GPU accounting and are exempt.

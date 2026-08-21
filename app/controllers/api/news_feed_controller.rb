@@ -20,7 +20,17 @@ module Api
         body = fetch_feed(::Configuration.news_feed_url)
 
         if body
-          json_data = JSON.parse(body)
+          # A misconfigured endpoint can return an HTML error page or a captive
+          # portal instead of JSON; that is a widget that hides itself, not a
+          # 500 for the whole dashboard.
+          json_data = begin
+            JSON.parse(body)
+          rescue JSON::ParserError => e
+            Rails.logger.warn("News feed at #{::Configuration.news_feed_url.inspect} returned unparsable JSON: #{e.message}")
+            nil
+          end
+          next nil if json_data.nil?
+
           articles = json_data["data"]
           filtered = articles
             .select { |article| NEWS_TYPE_IDS.include?(article["newstypeid"].to_i) }

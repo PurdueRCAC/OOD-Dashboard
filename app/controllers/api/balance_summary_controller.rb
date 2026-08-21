@@ -4,56 +4,15 @@ module Api
   class BalanceSummaryController < ApplicationController
     def get
       allocation = params[:allocation]
-
-      user = @user.name
-
-      allocations = Util.get_user_allocations(user)
+      allocations = Util.get_user_allocations(@user.name)
 
       # Render directly: `return :not_in_allocation` returned the symbol from
-      # this action, so nothing was rendered and Rails replied 204 -- the
-      # `== :not_in_allocation` comparison further down was never reached.
+      # this action, so nothing was rendered and Rails replied 204.
       if !(allocations && allocations.split(",").include?(allocation))
         return head :forbidden
       end
 
-      cache_key = ["balance_summary", allocation, ::Configuration.gpu_account_pattern,
-                   ::Configuration.gpu_account_tres, ::Configuration.cpu_account_tres].join("/")
-      # skip_nil so a scheduler failure is not cached for an hour: the block
-      # yields nil on failure and the next request retries.
-      balance_summary = Rails.cache.fetch(cache_key, expires_in: 1.hours, race_condition_ttl: 3.seconds, skip_nil: true) do
-        # No shell: `| tail -n +3` skipped the two header lines, which
-        # `lines.drop(2)` does directly.
-        raw_output, scontrol_status = Open3.capture2e(
-          "scontrol", "show", "assoc", "accounts=#{allocation}", "flags=assoc", "-o"
-        )
-        output = raw_output.lines.drop(2).join
-
-        if scontrol_status.success?
-          # First find the limit from the account line
-          account_line = Util.scontrol_to_hash(output).find { |line_h| line_h["Account"] == allocation }
-          limit = if account_line
-            grp_tres_mins = account_line["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
-            data = grp_tres_mins[::Configuration.account_tres_for(account_line["Account"])]
-            data.match(/(\d+|N)\((\d+)\)/) { |m| m[1].to_f.positive? ? m[1].to_f / 60 : "No limit" }
-          end
-
-          # Then process the non-blank UserName lines as before, but use the found limit
-          Util.scontrol_to_hash(output).select { |line_h| !line_h["UserName"].blank? }.map { |line_h|
-            grp_tres_mins = line_h["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
-            data = grp_tres_mins[::Configuration.account_tres_for(line_h["Account"])]
-            data.match(/(\d+|N)\((\d+)\)/) { |m| { 
-              user: line_h["UserName"].split("(")[0], 
-              used: m[2].to_f / 60, 
-              limit: m[1].to_f.positive? ? m[1].to_f / 60 : limit
-            } }
-          }.sort_by { |hash| -hash[:used] }
-        else
-          # `next`, not `return`: `return` here returned from the whole action,
-          # so the :internal_server_error below was unreachable and Rails
-          # replied 204 instead.
-          next nil
-        end
-      end
+      balance_summary = Util.account_balance_rows(allocation)
 
       if balance_summary
         render json: balance_summary.to_json, status: :ok

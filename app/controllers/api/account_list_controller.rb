@@ -26,39 +26,40 @@ module Api
             h[account] += cpus.to_i
           end
 
+          capacity_tres = ::Configuration.cpu_capacity_tres
+
           parsed_data = Util.scontrol_to_hash(scontrol_output)
           parsed_data.select { |line_h| line_h["UserName"].blank? }.map { |line_h|
-            grp_tres = line_h["GrpTRES"].split(",").map { |pair| pair.split("=") }.to_h
-            grp_tres_mins = line_h["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
+            account = line_h["Account"]
+            grp_tres = Util.tres_hash(line_h["GrpTRES"])
+            grp_tres_mins = Util.tres_hash(line_h["GrpTRESMins"])
 
-            grp_tres_cpu_match = grp_tres["cpu"].match(/([^()]+)\((\d+)\)/)
-            grp_tres_gres_hp_cpu_match = grp_tres["gres/hp_cpu"].match(/([^()]+)\((\d+)\)/)
+            # Which TRES holds the balance depends on the account. The sibling
+            # balance_summary controller has always resolved it this way; this
+            # one hardcoded "billing", which is why the two widgets could
+            # disagree about the same allocation.
+            balance_tres = ::Configuration.account_tres_for(account)
 
-            grp_tres_mins_billing_match = grp_tres_mins["billing"].match(/([^()]+)\((\d+)\)/)
+            cpu_limit, cpu_used = Util.tres_pair(grp_tres, capacity_tres)
+            balance_limit, balance_used = Util.tres_pair(grp_tres_mins, balance_tres)
 
-            cpu_total = grp_tres_gres_hp_cpu_match[1].to_i
-            cpu_running = grp_tres_gres_hp_cpu_match[2].to_i
-
-            gpu_total = (grp_tres_mins_billing_match[1].to_f / 60.0)
-            gpu_used = (grp_tres_mins_billing_match[2].to_f / 60.0)
-
-            user_line = parsed_data.find { |l| 
-              l["UserName"]&.match?(/^#{Regexp.escape(user.to_s)}(\(\d+\))?$/) && 
-              l["Account"] == line_h["Account"] 
+            user_line = parsed_data.find { |l|
+              l["UserName"]&.match?(/\A#{Regexp.escape(user.to_s)}(\(\d+\))?\z/) &&
+              l["Account"] == account
             }
+            _user_limit, user_balance_used =
+              Util.tres_pair(Util.tres_hash(user_line&.[]("GrpTRESMins")), balance_tres)
 
-            user_grp_tres_mins = user_line["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
-            user_grp_tres_mins_billing_match = user_grp_tres_mins["billing"].match(/([^()]+)\((\d+)\)/)
-            user_gpu_used = (user_grp_tres_mins_billing_match[2].to_f / 60.0)
-            
             {
-              account: line_h["Account"],
-              cpu_total: cpu_total,
-              cpu_queue: cpu_queued_sums[line_h["Account"]],
-              cpu_running: cpu_running,
-              gpu_used: gpu_used,
-              user_gpu_used: user_gpu_used,
-              gpu_total: gpu_total
+              account: account,
+              cpu_total: cpu_limit.to_i,
+              cpu_queue: cpu_queued_sums[account],
+              cpu_running: cpu_used.to_i,
+              # Named for the balance, not for GPUs: what the billing TRES
+              # denominates is site-specific (see balance_unit_label).
+              balance_used: Util.tres_minutes_to_hours(balance_used),
+              user_balance_used: Util.tres_minutes_to_hours(user_balance_used),
+              balance_total: Util.tres_minutes_to_hours(balance_limit)
             }
           }.sort_by { |hash| hash[:account] }
         else
