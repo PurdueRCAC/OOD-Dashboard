@@ -128,6 +128,18 @@ class ConfigurationSingleton
       # `$USER` is expanded to the current user's name.
       :scratch_dir_template               => nil,
 
+      # Home directory the disk usage widget links into. Leave unset and it
+      # uses the PUN process's own `$HOME`, which is correct wherever home
+      # directories are per-user; set it only where the path the Files app
+      # needs differs from `$HOME`. `$USER` is expanded.
+      :home_dir_template                  => nil,
+
+      # GPU model shown on node pages, mapping the GRES token the scheduler
+      # reports to a human-readable name. A token with no mapping is displayed
+      # as-is rather than left blank, so an unconfigured site still shows
+      # something truthful.
+      :gpu_models                         => 'l40:Nvidia L40,h100:Nvidia H100,h200:Nvidia H200',
+
       # Command the Storage widget runs to report filesystem quotas, given the
       # username as its only argument. There is no portable way to ask a cluster
       # this, so it is a site-local wrapper; leave unset and the widget hides
@@ -213,6 +225,55 @@ class ConfigurationSingleton
   # @return [Array<String>] partitions charged for GPU hours; empty means none
   def gpu_hours_partitions
     site_config_list(:gpu_hours_partitions)
+  end
+
+  # Partitions the Partition Status widget presents as GPU partitions, where
+  # usage is drawn per GPU rather than per core.
+  #
+  # @return [Array<String>] empty means no partition is treated as GPU
+  def gpu_partitions
+    site_config_list(:gpu_partitions)
+  end
+
+  # Partitions allocated whole-node, where per-core usage is not meaningful.
+  #
+  # @return [Array<String>] empty means none
+  def wholenode_partitions
+    site_config_list(:wholenode_partitions)
+  end
+
+  # News feed article types to keep, as the integer ids the feed API uses.
+  # Defaults to the set the RCAC news API uses; configure an empty string to
+  # keep every article regardless of type.
+  #
+  # Not a `site_string_configs` key: this name is taken by the method.
+  #
+  # @return [Array<Integer>] empty means keep every article
+  def news_type_ids
+    raw = site_config(:news_type_ids)
+    raw = '1,2,3,6,7' if raw.nil?
+    raw.to_s.split(',').map(&:strip).reject(&:empty?).map(&:to_i)
+  end
+
+  # GRES token -> display name, parsed from the `gpu_models` config, which is a
+  # comma-separated list of `token:label` pairs.
+  #
+  # Reads the generated `gpu_models` accessor rather than `site_config_list`:
+  # `site_config` consults only the environment and the external config file,
+  # so a key that carries a default in `site_string_configs` loses that default
+  # when read that way.
+  #
+  # @return [Hash{String=>String}]
+  def gpu_model_map
+    gpu_models.to_s.split(',').map(&:strip).reject(&:empty?).each_with_object({}) do |pair, h|
+      token, label = pair.split(':', 2)
+      h[token.to_s.strip] = label.to_s.strip if token.present? && label.present?
+    end
+  end
+
+  # @return [String, nil] home directory for the given user, if configured
+  def home_dir_for(user)
+    home_dir_template&.gsub('$USER', user.to_s).presence
   end
 
   # Compiled form of `node_name_pattern`. An unusable pattern is logged and

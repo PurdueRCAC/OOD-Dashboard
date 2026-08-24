@@ -255,6 +255,22 @@ module Util
     gpu_memory_efficiency_from(fetch_jobstats(data))
   end
 
+  # Matches the working directory of an interactive-session job, capturing the
+  # session uuid so My Jobs can link a job back to its session.
+  #
+  # Built from the dashboard's own dataroot rather than a literal
+  # `/home/<user>/ondemand/data/sys/dashboard`. That path is only correct for
+  # the default OOD_DATAROOT / OOD_PORTAL / APP_TOKEN; a site whose homes are
+  # under `/users/` or whose dataroot is relocated reported "N/A" for every
+  # job's session id. This regex was also duplicated verbatim in three
+  # controllers.
+  #
+  # @return [Regexp] with a `uuid` capture group
+  def self.interactive_session_regex
+    batch_connect_root = Regexp.escape(OodAppkit.dataroot.join("batch_connect").to_s)
+    %r{\A#{batch_connect_root}/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
+  end
+
   # Per-user balance rows for one allocation, as both the Balances widget and
   # the GPU-hour widget display them.
   #

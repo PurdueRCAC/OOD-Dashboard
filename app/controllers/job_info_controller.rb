@@ -50,7 +50,7 @@ class JobInfoController < ApplicationController
         "sacct", "-j", jobid, "-P", "-n", "-o", MyJobsController::SACCT_FIELDS.join(",")
       )
       if sacct_status.success?
-        interactive_app_regex = %r{\A/home/#{Regexp.escape(@user.name)}/ondemand/data/sys/dashboard/batch_connect/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
+        interactive_app_regex = Util.interactive_session_regex
         jobs = {}
 
         result.each_line do |line|
