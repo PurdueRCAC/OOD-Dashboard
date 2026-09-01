@@ -2,6 +2,38 @@ require "open3"
 require "set"
 
 module Util
+  # Slurm reports TRES-minutes; the widgets display hours.
+  MINUTES_PER_HOUR = 60.0
+
+  # scontrol reports TRES as a comma-separated "key=value" list.
+  #
+  # @return [Hash{String=>String}] empty when the field is absent
+  def self.tres_hash(field)
+    field.to_s.split(",").map { |pair| pair.split("=", 2) }.to_h
+  end
+
+  # A TRES value looks like "<limit>(<used>)", where the limit is "N" when there
+  # is none. Returns the pair as strings, or [nil, nil] when the scheduler does
+  # not report this TRES at all -- the normal case at a site metering something
+  # different. Callers previously did an unguarded `.match(...)[1]` here, so
+  # such a site got a NoMethodError and a 500 rather than a widget that simply
+  # omits the figure.
+  #
+  # @return [Array(String, String), Array(nil, nil)]
+  def self.tres_pair(tres, key)
+    match = tres[key]&.match(/([^()]+)\((\d+)\)/)
+    match ? [match[1], match[2]] : [nil, nil]
+  end
+
+  # TRES-minutes as hours. Missing values become 0, which is what the widgets
+  # already treat as "nothing to show" -- the same thing "N" (no limit) has
+  # always converted to.
+  #
+  # @return [Float]
+  def self.tres_minutes_to_hours(minutes)
+    minutes.to_f / MINUTES_PER_HOUR
+  end
+
   def self.to_bytes(value)
     return 0 if value.nil? || value.empty?
 
@@ -221,6 +253,73 @@ module Util
 
   def self.gpu_memory_efficiency(data)
     gpu_memory_efficiency_from(fetch_jobstats(data))
+  end
+
+  # Matches the working directory of an interactive-session job, capturing the
+  # session uuid so My Jobs can link a job back to its session.
+  #
+  # Built from the dashboard's own dataroot rather than a literal
+  # `/home/<user>/ondemand/data/sys/dashboard`. That path is only correct for
+  # the default OOD_DATAROOT / OOD_PORTAL / APP_TOKEN; a site whose homes are
+  # under `/users/` or whose dataroot is relocated reported "N/A" for every
+  # job's session id. This regex was also duplicated verbatim in three
+  # controllers.
+  #
+  # @return [Regexp] with a `uuid` capture group
+  def self.interactive_session_regex
+    batch_connect_root = Regexp.escape(OodAppkit.dataroot.join("batch_connect").to_s)
+    %r{\A#{batch_connect_root}/sys/\w+/output/(?<uuid>[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\z}
+  end
+
+  # Per-user balance rows for one allocation, as both the Balances widget and
+  # the GPU-hour widget display them.
+  #
+  # These two widgets used to have a controller each with near-identical bodies
+  # differing only in how the balance TRES was chosen -- one resolved it from
+  # config, the other hardcoded "billing" -- so the same allocation could show
+  # different numbers in different widgets. One implementation, one cache entry,
+  # so they cannot disagree.
+  #
+  # @return [Array<Hash>, nil] nil when the scheduler call fails
+  def self.account_balance_rows(allocation)
+    tres = Configuration.account_tres_for(allocation)
+    # The TRES config participates in the key so a config change takes effect
+    # immediately rather than after the hour-long cache expires.
+    cache_key = ["account_balance_rows", allocation, tres].join("/")
+
+    Rails.cache.fetch(cache_key, expires_in: 1.hours, race_condition_ttl: 3.seconds, skip_nil: true) do
+      raw_output, status = Open3.capture2e(
+        "scontrol", "show", "assoc", "accounts=#{allocation}", "flags=assoc", "-o"
+      )
+      next nil unless status.success?
+
+      # `| tail -n +3` skipped the two header lines.
+      rows = scontrol_to_hash(raw_output.lines.drop(2).join)
+
+      # The account-level line carries the limit that user lines inherit when
+      # they have none of their own.
+      account_line = rows.find { |h| h["Account"] == allocation }
+      account_limit =
+        if account_line
+          limit, _used = tres_pair(tres_hash(account_line["GrpTRESMins"]), tres)
+          limit.to_f.positive? ? tres_minutes_to_hours(limit) : "No limit"
+        end
+
+      rows.reject { |h| h["UserName"].blank? }.filter_map { |h|
+        limit, used = tres_pair(tres_hash(h["GrpTRESMins"]), tres)
+        # A site whose scheduler does not report this TRES gets a row-less
+        # widget rather than an exception. filter_map drops the row entirely;
+        # previously a non-matching line became a nil that then blew up in
+        # sort_by.
+        next if used.nil?
+
+        {
+          user: h["UserName"].split("(")[0],
+          used: tres_minutes_to_hours(used),
+          limit: limit.to_f.positive? ? tres_minutes_to_hours(limit) : account_limit
+        }
+      }.sort_by { |row| -row[:used] }
+    end
   end
 
   def self.scontrol_to_hash(output)

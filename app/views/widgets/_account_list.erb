@@ -120,7 +120,7 @@
         }).then(data => {
             const tableHtml = data.length === 0 ? '<div class="h5 mb-2">No allocations available</div>' : data.map((row) => {
                 const percentCPU = (row.cpu_running / row.cpu_total) * 100 || 0;
-                const percentGPU = (row.gpu_used / row.gpu_total) * 100 || 0;
+                const percentBalance = (row.balance_used / row.balance_total) * 100 || 0;
 
                 const barHtml = `
                 <div class="mb-3">
@@ -142,8 +142,8 @@
                                 <div class="gpu-hour-export-dropdown dropdown-menu dropdown-menu-right shadow-sm" 
                                     aria-labelledby="${escapeHtml(row.account)}-export-dropdown-button" 
                                     data-account="${escapeHtml(row.account)}"
-                                    data-total-gpu-hours-used="${row.gpu_used}"
-                                    data-total-gpu-hours-limit="${row.gpu_total}">
+                                    data-total-balance-used="${row.balance_used}"
+                                    data-total-balance-limit="${row.balance_total}">
                                     <button class="dropdown-item text-body" style="font-size: 0.875rem;">
                                         <i class="fas fa-file-csv"></i> CSV
                                     </button>
@@ -183,31 +183,31 @@
                             </div>
                         </div>
                         ` : ''}
-                        ${row.gpu_total != 0 ? `
+                        ${row.balance_total != 0 ? `
                             <div class="d-flex flex-column mt-1">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="text-nowrap" style="font-size: 1rem;">
-                                        ${row.gpu_total === "No limit" ? 
-                                            `<b>${formatLargeNumber(+row.gpu_used)}</b> <span class="text-muted">(No GPU hour limit)</span>` :
-                                            `<b>${formatLargeNumber(+row.gpu_used)}</b> / 
-                                            <b>${formatLargeNumber(+row.gpu_total)}</b> GPU hours used
+                                        ${row.balance_total === "No limit" ? 
+                                            `<b>${formatLargeNumber(+row.balance_used)}</b> <span class="text-muted">(No ${BALANCE_UNIT_LABEL} limit)</span>` :
+                                            `<b>${formatLargeNumber(+row.balance_used)}</b> / 
+                                            <b>${formatLargeNumber(+row.balance_total)}</b> ${BALANCE_UNIT_LABEL} used
                                             <span class="text-muted">
-                                                (user: <b>${formatLargeNumber(+row.user_gpu_used)}</b>)
+                                                (user: <b>${formatLargeNumber(+row.user_balance_used)}</b>)
                                             </span>
                                             `
                                         }
                                     </div>
                                     <div class="text-muted ml-2 text-nowrap" style="min-width: 3rem; text-align: right; font-size: 1rem;">
-                                        ${row.gpu_total === "No limit" ? '' : `${Math.round(percentGPU)}%`}
+                                        ${row.balance_total === "No limit" ? '' : `${Math.round(percentBalance)}%`}
                                     </div>
                                 </div>
                                 <div class="progress mt-2" style="height: 8px; border-radius: 4px;">
                                     <div class="progress-bar" role="progressbar" 
-                                        style="background-color: ${row.gpu_total === "No limit" ? '#28a745' : 
-                                            percentGPU > 95 ? '#dc3545' : 
-                                            percentGPU > 75 ? '#ffc107' : '#28a745'}; 
+                                        style="background-color: ${row.balance_total === "No limit" ? '#28a745' : 
+                                            percentBalance > 95 ? '#dc3545' : 
+                                            percentBalance > 75 ? '#ffc107' : '#28a745'}; 
                                         width: 0; transition: width 0.6s ease-in-out;" 
-                                        aria-valuenow="${row.gpu_total === "No limit" ? 0 : percentGPU}" 
+                                        aria-valuenow="${row.balance_total === "No limit" ? 0 : percentBalance}" 
                                         aria-valuemin="0" 
                                         aria-valuemax="100">
                                     </div>
@@ -246,11 +246,11 @@
             $('div.gpu-hour-export-dropdown .dropdown-item').on("click", function() {
                 const $dropdown = $(this).parent();
                 const allocation = $dropdown.data("account");
-                const total_gpu_hours_used = $dropdown.data("total-gpu-hours-used");
-                const total_gpu_hours_limit = $dropdown.data("total-gpu-hours-limit");
+                const total_balance_used = $dropdown.data("total-balance-used");
+                const total_balance_limit = $dropdown.data("total-balance-limit");
                 // Extract just the text content, removing any HTML and trimming whitespace
                 const exportType = $(this).text().trim();
-                download_balance_summary(allocation, exportType, total_gpu_hours_used, total_gpu_hours_limit);
+                download_balance_summary(allocation, exportType, total_balance_used, total_balance_limit);
             });
         }).catch(res => {
             const errorHtml = `

@@ -4,6 +4,12 @@
 // `files` routes only exist when the sibling app is present.
 const FILES_BASE = <%= raw files_base_path.to_s.to_json %>;
 
+// What an allocation's balance is denominated in. Slurm records it under a
+// billing TRES whose meaning is site policy -- GPU hours here, SUs or
+// core-hours elsewhere -- so the Accounts widget labels the figure with this
+// rather than assuming.
+const BALANCE_UNIT_LABEL = <%= raw Configuration.balance_unit_label.to_s.to_json %>;
+
 // Patterns for Patternomaly
 PATTERNS = [
   "plus",

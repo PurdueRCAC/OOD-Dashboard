@@ -20,27 +20,28 @@ module Api
 
         if scontrol_status.success?
           parsed_data = Util.scontrol_to_hash(output)
-          parsed_data.select { |line_h| line_h["UserName"].blank? }.map { |line_h|
-            grp_tres_mins = line_h["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h
-            tres_key = ::Configuration.account_tres_for(line_h["Account"])
-            data = grp_tres_mins[tres_key]
-            
+          parsed_data.select { |line_h| line_h["UserName"].blank? }.filter_map { |line_h|
+            account = line_h["Account"]
+            tres_key = ::Configuration.account_tres_for(account)
+            limit, used = Util.tres_pair(Util.tres_hash(line_h["GrpTRESMins"]), tres_key)
+
+            # A site whose scheduler does not report this TRES gets a row-less
+            # widget rather than an exception. Previously an unmatched line
+            # became a nil that then blew up in sort_by.
+            next if used.nil?
+
             # Get user's specific usage for this account
-            user_line = parsed_data.find { |l| 
-              l["UserName"]&.match?(/^#{Regexp.escape(user.to_s)}(\(\d+\))?$/) && 
-              l["Account"] == line_h["Account"] 
+            user_line = parsed_data.find { |l|
+              l["UserName"]&.match?(/\A#{Regexp.escape(user.to_s)}(\(\d+\))?\z/) &&
+              l["Account"] == account
             }
-            user_tres_mins = user_line ? user_line["GrpTRESMins"].split(",").map { |pair| pair.split("=") }.to_h : {}
-            user_data = user_tres_mins[tres_key]
-            user_usage = user_data&.match(/(\d+|N)\((\d+)\)/)&.[](2).to_f / 60 rescue 0
-            
-            data.match(/(\d+|N)\((\d+)\)/) { |m| 
-              { 
-                account: line_h["Account"], 
-                used: m[2].to_f / 60,
-                user_used: user_usage,
-                limit: m[1].to_f.positive? ? m[1].to_f / 60 : "No limit"
-              } 
+            _user_limit, user_used = Util.tres_pair(Util.tres_hash(user_line&.[]("GrpTRESMins")), tres_key)
+
+            {
+              account: account,
+              used: Util.tres_minutes_to_hours(used),
+              user_used: Util.tres_minutes_to_hours(user_used),
+              limit: limit.to_f.positive? ? Util.tres_minutes_to_hours(limit) : "No limit"
             }
           }.sort_by { |hash| hash[:account] }
         else

@@ -29,7 +29,7 @@ We've built a website to host the demo at: https://tinyurl.com/ood-dashboard-dem
 
 If you want to play with the demo and build your own demo, please follow the options below.
 
-### (Recommended) Option1: Container - Apptainer
+### (Recommended) Option 1: Container — Apptainer
 
 Apptainer needs no root and is the path of least resistance on HPC.
 
@@ -42,7 +42,7 @@ apptainer run --cleanenv dashboard-demo.sif
 > `--cleanenv` matters: without it the host's `LD_PRELOAD` leaks in and the
 > container will not start if anything pollutes it (e.g. XALT). 
 
-### (Recommended) Option2: Container - Docker
+### (Recommended) Option 2: Container — Docker
 
 A `demo/Dockerfile` mirrors it for Docker sites.
 
@@ -52,7 +52,7 @@ docker run --rm -p 3000:3000 ood-dashboard:demo
 # open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
 
-### Option3: Install all the required applications and gems
+### Option 3: Install all the required applications and gems
 
 You can install all required applications and gems under your own space (`root` is not required), then try 
 the demo using pre-installed packages with the commands below
@@ -64,12 +64,14 @@ OOD_DEMO_MODE=true bundle exec rails server -b 0.0.0.0 -p 3000
 # open http://localhost:3000 or check with `demo/smoke.sh` (see below)
 ```
 
-Needs Ruby 3.1–3.3, Node 16+ and Yarn 1.x on your `PATH`. Demo mode talks to no
-PUN, so there is no Ruby ABI to match — any version the app runs under is fine
-(verified on 2.7.8, 3.1.2 and 3.3.10). If you manage Ruby with rbenv, pin a
-version you actually have (`rbenv local 3.3.8`): `rbenv local` on a version that
-is not installed fails without writing anything, which silently stops the rest
-of the `&&` chain.
+Needs Ruby 2.7–3.3 (verified on 2.7.8, 3.1.2 and 3.3.10), Node 16+ and Yarn
+1.x on your `PATH`. Demo mode talks to no PUN, so there is no Ruby ABI to
+match — any version in that range is fine.
+
+If you manage Ruby with rbenv, pin a version **you actually have installed**
+(`rbenv local 3.3.10`, or whichever `rbenv versions` lists): `rbenv local` on a
+version that is not installed fails without writing anything, which silently
+stops the rest of the `&&` chain.
 
 or, **on the Open OnDemand web node** of a configured instance, you can just run
 
@@ -90,6 +92,10 @@ Two things to know about this second path, because neither fails loudly:
   there wins over the demo's own defaults. If your site config points the news
   feed at a real API, the Announcements widget comes back empty. Comment out the
   `OOD_NEWS_*` lines and restart — `.env.local` is only read at boot.
+- `install.sh` writes outside the checkout: it copies the four app stubs in
+  `other-apps/` into `$HOME/ondemand/dev/`, each only if that destination does
+  not already exist. See
+  [What install.sh changes](docs/INSTALLATION.md#what-installsh-changes).
 
 ### Checking it works
 

@@ -31,8 +31,11 @@
 </style>
 
 <script defer>
-    const wholenodePartitions = [];
-    const gpuPartitions = ["ai", "smallgpu"];
+    // Which partitions are whole-node or GPU is site policy, not something
+    // this app can infer from the scheduler. Both default to empty, so an
+    // unconfigured site gets the generic per-core layout for every partition.
+    const wholenodePartitions = <%= raw Configuration.wholenode_partitions.to_json %>;
+    const gpuPartitions = <%= raw Configuration.gpu_partitions.to_json %>;
     function getProgressBarColor(ratio) {
         if (ratio < 0.7) return 'bg-success';
         if (ratio < 0.9) return 'bg-warning';

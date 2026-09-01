@@ -2,11 +2,6 @@ require "open3"
 
 module Api
   class NodesController < ApplicationController
-    GPUS = {
-      "l40" => "Nvidia L40",
-      "h100" => "Nvidia H100",
-      "h200" => "Nvidia H200",
-    }
     # Slurm node names are alphanumerics plus `-` and `_`. Anything else is
     # rejected before it reaches the scheduler commands below.
     NODE_NAME_REGEX = /\A[a-zA-Z0-9_\-]+\z/
@@ -31,7 +26,11 @@ module Api
             node_data["gpu_info"] = {
               "allocated" => (alloctres_hash["gres/gpu"] || 0).to_i,
               "total" => (cfgtres_hash["gres/gpu"] || 0).to_i,
-              "model" => GPUS[node_data["Gres"].split(":")[1]]
+              # Fall back to the raw GRES token rather than nil: a site whose
+              # accelerator is not in the configured map should see "a100",
+              # not a blank field.
+              "model" => (gres_token = node_data["Gres"]&.split(":")&.[](1)) &&
+                         (::Configuration.gpu_model_map[gres_token] || gres_token)
             }
             
             # Calculate memory per resource (CPU or GPU)

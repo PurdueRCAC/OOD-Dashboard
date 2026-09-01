@@ -17,6 +17,7 @@ behaves like the stock dashboard.
 - [Accounts and Balance widgets](#accounts-and-balance-widgets)
 - [Stock OOD warning banners](#stock-ood-warning-banners)
 - [Partitions](#partitions)
+- [Cluster Status](#cluster-status)
 - [GPU-hour accounting](#gpu-hour-accounting)
 - [Per-job efficiency metrics](#per-job-efficiency-metrics)
 - [Support tickets](#support-tickets)
@@ -61,15 +62,25 @@ the widget's info icon is not rendered.
 | `OOD_NEWS_FEED_URL` | JSON news endpoint; unset disables the widget | none |
 | `OOD_NEWS_FEED_RESOURCE_FILTER` | Keep only articles tagged with this resource name | keep all |
 | `OOD_NEWS_PAGE_URL` | Human-facing archive, linked as *View All* | none |
+| `OOD_NEWS_TYPE_IDS` | Comma-separated `newstypeid` values to keep; empty keeps every article | `1,2,3,6,7` |
 
 The widget expects the response shape produced by Purdue RCAC's news API: a
 `data` array whose entries carry `headline`, `uri`, `formattedbody`,
 `datetimenews`, `datetimenewsend`, `newstypeid`, and optional `updates` and
-`resources`. Article types are mapped in `NEWS_TYPE_IDS` in
-`app/controllers/api/news_feed_controller.rb`.
+`resources`.
 
-> **If your news system differs, that controller is the one file you will need
-> to adapt** — it is the only place the feed format is assumed.
+The default `OOD_NEWS_TYPE_IDS` matches that API's taxonomy — 1 Outages and
+Maintenance, 2 Announcements, 3 Science Highlights, 6 Outages, 7 Maintenance.
+If your feed numbers its types differently, set your own ids; if it has no type
+concept, set the key to an empty string to keep everything.
+
+> **If your news system uses a different response shape**, `app/controllers/api/
+> news_feed_controller.rb` is the one file you will need to adapt — it is the
+> only place the feed format is assumed. Article *types*, though, are now
+> configuration rather than a constant in that file.
+
+Article bodies are sanitized against a tag allow-list, and article links are
+restricted to `http`/`https`, before anything reaches the browser.
 
 ## Storage widget
 
@@ -81,6 +92,7 @@ Unset, the widget is absent.
 | `OOD_QUOTA_COMMAND` | Command reporting quotas, given the username as its only argument | none (widget hidden) |
 | `OOD_QUOTA_COMMAND_SKIP_LINES` | Header rows to skip before the first data row | `3` |
 | `OOD_SCRATCH_DIR_TEMPLATE` | Scratch path for `scratch`-type rows; `$USER` is expanded | `/<type>/<location>` |
+| `OOD_HOME_DIR_TEMPLATE` | Home path for `home`-type rows; `$USER` is expanded | the PUN's `$HOME` |
 
 Its output must be whitespace-separated columns, after the skipped header rows:
 
@@ -103,6 +115,21 @@ apart by account naming.
 | `OOD_GPU_ACCOUNT_PATTERN` | Regex matching GPU-denominated account names | none (all accounts read as CPU) |
 | `OOD_GPU_ACCOUNT_TRES` | TRES holding the balance for matching accounts | `gres/gpu` |
 | `OOD_CPU_ACCOUNT_TRES` | TRES holding the balance for all other accounts | `cpu` |
+| `OOD_CPU_CAPACITY_TRES` | TRES holding CPU *capacity* (GrpTRES), not balance | `cpu` |
+| `OOD_BALANCE_UNIT_LABEL` | What the balance figure is denominated in, for display | `GPU hours` |
+
+Balance and capacity are separate axes. The three TRES keys above read an
+allocation's **balance** from Slurm's `GrpTRESMins`; `OOD_CPU_CAPACITY_TRES`
+reads its **CPU capacity** from `GrpTRES`. Stock Slurm reports capacity as
+`cpu`; set this only if your site meters a derived resource under its own TRES
+name (Purdue RCAC uses `gres/hp_cpu`).
+
+A TRES your scheduler does not report is treated as "not available" and the
+figure is omitted, rather than erroring.
+
+`OOD_BALANCE_UNIT_LABEL` is display only — it does not change which TRES is
+read. Set it to match what your billing TRES actually denominates, e.g. `SUs`
+or `core-hours`.
 
 > Prefer `"-gpu$"` over `"-gpu\z"`: unquoted, `\z` is parsed as a literal `z`
 > and matches nothing. An invalid regex is logged and treated as no pattern.
@@ -127,6 +154,31 @@ own warning banners, which read JSON files rather than shelling out.
 | Key | Description | Default |
 |-----|-------------|---------|
 | `OOD_EXCLUDED_PARTITIONS` | Comma-separated partitions to hide from System Status | show all |
+| `OOD_GPU_PARTITIONS` | Partitions shown with per-GPU rather than per-core usage | none |
+| `OOD_WHOLENODE_PARTITIONS` | Partitions allocated whole-node, where per-core usage is not meaningful | none |
+
+Which partitions are GPU or whole-node is site policy and cannot be inferred
+from the scheduler. Unset, every partition gets the generic per-core layout.
+
+## Cluster Status
+
+| Key | Description | Default |
+|-----|-------------|---------|
+| `OOD_NODE_NAME_PATTERN` | Regex matched against node names; only matching nodes are listed | show all nodes |
+| `OOD_GPU_MODELS` | Comma-separated `token:label` pairs mapping GRES tokens to readable GPU names | `l40:Nvidia L40,h100:Nvidia H100,h200:Nvidia H200` |
+
+Leave `OOD_NODE_NAME_PATTERN` unset and every node the scheduler reports is
+listed — the right default for a site whose naming this app has not seen. Set
+it to hide login, service, or reservation-only nodes, e.g.
+`\A(cn|gpu)-\d+\z`.
+
+> If the pattern matches none of the reported nodes, or will not compile, that
+> is written to the log rather than silently producing an empty page. An
+> uncompilable pattern is treated as unset.
+
+`OOD_GPU_MODELS` maps whatever token your `Gres` field carries — `a100`,
+`mi300` — to a display name. A token with no mapping is shown as-is rather than
+left blank, so an unconfigured site still shows something truthful.
 
 ## GPU-hour accounting
 
@@ -166,7 +218,10 @@ are supported. See the
 ## Where the keys live in code
 
 - `config/configuration_singleton.rb` — `site_string_configs` defines the keys
-  and their defaults, and reads them from environment or config file.
+  and their defaults, and reads them from environment or config file. Keys that
+  need post-processing (comma-separated lists, the `token:label` GPU map, the
+  compiled node-name regex) are read there too but surfaced by named methods
+  such as `gpu_partitions`, `gpu_model_map` and `node_name_regexp`.
 - `app/helpers/application_helper.rb` — view-facing helpers, including the
   documentation-link fallbacks.
 - `app/views/shared/_docs_info_link.html.erb` — the per-widget info icon, which

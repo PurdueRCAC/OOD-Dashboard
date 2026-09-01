@@ -19,17 +19,14 @@ dashboard your users see.
 
 ## Features that need site-local work
 
-- **The news feed format is site-specific.** Only Purdue RCAC's news API shape
-  is implemented; other news systems require adapting
-  `app/controllers/api/news_feed_controller.rb`.
+- **The news feed response *shape* is site-specific.** Only Purdue RCAC's news
+  API shape is implemented; a news system returning a different JSON structure
+  requires adapting `app/controllers/api/news_feed_controller.rb`. Article
+  *types* are no longer part of that — they are `OOD_NEWS_TYPE_IDS`.
 - **The Storage widget needs a quota command you supply.** There is no portable
   way to ask a cluster for quotas, so `OOD_QUOTA_COMMAND` names a site-local
   wrapper and the widget parses its columns. Without one the widget is absent
   rather than broken, but you get no storage reporting until you write it.
-- **The Accounts widget still assumes two TRES names.** `OOD_GPU_ACCOUNT_TRES`
-  and `OOD_CPU_ACCOUNT_TRES` cover the balance figures, but the live core counts
-  in `api/account_list_controller.rb` still read the `gres/hp_cpu` and `billing`
-  TRES directly. Sites that do not define those will see that widget fail.
 
 ## Testing
 

@@ -4,13 +4,6 @@ require "json"
 
 module Api
   class NewsFeedController < ApplicationController
-    # 1: Outages and Maintenance
-    # 2: Announcements
-    # 3: Science Highlights
-    # 6: Outages
-    # 7: Maintenance
-    NEWS_TYPE_IDS = [1, 2, 3, 6, 7]
-
     def get
       return head :not_found unless ::Configuration.news_feed_enabled?
 
@@ -20,10 +13,23 @@ module Api
         body = fetch_feed(::Configuration.news_feed_url)
 
         if body
-          json_data = JSON.parse(body)
+          # A misconfigured endpoint can return an HTML error page or a captive
+          # portal instead of JSON; that is a widget that hides itself, not a
+          # 500 for the whole dashboard.
+          json_data = begin
+            JSON.parse(body)
+          rescue JSON::ParserError => e
+            Rails.logger.warn("News feed at #{::Configuration.news_feed_url.inspect} returned unparsable JSON: #{e.message}")
+            nil
+          end
+          next nil if json_data.nil?
+
           articles = json_data["data"]
+          # Which article types to keep are the feed API's own taxonomy ids, so
+          # they are site config. An empty list keeps every article.
+          type_ids = ::Configuration.news_type_ids
           filtered = articles
-            .select { |article| NEWS_TYPE_IDS.include?(article["newstypeid"].to_i) }
+            .select { |article| type_ids.empty? || type_ids.include?(article["newstypeid"].to_i) }
             .select { |article| matches_resource_filter?(article) }
 
           # Only keep the fields we need. The feed is remote HTML from a
@@ -121,7 +127,8 @@ module Api
     # cache key -- otherwise a config change keeps serving the old site's feed
     # until the entry expires.
     def cache_key
-      ["news_feed", ::Configuration.news_feed_url, ::Configuration.news_feed_resource_filter].join("/")
+      ["news_feed", ::Configuration.news_feed_url, ::Configuration.news_feed_resource_filter,
+       ::Configuration.news_type_ids.join("-")].join("/")
     end
 
     # Sites whose news API covers several clusters can narrow the feed to one

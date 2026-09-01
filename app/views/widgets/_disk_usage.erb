@@ -54,7 +54,11 @@
                 const fileUsagePercentage = parseInt(row.file_count_percentage.split("%")[0]);
                 let directoryPath = "";
                 if (row.type === "home") {
-                    directoryPath = "<%= ENV["HOME"] %>" || `/home/${row.location}`;
+                    // Home layout varies by site, so it comes from
+                    // OOD_HOME_DIR_TEMPLATE; unset falls back to the PUN
+                    // process's own $HOME, which is this user's home
+                    // directory. Mirrors the scratch handling below.
+                    directoryPath = <%= raw (Configuration.home_dir_for(@user.name) || ENV["HOME"]).to_s.to_json %> || `/${row.type}/${row.location}`;
 
                     if (diskUsagePercentage >= 100 || fileUsagePercentage >= 100) {
                         showWarning("home-directory-full-warning", `
