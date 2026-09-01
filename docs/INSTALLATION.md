@@ -184,6 +184,28 @@ the lock doesn't yet have:
 Commit a `Gemfile.lock` that already lists every platform you deploy to (and its
 precompiled native gems) to keep `install.sh` from modifying it on those hosts.
 
+#### It also writes outside the checkout
+
+`install.sh` copies the four app stubs in `other-apps/` into your home directory
+so they appear alongside the dashboard in the portal:
+
+| Source | Destination |
+| --- | --- |
+| `other-apps/activejobs/` | `$HOME/ondemand/dev/activejobs/` |
+| `other-apps/file-editor/` | `$HOME/ondemand/dev/file-editor/` |
+| `other-apps/files/` | `$HOME/ondemand/dev/files/` |
+| `other-apps/projects/` | `$HOME/ondemand/dev/projects/` |
+
+These are small `manifest.yml` stubs that point the portal's navigation at
+OnDemand's own Files, File Editor, Active Jobs and Projects apps — they contain
+no application code.
+
+> **Each is copied only if the destination does not already exist.** An existing
+> directory is left untouched and the step logs that it skipped. So if you have
+> deployed before, later changes to `other-apps/` will *not* reach your
+> `$HOME/ondemand/dev/` copies — remove the destination directory first, or copy
+> the file across by hand.
+
 ## 3. Configure for your site
 
 See the [Configuration reference](CONFIGURATION.md) for every key. The short
