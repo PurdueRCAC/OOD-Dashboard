@@ -377,8 +377,9 @@ module Api
     def cancel
       job_id = params[:jobid]
       
-      # Validate job ID format
-      unless /^\d+(_\d+)?$/.match?(job_id)
+      # Validate job ID format. \A and \z (not ^ and $), so an embedded newline
+      # cannot smuggle a second line past the check.
+      unless /\A\d+(_\d+)?\z/.match?(job_id)
         return render json: { error: "Invalid job ID format." }, status: :bad_request
       end
 
