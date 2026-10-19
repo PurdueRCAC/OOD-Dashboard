@@ -257,6 +257,10 @@ The balance and service-unit widgets originate in the Anvil OOD dashboard.
 
 </details>
 
+## Publication
+
+Richie Tan and Guangzhen Jin. 2025. "**A Modular, Responsive, and Accessible HPC Dashboard Built upon Open OnDemand**". In Proceedings of the SC '25 Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC Workshops '25). Association for Computing Machinery, New York, NY, USA, 688–696. https://doi.org/10.1145/3731599.3767434
+
 ## License
 
 [MIT License](LICENSE) — © Ohio Supercomputer Center (upstream dashboard) and
